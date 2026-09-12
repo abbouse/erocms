@@ -1,0 +1,9 @@
+.DS_Store
+content/temporary/*
+!content/temporary/.gitkeep
+content/cache/*
+!content/cache/.gitkeep
+content/video/*
+!content/video/.gitkeep
+content/screenshots/*
+!content/screenshots/.gitkeep
