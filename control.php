@@ -22,18 +22,30 @@
     
     if (isset($_POST['password'])){
         
-        $user = $mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, filter(md5(md5($_POST['password']))))."'") -> fetch_assoc();
+        $input_pass = trim($_POST['password']);
+        $hash1 = md5(md5($input_pass));
+        $hash2 = md5($input_pass);
+
+        $safe_input = mysqli_real_escape_string($mysqli, $input_pass);
+        $safe_hash1 = mysqli_real_escape_string($mysqli, $hash1);
+        $safe_hash2 = mysqli_real_escape_string($mysqli, $hash2);
+
+        $user_query = $mysqli -> query("SELECT * FROM ero_users WHERE password = '$safe_hash1' OR password = '$safe_hash2' OR disclosed = '$safe_input' LIMIT 1");
+        $user = ($user_query && $user_query -> num_rows > 0) ? $user_query -> fetch_assoc() : null;
         
         if ($user){
             
-            $mysqli -> query("update ero_users set information = '[".date('Y-m-d H:i:s', time())."] [IP ".filter($_SERVER['REMOTE_ADDR'])."] Hello, on your project authorization attempt.' where id = '$user[id]'");
+            $mysqli -> query("UPDATE ero_users SET information = '[".date('Y-m-d H:i:s')."] [IP ".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."] Hello, authorization success.' WHERE id = '".$user['id']."'");
             
             $_SESSION['password'] = $user['password'];
+            setcookie('password', $user['password'], time() + (86400 * 30), '/');
 
-            header('Location: /control.html?'.rand(1,9));
+            header('Location: /control.html?ok='.rand(1,99));
             exit;
         
-        } else error($lang['server_connection_error']);
+        } else {
+            error($lang['server_connection_error']);
+        }
 
     }
     

@@ -613,7 +613,8 @@ $settings = $mysqli -> query("select * from ero_settings WHERE id = 1 limit 1") 
 
 # Иницилизация пользователя
 
-$user = $mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, filter($_SESSION['password']))."'") -> fetch_assoc();
+$auth_pass = filter($_SESSION['password'] ?? $_COOKIE['password'] ?? '');
+$user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, $auth_pass)."'") -> fetch_assoc()) : null;
 
 # Онлайн
 
