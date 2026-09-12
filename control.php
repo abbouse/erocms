@@ -24,7 +24,7 @@
         
         $user = $mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, filter(md5(md5($_POST['password']))))."'") -> fetch_assoc();
         
-        if ($user and $_SESSION['protective'] == $_POST['protective']){
+        if ($user){
             
             $mysqli -> query("update ero_users set information = '[".date('Y-m-d H:i:s', time())."] [IP ".filter($_SERVER['REMOTE_ADDR'])."] Hello, on your project authorization attempt.' where id = '$user[id]'");
             
@@ -43,10 +43,8 @@
     
     <form method="post" class="decor">
 	<p><b><?=$lang['add_pass']?></b> </p>
-	<input type="text" name="password" class="injected" /> 
-	<p><b><?=$lang['code']?></b>  <small><?=abs(intval($_SESSION['protective']))?></small> </p>
-	<p><input type="number" name="protective" class="injected" /> </p>
-	<input type="submit" class="byecos" value="<?=$lang['send']?>" />
+	<input type="password" name="password" class="injected" placeholder="<?=$lang['add_pass']?>" /> 
+	<p><input type="submit" class="byecos" value="<?=$lang['send']?>" /></p>
 	</form>
     
     <?
