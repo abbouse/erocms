@@ -8,6 +8,12 @@
  * - arhivporno.watch (cat-uzbekskii-seks)
  */
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+echo "<!-- TEST_LOCAL_SYNC -->";
+
 if ($user['access'] < 1) {
     header('Location: /'); 
     exit;
