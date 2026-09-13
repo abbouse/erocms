@@ -14,6 +14,7 @@
     }
     
     $mysqli -> query("update ero_files set downloads = downloads + '1' where id = '$view[id]'");
+    track_activity('download', $view['id']);
     
     if ($settings['recoil'] == 1)   {
         

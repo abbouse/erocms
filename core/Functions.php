@@ -75,6 +75,34 @@ if ($check_embed && $check_embed->num_rows == 0) {
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_activity` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `ip` VARCHAR(45) NOT NULL,
+  `user_agent` VARCHAR(255) DEFAULT NULL,
+  `action` ENUM('view', 'like', 'dislike', 'favorite', 'unfavorite', 'download', 'search', 'comment') NOT NULL,
+  `id_file` INT(11) DEFAULT '0',
+  `query_text` TEXT DEFAULT NULL,
+  `date` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_action` (`action`),
+  KEY `idx_id_file` (`id_file`),
+  KEY `idx_date` (`date`),
+  KEY `idx_ip` (`ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_advertising` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `site` TEXT NOT NULL,
+  `name` TEXT NOT NULL,
+  `colour` VARCHAR(32) DEFAULT '#ff9900',
+  `term` INT(11) NOT NULL DEFAULT '0',
+  `owner` VARCHAR(64) DEFAULT 'admin',
+  `position` VARCHAR(32) DEFAULT 'all',
+  `clicks` INT(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_term` (`term`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 require_once __DIR__ . '/SeoEngine.php';
 
 function time_ago($time) {
@@ -107,6 +135,21 @@ function is_crawler_or_bot() {
     
     $pattern = '/' . implode('|', $bot_patterns) . '/i';
     return (bool)preg_match($pattern, $user_agent);
+}
+
+/**
+ * Mehmonlar harakatini bazaga yozish (Statistika uchun)
+ */
+function track_activity($action, $id_file = 0, $query_text = null) {
+    global $mysqli;
+    if (is_crawler_or_bot()) return;
+    $ip = filter($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+    $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 250);
+    $action_safe = mysqli_real_escape_string($mysqli, $action);
+    $id_safe = (int)$id_file;
+    $text_safe = ($query_text !== null && $query_text !== '') ? "'".mysqli_real_escape_string($mysqli, $query_text)."'" : "NULL";
+    $time = time();
+    @$mysqli->query("INSERT INTO `ero_activity` (`ip`, `user_agent`, `action`, `id_file`, `query_text`, `date`) VALUES ('$ip', '".mysqli_real_escape_string($mysqli, $ua)."', '$action_safe', '$id_safe', $text_safe, '$time')");
 }
 
 #Локализация
@@ -708,19 +751,21 @@ function getFilesSize($path){
 #Вывод рекламы
 
 function advertising() {
-    
     global $mysqli;
-    
-    echo '<p align="left">';
-    
-    $query = $mysqli -> query("select id, site, name, colour from ero_advertising where term > '".time()."' order by rand()");
-
-    while($row = $query -> fetch_assoc())
-    
-    echo '<a target="_blank" href="'.$row['site'].'" class="tach"><img src="/designs/icons/view/site.png" width="16" height="16" /> <font color="'.$row['colour'].'">'.$row['name'].'</font></a>';
-
-    echo '</p>';
-
+    $time = time();
+    $query = $mysqli->query("SELECT id, site, name, colour FROM ero_advertising WHERE (term = 0 OR term > '$time') ORDER BY id DESC LIMIT 6");
+    if ($query && $query->num_rows > 0) {
+        echo '<div class="xxxhd-ad-container" style="display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; margin:8px 0; background:rgba(255,153,0,0.04); border-radius:6px; border:1px solid rgba(255,153,0,0.18); align-items:center;">';
+        while ($row = $query->fetch_assoc()) {
+            $col = !empty($row['colour']) ? $row['colour'] : '#ff9900';
+            echo '<a target="_blank" rel="noopener nofollow" href="'.$row['site'].'" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:700; color:'.$col.'; background:#181a20; border:1px solid rgba(255,255,255,0.08); transition:all 0.2s;">
+                <i class="fa fa-bullhorn" style="color:'.$col.'; font-size:12px;"></i>
+                <span>'.htmlspecialchars($row['name']).'</span>
+                <i class="fa fa-external-link" style="font-size:10px; opacity:0.5;"></i>
+            </a>';
+        }
+        echo '</div>';
+    }
 }
 
 #Логирование

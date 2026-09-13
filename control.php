@@ -151,6 +151,8 @@
         'default'         => 'Boshqaruv Paneli (Dashboard)',
         'parsing'         => 'Universal Parser',
         'view_video'      => 'Videolar Boshqaruvi',
+        'stats'           => 'Statistika & Mehmonlar Harakatlari',
+        'advertising'     => 'Reklama Boshqaruvi',
         'view_categories' => 'Toifalar & SEO Kalit So‘zlar',
         'dmca'            => 'DMCA Mualliflik Shikoyatlari',
         'comments'        => 'Izohlar Moderatsiyasi',

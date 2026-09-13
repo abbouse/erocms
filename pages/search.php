@@ -17,6 +17,10 @@
     
     $where_sql = "WHERE (description LIKE '%$search%' OR name LIKE '%$search%') AND date < '".time()."'";
     $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_files $where_sql")->fetch_row();
+
+    if (!empty($search) && (!isset($_GET['page']) || (int)$_GET['page'] <= 1)) {
+        track_activity('search', 0, $search);
+    }
 ?>
 
     <div class="xxxhd-title-top">

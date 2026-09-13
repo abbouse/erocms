@@ -24,10 +24,12 @@ if ($check_vote && $check_vote->num_rows > 0) {
         $msg = 'Siz allaqachon ovoz bergansiz!';
     } else {
         $mysqli->query("UPDATE ero_likes SET type = '$action', date = '".time()."' WHERE id = '{$existing['id']}'");
+        track_activity($action, $id);
         $msg = 'Ovozingiz yangilandi!';
     }
 } else {
     $mysqli->query("INSERT INTO ero_likes (id_video, ip, type, date) VALUES ('$id', '$ip', '$action', '".time()."')");
+    track_activity($action, $id);
     $msg = 'Ovozingiz qabul qilindi!';
 }
 

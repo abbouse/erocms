@@ -23,6 +23,8 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
         'default'         => ['icon' => 'fa-dashboard',   'label' => 'Boshqaruv',        'href' => '/control.html'],
         'parsing'         => ['icon' => 'fa-bolt',        'label' => 'Universal Parser', 'href' => '/control.html?func=parsing'],
         'view_video'      => ['icon' => 'fa-film',        'label' => 'Videolar',         'href' => '/control.html?func=view_video'],
+        'stats'           => ['icon' => 'fa-line-chart',  'label' => 'Statistika',       'href' => '/control.html?func=stats'],
+        'advertising'     => ['icon' => 'fa-bullhorn',    'label' => 'Reklama',          'href' => '/control.html?func=advertising'],
         'view_categories' => ['icon' => 'fa-folder-open', 'label' => 'Toifalar & SEO',  'href' => '/control.html?func=view_categories'],
         'dmca'            => ['icon' => 'fa-shield',      'label' => 'DMCA',             'href' => '/control.html?func=dmca', 'badge' => $dmca_unread],
         'comments'        => ['icon' => 'fa-comments',    'label' => 'Izohlar',          'href' => '/control.html?func=comments'],
