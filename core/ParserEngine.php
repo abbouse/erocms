@@ -134,18 +134,20 @@ function parser_download_image($img_url, $save_path, $width_S = 400, $height_S =
     $img_data = parser_fetch($img_url);
     if (!empty($img_data) && strlen($img_data) > 500) {
         file_put_contents($save_path, $img_data);
-        if (class_exists('SimpleImage') && file_exists($save_path)) {
+        if (class_exists('SimpleImage') && file_exists($save_path) && extension_loaded('gd') && function_exists('imagecreatefromjpeg')) {
             try {
                 $image = new SimpleImage();
                 $image->load($save_path);
                 $image->resize($width_S, $height_S);
                 $image->save($save_path);
-            } catch (Exception $e) {}
+            } catch (Throwable $e) {}
         }
         $doc_root = parser_doc_root();
         $water_file = $doc_root . '/designs/water.png';
-        if ($water == 1 && file_exists($water_file) && function_exists('water')) {
-            water($save_path, $save_path, $water_file);
+        if ($water == 1 && file_exists($water_file) && function_exists('water') && extension_loaded('gd')) {
+            try {
+                water($save_path, $save_path, $water_file);
+            } catch (Throwable $e) {}
         }
         return true;
     }

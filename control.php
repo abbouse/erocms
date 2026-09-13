@@ -12,6 +12,21 @@
     
     require 'core/Functions.php';
 
+    register_shutdown_function(function() {
+        $err = error_get_last();
+        if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+            echo "\n<!-- SHUTDOWN_FATAL_ERROR: " . json_encode($err) . " -->\n";
+            echo "<div style='background:#220000; color:#ff6666; padding:20px; border:2px solid #ff0000; font-family:monospace; margin:20px; font-size:14px; position:relative; z-index:99999;'>";
+            echo "<h3 style='color:#ff0000;'>PHP FATAL ERROR:</h3>";
+            echo "<p><b>Message:</b> " . htmlspecialchars($err['message']) . "</p>";
+            echo "<p><b>File:</b> " . htmlspecialchars($err['file']) . " (Line " . $err['line'] . ")</p>";
+            echo "</div>";
+        }
+    });
+
     $title = $settings['title'];
     $description = $settings['description'];
     $keywords = $settings['keywords'];
@@ -59,7 +74,7 @@
 	<p><input type="submit" class="byecos" value="<?=$lang['send']?>" /></p>
 	</form>
     
-    <?
+    <?php
     
     foot();
     exit;

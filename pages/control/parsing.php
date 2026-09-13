@@ -8,11 +8,8 @@
  * - arhivporno.watch (cat-uzbekskii-seks)
  */
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
-
-echo "<!-- TEST_LOCAL_SYNC -->";
 
 if ($user['access'] < 1) {
     header('Location: /'); 
@@ -22,12 +19,17 @@ if ($user['access'] < 1) {
 $core_engine = dirname(__DIR__, 2) . '/core/ParserEngine.php';
 if (file_exists($core_engine)) {
     require_once $core_engine;
+} elseif (!empty($_SERVER['DOCUMENT_ROOT']) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/core/ParserEngine.php')) {
+    require_once $_SERVER['DOCUMENT_ROOT'] . '/core/ParserEngine.php';
+} elseif (file_exists('core/ParserEngine.php')) {
+    require_once 'core/ParserEngine.php';
 }
 
 $logs = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action_type = filter($_POST['action_type'] ?? '');
+    try {
+        $action_type = filter($_POST['action_type'] ?? '');
     $category_choice = abs(intval($_POST['category'] ?? 0));
     $save_mode = filter($_POST['save_mode'] ?? 'stream');
 
@@ -183,6 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
         }
     }
+} catch (Throwable $e) {
+    $logs[] = ['status' => 'error', 'message' => 'PHP Fatal: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')'];
+}
 }
 ?>
 
