@@ -88,9 +88,17 @@ $check_on_cc = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'country_cod
 if ($check_on_cc && $check_on_cc->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_online` ADD `country_code` VARCHAR(4) NULL DEFAULT 'UZ'");
 }
+$check_on_ref = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'referer'");
+if ($check_on_ref && $check_on_ref->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_online` ADD `referer` VARCHAR(500) NULL DEFAULT ''");
+}
 $check_act_cc = @$mysqli->query("SHOW COLUMNS FROM `ero_activity` LIKE 'country_code'");
 if ($check_act_cc && $check_act_cc->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_activity` ADD `country_code` VARCHAR(4) NULL DEFAULT 'UZ'");
+}
+$check_act_ref = @$mysqli->query("SHOW COLUMNS FROM `ero_activity` LIKE 'referer'");
+if ($check_act_ref && $check_act_ref->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_activity` ADD `referer` VARCHAR(500) NULL DEFAULT ''");
 }
 
 @$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_geoip_cache` (
@@ -185,10 +193,12 @@ function track_activity($action, $id_file = 0, $query_text = null) {
     $action_safe = mysqli_real_escape_string($mysqli, $action);
     $id_safe = (int)$id_file;
     $text_safe = ($query_text !== null && $query_text !== '') ? "'".mysqli_real_escape_string($mysqli, $query_text)."'" : "NULL";
+    $raw_ref = substr($_SERVER['HTTP_REFERER'] ?? '', 0, 490);
+    $ref_safe = mysqli_real_escape_string($mysqli, filter($raw_ref));
     $time = time();
     $c_info = function_exists('get_ip_country_info') ? get_ip_country_info($ip) : ['code' => 'UZ', 'name' => 'O‘zbekiston'];
     $c_code = mysqli_real_escape_string($mysqli, $c_info['code']);
-    @$mysqli->query("INSERT INTO `ero_activity` (`ip`, `user_agent`, `country_code`, `action`, `id_file`, `query_text`, `date`) VALUES ('$ip', '".mysqli_real_escape_string($mysqli, $ua)."', '$c_code', '$action_safe', '$id_safe', $text_safe, '$time')");
+    @$mysqli->query("INSERT INTO `ero_activity` (`ip`, `user_agent`, `country_code`, `referer`, `action`, `id_file`, `query_text`, `date`) VALUES ('$ip', '".mysqli_real_escape_string($mysqli, $ua)."', '$c_code', '$ref_safe', '$action_safe', $id_safe, $text_safe, '$time')");
 }
 
 #Локализация
@@ -941,20 +951,163 @@ function parse_user_agent_details($ua) {
     return $res;
 }
 
+# Manba (Referer - qayerdan kelganini) aniqlash
+function parse_referer_source($referer) {
+    if (empty($referer)) {
+        return [
+            'type' => 'direct',
+            'title' => 'To‘g‘ridan-to‘g‘ri (Direct)',
+            'icon' => 'fa-globe',
+            'color' => '#94a3b8',
+            'url' => '',
+            'host' => 'Direct'
+        ];
+    }
+
+    $host = parse_url($referer, PHP_URL_HOST) ?? '';
+    $host_clean = preg_replace('/^www\./i', '', strtolower($host));
+
+    // O'z saytimiz ichidagi o'tishlar
+    $my_host = preg_replace('/^www\./i', '', strtolower($_SERVER['HTTP_HOST'] ?? 'sekschi.online'));
+    if ($host_clean === $my_host || empty($host_clean)) {
+        return [
+            'type' => 'internal',
+            'title' => 'Sayt ichidan (Ichki o‘tish)',
+            'icon' => 'fa-refresh',
+            'color' => '#64748b',
+            'url' => $referer,
+            'host' => 'Ichki'
+        ];
+    }
+
+    // Google
+    if (stripos($host_clean, 'google.') !== false) {
+        return [
+            'type' => 'search',
+            'title' => 'Google Qidiruv',
+            'icon' => 'fa-google',
+            'color' => '#3b82f6',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // Yandex
+    if (stripos($host_clean, 'yandex.') !== false || stripos($host_clean, 'ya.ru') !== false) {
+        return [
+            'type' => 'search',
+            'title' => 'Yandex Qidiruv',
+            'icon' => 'fa-search',
+            'color' => '#ef4444',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // Telegram
+    if (stripos($host_clean, 't.me') !== false || stripos($host_clean, 'telegram') !== false) {
+        return [
+            'type' => 'social',
+            'title' => 'Telegram',
+            'icon' => 'fa-paper-plane',
+            'color' => '#0ea5e9',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // Bing
+    if (stripos($host_clean, 'bing.com') !== false) {
+        return [
+            'type' => 'search',
+            'title' => 'Bing Qidiruv',
+            'icon' => 'fa-search',
+            'color' => '#0284c7',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // DuckDuckGo
+    if (stripos($host_clean, 'duckduckgo.com') !== false) {
+        return [
+            'type' => 'search',
+            'title' => 'DuckDuckGo',
+            'icon' => 'fa-search',
+            'color' => '#f97316',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // Instagram
+    if (stripos($host_clean, 'instagram.com') !== false) {
+        return [
+            'type' => 'social',
+            'title' => 'Instagram',
+            'icon' => 'fa-instagram',
+            'color' => '#ec4899',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // TikTok
+    if (stripos($host_clean, 'tiktok.com') !== false) {
+        return [
+            'type' => 'social',
+            'title' => 'TikTok',
+            'icon' => 'fa-video-camera',
+            'color' => '#f43f5e',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // YouTube
+    if (stripos($host_clean, 'youtube.com') !== false || stripos($host_clean, 'youtu.be') !== false) {
+        return [
+            'type' => 'social',
+            'title' => 'YouTube',
+            'icon' => 'fa-youtube-play',
+            'color' => '#ef4444',
+            'url' => $referer,
+            'host' => $host_clean
+        ];
+    }
+
+    // Boshqa tashqi sayt
+    return [
+        'type' => 'external',
+        'title' => $host_clean,
+        'icon' => 'fa-external-link',
+        'color' => '#10b981',
+        'url' => $referer,
+        'host' => $host_clean
+    ];
+}
+
 # Онлайн (Real-time faollik hisoblagichi)
 $client_ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
 $current_page = mysqli_real_escape_string($mysqli, filter($_SERVER['REQUEST_URI'] ?? '/'));
 $raw_ua = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 250);
 $current_ua = mysqli_real_escape_string($mysqli, filter($raw_ua));
+$raw_ref = substr($_SERVER['HTTP_REFERER'] ?? '', 0, 490);
+$current_ref = mysqli_real_escape_string($mysqli, filter($raw_ref));
 $now = time();
 $expire = $now + 300;
 $c_info = function_exists('get_ip_country_info') ? get_ip_country_info($client_ip) : ['code' => 'UZ', 'name' => 'O‘zbekiston'];
 $c_code = mysqli_real_escape_string($mysqli, $c_info['code']);
 
-$check_vis = $mysqli->query("SELECT id FROM ero_online WHERE ip = '$client_ip' LIMIT 1");
+$check_vis = $mysqli->query("SELECT id, referer FROM ero_online WHERE ip = '$client_ip' LIMIT 1");
 if ($check_vis && $check_vis->num_rows > 0) {
-    $mysqli->query("UPDATE ero_online SET date = '$expire', page_url = '$current_page', user_agent = '$current_ua', country_code = '$c_code', last_seen = '$now' WHERE ip = '$client_ip'");
+    $row_vis = $check_vis->fetch_assoc();
+    // Agar oldingi referer bo'lsa va yangisi bo'sh bo'lsa (ichki sahifalarda yurganda), oldingi manbani saqlab qolamiz
+    $save_ref = (!empty($current_ref) && stripos($current_ref, $_SERVER['HTTP_HOST'] ?? '') === false) 
+        ? $current_ref 
+        : (!empty($row_vis['referer']) ? mysqli_real_escape_string($mysqli, $row_vis['referer']) : $current_ref);
+    $mysqli->query("UPDATE ero_online SET date = '$expire', page_url = '$current_page', user_agent = '$current_ua', country_code = '$c_code', referer = '$save_ref', last_seen = '$now' WHERE ip = '$client_ip'");
 } else {
-    $mysqli->query("INSERT INTO ero_online (ip, date, page_url, user_agent, country_code, last_seen) VALUES ('$client_ip', '$expire', '$current_page', '$current_ua', '$c_code', '$now')");
+    $mysqli->query("INSERT INTO ero_online (ip, date, page_url, user_agent, country_code, referer, last_seen) VALUES ('$client_ip', '$expire', '$current_page', '$current_ua', '$c_code', '$current_ref', '$now')");
 }
 $mysqli->query("DELETE FROM ero_online WHERE date < '$now'");

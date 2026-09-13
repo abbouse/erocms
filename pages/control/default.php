@@ -21,7 +21,7 @@ $today_videos = $mysqli->query("SELECT count(*) FROM ero_files WHERE date >= '$t
 $categories_count = $mysqli->query("SELECT count(*) FROM ero_categories")->fetch_row()[0] ?? 0;
 
 $online_count = $mysqli->query("SELECT count(*) FROM ero_online WHERE date > '$now'")->fetch_row()[0] ?? 0;
-$online_list = $mysqli->query("SELECT ip, date, page_url, user_agent, country_code FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
+$online_list = $mysqli->query("SELECT ip, date, page_url, user_agent, country_code, referer FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
 
 $dmca_unread = 0;
 $chk_dmca = $mysqli->query("SHOW TABLES LIKE 'ero_dmca'");
@@ -312,6 +312,7 @@ $top_videos = $mysqli->query("
                     <th width="40">#</th>
                     <th>IP Manzil</th>
                     <th>Hozirgi Sahifa</th>
+                    <th>Manba (Qayerdan)</th>
                     <th>Qurilma / Brauzer</th>
                     <th>Oxirgi faollik</th>
                     <th width="80">Holati</th>
@@ -327,6 +328,7 @@ $top_videos = $mysqli->query("
                     $act_text = ($seconds_ago < 30) ? 'Hozirgina faol' : floor($seconds_ago / 60) . ' daqiqa oldin';
                     $is_me = ($on['ip'] === $my_ip);
                     $page_link = !empty($on['page_url']) ? $on['page_url'] : '/';
+                    $ref_info = function_exists('parse_referer_source') ? parse_referer_source($on['referer'] ?? '') : ['title' => 'Direct', 'icon' => 'fa-globe', 'color' => '#94a3b8', 'url' => ''];
                 ?>
                 <tr <?=($is_me ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
                     <td style="color:#64748b;"><?=$num++?></td>
@@ -337,9 +339,22 @@ $top_videos = $mysqli->query("
                         <?php endif; ?>
                     </td>
                     <td>
-                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-size:12px; font-weight:600; max-width:200px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-size:12px; font-weight:600; max-width:180px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             <i class="fa fa-external-link" style="font-size:10px; opacity:0.6;"></i> <?=htmlspecialchars($page_link)?>
                         </a>
+                    </td>
+                    <td>
+                        <?php if (!empty($ref_info['url'])): ?>
+                            <a href="<?=htmlspecialchars($ref_info['url'])?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:5px; color:<?=$ref_info['color']?>; font-weight:600; font-size:11px; text-decoration:none; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?=htmlspecialchars($ref_info['url'])?>">
+                                <i class="fa <?=$ref_info['icon']?>"></i>
+                                <span><?=$ref_info['title']?></span>
+                            </a>
+                        <?php else: ?>
+                            <span style="display:inline-flex; align-items:center; gap:5px; color:<?=$ref_info['color']?>; font-weight:600; font-size:11px;" title="<?=$ref_info['title']?>">
+                                <i class="fa <?=$ref_info['icon']?>"></i>
+                                <span><?=$ref_info['title']?></span>
+                            </span>
+                        <?php endif; ?>
                     </td>
                     <td>
                         <span style="display:inline-flex; align-items:center; gap:5px; color:<?=$u_info['badge_color']?>; font-size:12px; font-weight:600;">

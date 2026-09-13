@@ -31,7 +31,7 @@ $on_start = ($on_page - 1) * $on_per_page;
 $total_on_pages = ceil($total_online_count / $on_per_page);
 
 $online_users_query = $mysqli->query("
-    SELECT ip, date, page_url, user_agent, country_code, last_seen 
+    SELECT ip, date, page_url, user_agent, country_code, referer, last_seen 
     FROM ero_online 
     WHERE date > '$online_now' 
     ORDER BY date DESC 
@@ -232,6 +232,7 @@ $top_searches = $mysqli->query("
                     <th width="40">#</th>
                     <th>IP Manzil</th>
                     <th>Hozirgi Sahifasi</th>
+                    <th>Manba (Qayerdan keldi)</th>
                     <th>Qurilma & OS</th>
                     <th>Brauzer</th>
                     <th>Oxirgi faollik</th>
@@ -249,6 +250,7 @@ $top_searches = $mysqli->query("
                     $page_link = !empty($u['page_url']) ? $u['page_url'] : '/';
                     $sec_ago = max(0, 300 - ($u['date'] - $online_now));
                     $time_text = ($sec_ago < 30) ? 'Hozirgina faol' : floor($sec_ago / 60) . ' daqiqa oldin';
+                    $ref_info = function_exists('parse_referer_source') ? parse_referer_source($u['referer'] ?? '') : ['title' => 'Direct', 'icon' => 'fa-globe', 'color' => '#94a3b8', 'url' => ''];
                 ?>
                 <tr <?=($is_admin_user ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
                     <td style="color:#64748b; font-weight:700;"><?=$on_num++?></td>
@@ -260,10 +262,23 @@ $top_searches = $mysqli->query("
                         <a href="/control.html?func=stats&check_ip=<?=$u['ip']?>#ip_checker_box" title="Ushbu IP ni tekshirish" style="color:#60a5fa; font-size:11px; margin-left:5px;"><i class="fa fa-info-circle"></i></a>
                     </td>
                     <td>
-                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             <i class="fa fa-external-link" style="font-size:10px; opacity:0.7;"></i>
                             <span><?=htmlspecialchars($page_link)?></span>
                         </a>
+                    </td>
+                    <td>
+                        <?php if (!empty($ref_info['url'])): ?>
+                            <a href="<?=htmlspecialchars($ref_info['url'])?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:6px; color:<?=$ref_info['color']?>; font-weight:600; font-size:12px; text-decoration:none; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?=htmlspecialchars($ref_info['url'])?>">
+                                <i class="fa <?=$ref_info['icon']?>"></i>
+                                <span><?=$ref_info['title']?></span>
+                            </a>
+                        <?php else: ?>
+                            <span style="display:inline-flex; align-items:center; gap:6px; color:<?=$ref_info['color']?>; font-weight:600; font-size:12px;" title="<?=$ref_info['title']?>">
+                                <i class="fa <?=$ref_info['icon']?>"></i>
+                                <span><?=$ref_info['title']?></span>
+                            </span>
+                        <?php endif; ?>
                     </td>
                     <td>
                         <span style="display:inline-flex; align-items:center; gap:6px; color:<?=$u_info['badge_color']?>; font-weight:600; font-size:12px;">
@@ -289,7 +304,7 @@ $top_searches = $mysqli->query("
                 <?php endwhile; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="7" style="text-align:center; padding:30px; color:#64748b;">
+                    <td colspan="8" style="text-align:center; padding:30px; color:#64748b;">
                         Hozircha onlayn foydalanuvchilar mavjud emas.
                     </td>
                 </tr>
@@ -549,6 +564,7 @@ $top_searches = $mysqli->query("
                     <th width="140">Mehmon IP</th>
                     <th width="130">Harakat turi</th>
                     <th>Tafsilot / Video yoki Qidiruv</th>
+                    <th width="150">Manba (Qayerdan)</th>
                 </tr>
             </thead>
             <tbody>
@@ -596,6 +612,8 @@ $top_searches = $mysqli->query("
                                 $act_label = 'Ko‘rdi';
                                 break;
                         }
+
+                        $act_ref = function_exists('parse_referer_source') ? parse_referer_source($act['referer'] ?? '') : ['title' => 'Direct', 'icon' => 'fa-globe', 'color' => '#94a3b8', 'url' => ''];
                     ?>
                 <tr>
                     <td style="color:#94a3b8; font-size:12px;">
@@ -631,11 +649,24 @@ $top_searches = $mysqli->query("
                             <span style="color:#64748b;">-</span>
                         <?php endif; ?>
                     </td>
+                    <td>
+                        <?php if (!empty($act_ref['url'])): ?>
+                            <a href="<?=htmlspecialchars($act_ref['url'])?>" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:5px; color:<?=$act_ref['color']?>; font-weight:600; font-size:11px; text-decoration:none; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?=htmlspecialchars($act_ref['url'])?>">
+                                <i class="fa <?=$act_ref['icon']?>"></i>
+                                <span><?=$act_ref['title']?></span>
+                            </a>
+                        <?php else: ?>
+                            <span style="display:inline-flex; align-items:center; gap:5px; color:<?=$act_ref['color']?>; font-weight:600; font-size:11px;" title="<?=$act_ref['title']?>">
+                                <i class="fa <?=$act_ref['icon']?>"></i>
+                                <span><?=$act_ref['title']?></span>
+                            </span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
                 <?php endwhile; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="4" style="text-align:center; padding:30px; color:#64748b;">
+                    <td colspan="5" style="text-align:center; padding:30px; color:#64748b;">
                         Hozircha qayd etilgan harakatlar mavjud emas.
                     </td>
                 </tr>

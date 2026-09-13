@@ -16,7 +16,7 @@ $k_page = k_page($total_online, $per_page);
 $page = page($k_page);
 $start = $per_page * $page - $per_page;
 
-$query = $mysqli->query("SELECT id, ip, date, page_url, user_agent, last_seen FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT $start, $per_page");
+$query = $mysqli->query("SELECT id, ip, date, page_url, user_agent, country_code, referer, last_seen FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT $start, $per_page");
 $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
 ?>
 
@@ -35,6 +35,7 @@ $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
                     <th style="padding:10px 8px; width:40px;">#</th>
                     <th style="padding:10px 8px;">Foydalanuvchi</th>
                     <th style="padding:10px 8px;">Hozirgi Sahifa</th>
+                    <th style="padding:10px 8px;">Manba</th>
                     <th style="padding:10px 8px;">Qurilma / Brauzer</th>
                     <th style="padding:10px 8px; width:110px;">Oxirgi faollik</th>
                 </tr>
@@ -71,9 +72,17 @@ $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
                         <?php endif; ?>
                     </td>
                     <td style="padding:10px 8px;">
-                        <a href="<?=$page_url?>" style="color:var(--primary-accent, #ff9900); font-size:12px; text-decoration:none; display:inline-block; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <a href="<?=$page_url?>" style="color:var(--primary-accent, #ff9900); font-size:12px; text-decoration:none; display:inline-block; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             <?=htmlspecialchars($page_url)?>
                         </a>
+                    </td>
+                    <td style="padding:10px 8px;">
+                        <?php 
+                        $ref_info = function_exists('parse_referer_source') ? parse_referer_source($row['referer'] ?? '') : ['title' => 'Direct', 'icon' => 'fa-globe', 'color' => '#94a3b8', 'url' => ''];
+                        ?>
+                        <span style="display:inline-flex; align-items:center; gap:5px; color:<?=$ref_info['color']?>; font-size:11px; font-weight:600;">
+                            <i class="fa <?=$ref_info['icon']?>"></i> <?=$ref_info['title']?>
+                        </span>
                     </td>
                     <td style="padding:10px 8px;">
                         <span style="color:<?=$u_info['badge_color']?>; font-size:12px; font-weight:600;">
