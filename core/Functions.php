@@ -409,12 +409,13 @@ function water($before, $after, $sign)	{
 	
 	list($w_width, $w_height) = getimagesize($sign);
 	
-	$pos_x = $width - $w_width; 
-	$pos_y = $height - $w_height;
+	$pos_x = max(0, $width - $w_width - 8); 
+	$pos_y = max(0, $height - $w_height - 8);
 	
 	imagecopy($im, $watermark, $pos_x, $pos_y, 0, 0, $w_width, $w_height);
-	imagejpeg($im, $after, 100);
+	imagejpeg($im, $after, 95);
 	imagedestroy($im);
+	imagedestroy($watermark);
 	
 	return true;
 	
