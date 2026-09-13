@@ -44,6 +44,3 @@
     $query->free();
     ?>
     </div>
-
-<?php
-    foot();

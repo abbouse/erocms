@@ -66,4 +66,3 @@
 
     <?php
     if ($k_page > 1) str('/search_?i='.urlencode($search).'&', $k_page, $page);
-    foot();

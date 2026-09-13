@@ -135,6 +135,3 @@ $_SESSION['dmca_code'] = rand(1000, 9999);
         </button>
     </form>
 </div>
-
-<?php
-foot();

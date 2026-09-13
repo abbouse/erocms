@@ -57,4 +57,3 @@
 
     <?php
     if ($k_page > 1) str('/favorites?', $k_page, $page);
-    foot();

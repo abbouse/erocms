@@ -106,4 +106,3 @@ $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
 
 <?php
 if ($query) $query->free();
-foot();
