@@ -1,6 +1,6 @@
 <?php
 /**
- * EroCMS Faqat Admin Boshqaradigan Reklama Tizimi (Advertising Management)
+ * EroCMS To'liq Reklama Boshqaruvi (ExoClick, Popunder, Bannerlar va Homiy Havolalari)
  */
 
 if (!defined('ADMIN_LOADED') && !isset($user)) {
@@ -8,19 +8,57 @@ if (!defined('ADMIN_LOADED') && !isset($user)) {
     exit;
 }
 
+require_once $_SERVER['DOCUMENT_ROOT'] . '/core/ads_helper.php';
+
 $msg = null;
 $error = null;
 
-// 1. Reklamani o'chirish
+// 1. ExoClick va Banner Sozlamalarini Saqlash
+if (isset($_POST['save_ad_settings'])) {
+    $ads_enabled = isset($_POST['ads_enabled']) ? 1 : 0;
+    $popunder_enabled = isset($_POST['popunder_enabled']) ? 1 : 0;
+    $popunder_mobile = trim($_POST['popunder_mobile'] ?? '');
+    $popunder_desktop = trim($_POST['popunder_desktop'] ?? '');
+    
+    $banner_top_enabled = isset($_POST['banner_top_enabled']) ? 1 : 0;
+    $banner_top = trim($_POST['banner_top'] ?? '');
+    
+    $banner_bottom_enabled = isset($_POST['banner_bottom_enabled']) ? 1 : 0;
+    $banner_bottom = trim($_POST['banner_bottom'] ?? '');
+    
+    $text_ads_enabled = isset($_POST['text_ads_enabled']) ? 1 : 0;
+
+    $new_config = [
+        'ads_enabled' => $ads_enabled,
+        'popunder_enabled' => $popunder_enabled,
+        'popunder_mobile' => $popunder_mobile,
+        'popunder_desktop' => $popunder_desktop,
+        'banner_top_enabled' => $banner_top_enabled,
+        'banner_top' => $banner_top,
+        'banner_bottom_enabled' => $banner_bottom_enabled,
+        'banner_bottom' => $banner_bottom,
+        'text_ads_enabled' => $text_ads_enabled
+    ];
+
+    if (ads_save_config($new_config)) {
+        @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
+        $msg = "Reklama sozlamalari va kodlari muvaffaqiyatli saqlandi!";
+        logs($user['id'], "Reklama sozlamalari yangilandi", 0);
+    } else {
+        $error = "Sozlamalarni saqlashda xatolik yuz berdi (fayl huquqlarini tekshiring).";
+    }
+}
+
+// 2. Homiy havolasini o'chirish
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     $del_id = (int)$_GET['id'];
     $mysqli->query("DELETE FROM ero_advertising WHERE id = '$del_id'");
     @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
-    $msg = "Reklama muvaffaqiyatli o‘chirildi.";
+    $msg = "Homiy havolasi muvaffaqiyatli o‘chirildi.";
     logs($user['id'], "Reklama o‘chirildi #$del_id", 0);
 }
 
-// 2. Muddatini 30 kunga uzaytirish
+// 3. Muddatini 30 kunga uzaytirish
 if (isset($_GET['action']) && $_GET['action'] === 'extend' && isset($_GET['id'])) {
     $ext_id = (int)$_GET['id'];
     $ad_row = $mysqli->query("SELECT * FROM ero_advertising WHERE id = '$ext_id'")->fetch_assoc();
@@ -33,7 +71,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'extend' && isset($_GET['id'])
     }
 }
 
-// 3. Yangi reklama qo'shish
+// 4. Yangi homiy havolasi qo'shish
 if (isset($_POST['add_ad'])) {
     $name = mysqli_real_escape_string($mysqli, filter($_POST['name'] ?? ''));
     $site = mysqli_real_escape_string($mysqli, filter($_POST['site'] ?? ''));
@@ -50,14 +88,13 @@ if (isset($_POST['add_ad'])) {
             VALUES ('$name', '$site', '$colour', '$term', 'admin', '$position', 0)
         ");
         
-        // Keshni tozalash
         @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
-        
         $msg = "Yangi reklama muvaffaqiyatli qo‘shildi va saytda faollashtirildi!";
         logs($user['id'], "Yangi reklama qo‘shildi: $name", 0);
     }
 }
 
+$cfg = ads_get_config();
 $now = time();
 $ads_query = $mysqli->query("SELECT * FROM ero_advertising ORDER BY id DESC");
 $total_ads = $ads_query ? $ads_query->num_rows : 0;
@@ -66,7 +103,7 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
 <div class="adm-page-header">
     <div>
         <h1 class="adm-page-title"><i class="fa fa-bullhorn" style="color: #ff9900;"></i> Reklama Boshqaruvi</h1>
-        <p class="adm-page-subtitle">Saytda chiqadigan reklama bannerlari va havolalarini qo‘shish, rangini tanlash va muddatini boshqarish (faqat admin uchun)</p>
+        <p class="adm-page-subtitle">ExoClick popunderlari, video bannerlari va homiy havolalarini yoqish, o‘chirish hamda kodlarini tahrirlash</p>
     </div>
 </div>
 
@@ -78,11 +115,108 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
     <div class="adm-alert adm-alert-danger"><i class="fa fa-exclamation-triangle"></i> <?=$error?></div>
 <?php endif; ?>
 
+<!-- 1. EXOCLICK VA BANNERLARNI YOQISH / O'CHIRISH VA KODLAR -->
+<div class="adm-card" style="margin-bottom: 25px;">
+    <div class="adm-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 class="adm-card-title"><i class="fa fa-sliders" style="color:#ff9900;"></i> ExoClick & Tarmoq Reklamalari (Yoqish / O‘chirish)</h3>
+        <span class="adm-badge <?=($cfg['ads_enabled'] ? 'adm-badge-success' : 'adm-badge-danger')?>">
+            <?=($cfg['ads_enabled'] ? '<i class="fa fa-check"></i> Saytda reklamalar YOQIQ' : '<i class="fa fa-power-off"></i> Barcha reklamalar O‘CHIRILGAN')?>
+        </span>
+    </div>
+
+    <form method="post" style="padding: 5px;">
+        <!-- Global va bo'limlar switchlari -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 18px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+                
+                <!-- Barcha reklamalar Master Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,153,0,0.3);">
+                    <input type="checkbox" name="ads_enabled" value="1" <?=($cfg['ads_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;">Barcha reklamalar (Master)</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Saytdagi hamma reklamani yoqish/o‘chirish</small>
+                    </div>
+                </label>
+
+                <!-- Popunder Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="popunder_enabled" value="1" <?=($cfg['popunder_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;">Popunder reklamasi</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Foydalanuvchi bosganda yangi oynada ochilish</small>
+                    </div>
+                </label>
+
+                <!-- Player ustidagi banner Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="banner_top_enabled" value="1" <?=($cfg['banner_top_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;">Player ustidagi banner</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Video player tepasida ko‘rinadigan banner</small>
+                    </div>
+                </label>
+
+                <!-- Player ostidagi banner Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="banner_bottom_enabled" value="1" <?=($cfg['banner_bottom_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;">Player ostidagi banner</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Ovoz berish tugmalari ostidagi banner</small>
+                    </div>
+                </label>
+
+                <!-- Matnli homiy havolalari Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="text_ads_enabled" value="1" <?=($cfg['text_ads_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;">Homiy havolalari</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Sayt tepasidagi qisqa reklama tugmalari</small>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Reklama kodlari textarea maydonlari -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="adm-form-group">
+                <label class="adm-label"><i class="fa fa-mobile" style="color:#ff9900; font-size:16px;"></i> Mobil Popunder Kodi (ExoClick Mobile):</label>
+                <textarea name="popunder_mobile" class="adm-input" style="height: 140px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick mobil popunder kodi"><?=htmlspecialchars($cfg['popunder_mobile'])?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Smartfon va planshetlardan kirganlar uchun ishlaydi.</small>
+            </div>
+
+            <div class="adm-form-group">
+                <label class="adm-label"><i class="fa fa-desktop" style="color:#60a5fa; font-size:14px;"></i> Kompyuter (Desktop) Popunder Kodi:</label>
+                <textarea name="popunder_desktop" class="adm-input" style="height: 140px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick desktop popunder kodi"><?=htmlspecialchars($cfg['popunder_desktop'])?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Bo‘sh qoldirilsa, avtomatik tarzda yuqoridagi mobil popunder ishlayveradi.</small>
+            </div>
+
+            <div class="adm-form-group">
+                <label class="adm-label"><i class="fa fa-picture-o" style="color:#22c55e;"></i> Player Ustidagi Banner Kodi (728x90 yoki 300x250):</label>
+                <textarea name="banner_top" class="adm-input" style="height: 110px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> yoki <iframe> banner kodi"><?=htmlspecialchars($cfg['banner_top'])?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Video playerning tepasida chiqadigan reklama kodi.</small>
+            </div>
+
+            <div class="adm-form-group">
+                <label class="adm-label"><i class="fa fa-picture-o" style="color:#f59e0b;"></i> Player Ostidagi Banner Kodi (300x250 yoki moslashuvchan):</label>
+                <textarea name="banner_bottom" class="adm-input" style="height: 110px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> yoki <iframe> banner kodi"><?=htmlspecialchars($cfg['banner_bottom'])?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Video ostida, statistika tepasida chiqadigan reklama kodi.</small>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; text-align: right;">
+            <button type="submit" name="save_ad_settings" value="1" class="adm-btn adm-btn-primary" style="padding: 12px 24px; font-size: 14px;">
+                <i class="fa fa-save"></i> Reklama Sozlamalari va Kodlarini Saqlash
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- 2. TO‘G‘RIDAN-TO‘G‘RI HOMIY HAVOLALARI (TELEGRAM KANALLAR VA HAMKORLAR) -->
 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
     <!-- Mavjud Reklamalar Jadvali -->
     <div class="adm-card">
         <div class="adm-card-header">
-            <h3 class="adm-card-title"><i class="fa fa-list"></i> Mavjud Reklamalar (<?=$total_ads?> ta)</h3>
+            <h3 class="adm-card-title"><i class="fa fa-list"></i> Mavjud Homiy Havolalari (<?=$total_ads?> ta)</h3>
         </div>
 
         <div class="adm-table-wrap">
@@ -143,7 +277,7 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                     <tr>
                         <td colspan="5" style="text-align:center; padding:30px; color:#64748b;">
                             <i class="fa fa-bullhorn" style="font-size:32px; display:block; margin-bottom:10px; color:#383e50;"></i>
-                            Hozircha saytda reklama qo‘yilmagan.
+                            Hozircha saytda homiy havolalari yo‘q.
                         </td>
                     </tr>
                 <?php endif; ?>
@@ -155,7 +289,7 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
     <!-- Yangi Reklama Qo'shish -->
     <div class="adm-card">
         <div class="adm-card-header">
-            <h3 class="adm-card-title"><i class="fa fa-plus-circle" style="color: #ff9900;"></i> Yangi Reklama Qo‘shish</h3>
+            <h3 class="adm-card-title"><i class="fa fa-plus-circle" style="color: #ff9900;"></i> Yangi Homiy Havolasi</h3>
         </div>
 
         <form method="post">
@@ -190,7 +324,7 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
             </div>
 
             <button type="submit" name="add_ad" value="1" class="adm-btn adm-btn-primary" style="width:100%; margin-top:10px; padding:11px;">
-                <i class="fa fa-plus"></i> Reklamani Joylashtirish
+                <i class="fa fa-plus"></i> Homiy Havolasini Joylashtirish
             </button>
         </form>
     </div>

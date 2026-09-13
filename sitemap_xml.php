@@ -53,7 +53,7 @@ if ($cats_q) {
 }
 
 // 3. Videolar (Google Video Sitemap formati)
-$videos_q = $mysqli->query("SELECT name, description, screenshot, translit, duration, view, date FROM ero_files WHERE date < '".time()."' ORDER BY id DESC LIMIT 5000");
+$videos_q = $mysqli->query("SELECT name, description, screenshot, translit, duration, view, date, address, embed, server FROM ero_files WHERE date < '".time()."' ORDER BY id DESC LIMIT 5000");
 
 if ($videos_q) {
     while ($v = $videos_q->fetch_assoc()) {
@@ -76,13 +76,35 @@ if ($videos_q) {
         $pub_date = date('c', $v['date']);
         $views = intval($v['view']);
 
+        // Google Video Sitemap: <video:content_loc> yoki <video:player_loc>
+        // DIQQAT: Bu teglar <loc> (HTML sahifa) bilan bir xil bo'lmasligi SHART!
+        $has_embed = !empty($v['embed']) && (strpos($v['embed'], 'http://') === 0 || strpos($v['embed'], 'https://') === 0);
+        $has_iframe = strpos($v['address'] ?? '', '<iframe') !== false;
+        
+        if ($has_embed) {
+            $embed_clean = htmlspecialchars(trim($v['embed']), ENT_XML1, 'UTF-8');
+            $video_loc_tag = "      <video:player_loc allow_embed=\"yes\" autoplay=\"ap=1\">{$embed_clean}</video:player_loc>\n";
+        } elseif ($has_iframe) {
+            if (preg_match('/src=[\'"]([^\'"]+)[\'"]/', $v['address'], $m)) {
+                $iframe_src = htmlspecialchars(trim($m[1]), ENT_XML1, 'UTF-8');
+                $video_loc_tag = "      <video:player_loc allow_embed=\"yes\">{$iframe_src}</video:player_loc>\n";
+            } else {
+                $content_stream = "{$base_url}/view_{$v['translit']}";
+                $video_loc_tag = "      <video:content_loc>".htmlspecialchars($content_stream, ENT_XML1, 'UTF-8')."</video:content_loc>\n";
+            }
+        } else {
+            // Raw video fayli / oqimi uchun content_loc
+            $content_stream = "{$base_url}/view_{$v['translit']}";
+            $video_loc_tag = "      <video:content_loc>".htmlspecialchars($content_stream, ENT_XML1, 'UTF-8')."</video:content_loc>\n";
+        }
+
         $xml .= "  <url>\n";
         $xml .= "    <loc>{$v_url}</loc>\n";
         $xml .= "    <video:video>\n";
         $xml .= "      <video:thumbnail_loc>".htmlspecialchars($thumb_url, ENT_XML1, 'UTF-8')."</video:thumbnail_loc>\n";
         $xml .= "      <video:title>{$v_title}</video:title>\n";
         $xml .= "      <video:description>{$v_desc}</video:description>\n";
-        $xml .= "      <video:player_loc>{$v_url}</video:player_loc>\n";
+        $xml .= $video_loc_tag;
         $xml .= "      <video:duration>{$dur_sec}</video:duration>\n";
         $xml .= "      <video:view_count>{$views}</video:view_count>\n";
         $xml .= "      <video:publication_date>{$pub_date}</video:publication_date>\n";

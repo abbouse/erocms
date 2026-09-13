@@ -167,6 +167,7 @@
 </div>
 
 <!-- Responsive Player Container -->
+<?php if (function_exists('ads_render_banner')) ads_render_banner('top'); ?>
 <div class="video-player-container">
     <div class="video-wrapper-responsive">
     <?php
@@ -233,6 +234,8 @@
         */ ?>
     </div>
 </div>
+
+<?php if (function_exists('ads_render_banner')) ads_render_banner('bottom'); ?>
 
 <!-- Video Metadata & Statistics -->
 <div class="video-meta-info">

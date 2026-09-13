@@ -113,6 +113,7 @@ if ($check_embed && $check_embed->num_rows == 0) {
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 require_once __DIR__ . '/SeoEngine.php';
+require_once __DIR__ . '/ads_helper.php';
 
 function time_ago($time) {
     $diff = time() - $time;
@@ -775,6 +776,12 @@ function getFilesSize($path){
 
 function advertising() {
     global $mysqli;
+    if (function_exists('ads_get_config')) {
+        $cfg = ads_get_config();
+        if (empty($cfg['ads_enabled']) || empty($cfg['text_ads_enabled'])) {
+            return;
+        }
+    }
     $time = time();
     $query = $mysqli->query("SELECT id, site, name, colour FROM ero_advertising WHERE (term = 0 OR term > '$time') ORDER BY id DESC LIMIT 6");
     if ($query && $query->num_rows > 0) {
