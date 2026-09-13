@@ -55,12 +55,26 @@
     $title = $view['name'].' - '.filter($_SERVER['HTTP_HOST']);
     $description = !empty($view['description']) ? mb_substr(strip_tags($view['description']), 0, 160, 'UTF-8') : $view['name'];
     $keywords = str_replace(' ', ', ', $view['tags']);
+    // Ko'rishlar sonini oshirish (Faqat haqiqiy tashrif buyuruvchilar, botlar va reload spamdan himoyalangan)
+    $video_id = intval($view['id']);
+    if (!is_crawler_or_bot()) {
+        if (!isset($_SESSION['viewed_videos'])) {
+            $_SESSION['viewed_videos'] = [];
+        }
+        
+        $cookie_name = 'v_seen_' . $video_id;
+        $already_viewed = isset($_SESSION['viewed_videos'][$video_id]) || isset($_COOKIE[$cookie_name]);
+        
+        if (!$already_viewed) {
+            $_SESSION['viewed_videos'][$video_id] = time();
+            @setcookie($cookie_name, '1', time() + 86400, '/');
+            $mysqli->query("UPDATE ero_files SET view = view + 1 WHERE id = '{$video_id}'");
+            $view['view'] = intval($view['view']) + 1;
+        }
+    }
         
     head(sec($view['duration']), $view['screenshot'], 'video.other');
     advertising();
-    
-    // Ko'rishlar sonini oshirish
-    $mysqli->query("UPDATE ero_files SET view = view + 1 WHERE id = '{$view['id']}'");
     
     $tags_raw = tags($view['tags']);
     $tags = !empty($tags_raw) ? explode(' ', $tags_raw) : [];

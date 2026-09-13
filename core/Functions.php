@@ -72,6 +72,29 @@ function time_ago($time) {
     return date('d.m.Y', $time);
 }
 
+/**
+ * Qidiruv botlari, spiderlar va parserlarni aniqlash
+ */
+function is_crawler_or_bot() {
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    if (empty($user_agent)) {
+        return true; // Bo'sh user-agent ko'pincha bot yoki skript bo'ladi
+    }
+    
+    $bot_patterns = [
+        'bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'google', 'yandex', 
+        'bing', 'msnbot', 'baidu', 'duckduck', 'teoma', 'yahoo', 'semrush', 
+        'ahrefs', 'mj12bot', 'petalbot', 'dotbot', 'rogerbot', 'exabot', 
+        'facebookexternalhit', 'facebot', 'ia_archiver', 'curl', 'wget', 
+        'python', 'php', 'httpclient', 'telegrambot', 'whatsapp', 'vkshare', 
+        'twitterbot', 'applebot', 'seznambot', 'screaming frog', 'lighthouse',
+        'headlesschrome', 'chrome-lighthouse', 'headless', 'inspect'
+    ];
+    
+    $pattern = '/' . implode('|', $bot_patterns) . '/i';
+    return (bool)preg_match($pattern, $user_agent);
+}
+
 #Локализация
 
 if (isset($_GET['lang']))   {

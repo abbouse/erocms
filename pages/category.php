@@ -39,10 +39,21 @@
     $description = $category['meta'];
     $keywords = $category['keywords'];
     
+    // Bo'lim ko'rishlar sonini oshirish (botlar va reload spamdan himoyalangan)
+    $cat_id = intval($category['id']);
+    if (!is_crawler_or_bot()) {
+        if (!isset($_SESSION['viewed_categories'])) {
+            $_SESSION['viewed_categories'] = [];
+        }
+        if (!isset($_SESSION['viewed_categories'][$cat_id])) {
+            $_SESSION['viewed_categories'][$cat_id] = time();
+            $mysqli->query("UPDATE ero_categories SET view = view + 1 WHERE id = '{$cat_id}'");
+        }
+    }
+
     head();
     advertising();
     
-    $mysqli->query("UPDATE ero_categories SET view = view + 1 WHERE id = '{$category['id']}'");
     $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
 ?>
 
