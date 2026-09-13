@@ -30,7 +30,7 @@
     <th><img src="/designs/icons/view/added.png" width="16" height="16" /> <?=$lang['visit']?></th>
    </tr>
    
-   <?
+   <?php 
    
     while($row = $query -> fetch_assoc()) {
     
@@ -41,7 +41,7 @@
         <td><?=date('H:i:s', $row['date']);?></td>
     </tr>
     
-    <?
+    <?php 
     
     }
     
@@ -49,7 +49,7 @@
     
     </table>
     
-    <?
+    <?php 
 
     if ($k_page > 1) str('/online.html?', $k_page, $page);
     

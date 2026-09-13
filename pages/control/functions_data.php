@@ -814,13 +814,13 @@
     
     </p>
 
-    <?
+    <?php 
     
     $information = $mysqli -> query("select * from ero_information where id = '1'") -> fetch_assoc();
     
     ?>
     
-    <?
+    <?php 
     
     if ($information['ver'] > $version)    {
         
@@ -830,7 +830,7 @@
   alert("<?=$lang['new_version']?>");
     </script>
     
-    <?
+    <?php 
     
     $down = '<a href="http://4i4i.su/goods/2408" class="tach"><font color="red">'.$lang['get_scripts'].'</font></a> ';
     
@@ -853,15 +853,15 @@
     <?=$lang['total_cache_size']?> <b><?=$information['cache']?></b> <br />
     PHP <b><?=phpversion()?></b><br />
     
-    <?
+    <?php 
     if (class_exists('ffmpeg_movie'))   {
     ?>
     FFmpeg <b><font color="green">is included</font></b><br />
-    <?
+    <?php 
     }   else    {
     ?>
     FFmpeg <b><font color="red">off</font></b><br />
-    <?
+    <?php 
     }
     ?>
     

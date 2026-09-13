@@ -15,7 +15,7 @@
   window.location.href = "/control.html"
     </script>
     
-    <?
+    <?php 
     
     exit;
 
@@ -94,7 +94,7 @@
 	
 	<p><select class="injected" name="category">
 	    
-	<?
+	<?php 
 	
     $query = $mysqli -> query("select id, name from ero_categories order by id asc");
 
@@ -104,7 +104,7 @@
         
 	<option value="<?=$row['id']?>"><?=$row['name']?></option>
 
-    <?
+    <?php 
     
     }
     
@@ -126,6 +126,6 @@
 
     </div>
     
-    <?
+    <?php 
     
     $query -> free();

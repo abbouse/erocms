@@ -71,7 +71,7 @@
 	
 	<p><select class="injected" name="category">
 	    
-	<?
+	<?php 
 	
     $query = $mysqli -> query("select id, name from ero_categories order by id asc");
 
@@ -81,7 +81,7 @@
         
 	<option value="<?=$row['id']?>" <?=($row['id']==$view['category']?" selected='selected'":null)?>><?=$row['name']?></option>
 
-    <?
+    <?php 
     
     }
     
@@ -111,6 +111,6 @@
     
     </form>
     
-    <?
+    <?php 
     
     $query -> free();

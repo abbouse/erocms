@@ -15,7 +15,7 @@
         
     <a href="?func=users&add_user" class="tach"><?=$lang['add_user']?></a>
     
-    <?
+    <?php 
     
     if (isset($_GET['add_user'])) {
         
@@ -52,10 +52,10 @@
     ?>
        <p class="functions_data"> 
        <?=$lang['pass']?>: <a href="?func=logs&id=<?=$row['id'];?>"><b><?= $row['disclosed']?></b></a> <a href="/control.html?func=users&deletion=<?=$row['id'];?>"><img src="/designs/icons/view/remove.png" width="16" height="16" /></a>
-       <b> <? if ($row['information']) echo $row['information']; else echo 'Data not updated'; ?> </b>
+       <b> <?php  if ($row['information']) echo $row['information']; else echo 'Data not updated'; ?> </b>
        </p>
     
-    <? 
+    <?php  
     
     }
     

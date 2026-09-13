@@ -30,7 +30,7 @@
         
     <a href="/control.html?func=logs&id=<?=$logs['id_user']?>&clear" class="tach"><?=$lang['clear_all_logs']?></a>
     
-    <?
+    <?php 
     
     $quantity = $mysqli -> query("select count(*) from ero_logs where id_user = '$logs[id_user]'") -> fetch_row();
     $k_page = k_page($quantity[0], 10);
@@ -46,12 +46,12 @@
     ?>
     
     <p class="functions_data"> 
-    <? if ($row['id_file'] > 0) { ?> <a href="?func=go&id_file=<?=$row['id_file']?>"> <? } ?>
+    <?php  if ($row['id_file'] > 0) { ?> <a href="?func=go&id_file=<?=$row['id_file']?>"> <?php  } ?>
     <?=$row['act']?> <small><b>[<?=date('Y-m-d H:i:s', $row['date'])?>]</b></small>
-    <? if ($row['id_file'] > 0) { ?> </a> <? } ?>
+    <?php  if ($row['id_file'] > 0) { ?> </a> <?php  } ?>
     </p>
     
-    <?
+    <?php 
     
     }
     
