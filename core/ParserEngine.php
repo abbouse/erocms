@@ -130,26 +130,30 @@ function parser_download_image($img_url, $save_path, $width_S = 400, $height_S =
     if (!is_dir($dir)) {
         @mkdir($dir, 0777, true);
     }
+    @chmod($dir, 0777);
 
     $img_data = parser_fetch($img_url);
-    if (!empty($img_data) && strlen($img_data) > 500) {
-        file_put_contents($save_path, $img_data);
-        if (class_exists('SimpleImage') && file_exists($save_path) && extension_loaded('gd') && function_exists('imagecreatefromjpeg')) {
-            try {
-                $image = new SimpleImage();
-                $image->load($save_path);
-                $image->resize($width_S, $height_S);
-                $image->save($save_path);
-            } catch (Throwable $e) {}
+    if (!empty($img_data) && strlen($img_data) > 200) {
+        $written = @file_put_contents($save_path, $img_data);
+        if ($written !== false && file_exists($save_path) && filesize($save_path) > 200) {
+            @chmod($save_path, 0666);
+            if (class_exists('SimpleImage') && extension_loaded('gd') && function_exists('imagecreatefromjpeg')) {
+                try {
+                    $image = new SimpleImage();
+                    $image->load($save_path);
+                    $image->resize($width_S, $height_S);
+                    $image->save($save_path);
+                } catch (Throwable $e) {}
+            }
+            $doc_root = parser_doc_root();
+            $water_file = $doc_root . '/designs/water.png';
+            if ($water == 1 && file_exists($water_file) && function_exists('water') && extension_loaded('gd')) {
+                try {
+                    water($save_path, $save_path, $water_file);
+                } catch (Throwable $e) {}
+            }
+            return true;
         }
-        $doc_root = parser_doc_root();
-        $water_file = $doc_root . '/designs/water.png';
-        if ($water == 1 && file_exists($water_file) && function_exists('water') && extension_loaded('gd')) {
-            try {
-                water($save_path, $save_path, $water_file);
-            } catch (Throwable $e) {}
-        }
-        return true;
     }
     return false;
 }
@@ -352,8 +356,16 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     // Poster saqlash
     $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
     $save_img_path = $doc_root . $local_screenshot;
+    $final_screenshot = '';
     if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $final_screenshot = $local_screenshot;
+        } else {
+            $final_screenshot = $poster_url;
+        }
+    } else {
+        $final_screenshot = '/designs/water.png';
     }
 
     $final_address = $video_src;
@@ -375,7 +387,7 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
-        '".parser_escape($mysqli, $local_screenshot)."',
+        '".parser_escape($mysqli, $final_screenshot)."',
         '".parser_escape($mysqli, $final_address)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
@@ -490,8 +502,16 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     // Poster saqlash
     $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
     $save_img_path = $doc_root . $local_screenshot;
+    $final_screenshot = '';
     if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $final_screenshot = $local_screenshot;
+        } else {
+            $final_screenshot = $poster_url;
+        }
+    } else {
+        $final_screenshot = '/designs/water.png';
     }
 
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
@@ -513,7 +533,7 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
-        '".parser_escape($mysqli, $local_screenshot)."',
+        '".parser_escape($mysqli, $final_screenshot)."',
         '".parser_escape($mysqli, $final_address)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
@@ -629,8 +649,16 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     // Poster saqlash
     $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
     $save_img_path = $doc_root . $local_screenshot;
+    $final_screenshot = '';
     if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $final_screenshot = $local_screenshot;
+        } else {
+            $final_screenshot = $poster_url;
+        }
+    } else {
+        $final_screenshot = '/designs/water.png';
     }
 
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
@@ -642,7 +670,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
-        '".parser_escape($mysqli, $local_screenshot)."',
+        '".parser_escape($mysqli, $final_screenshot)."',
         '".parser_escape($mysqli, $final_address)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
@@ -842,8 +870,16 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     // 8. Skrinshotni yuklash
     $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
     $save_img_path = $doc_root . $local_screenshot;
+    $final_screenshot = '';
     if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $final_screenshot = $local_screenshot;
+        } else {
+            $final_screenshot = $poster_url;
+        }
+    } else {
+        $final_screenshot = '/designs/water.png';
     }
 
     // 9. Saqlash rejimi: server (MP4) yoki stream (embed/direct)
@@ -870,7 +906,7 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
-        '".parser_escape($mysqli, $local_screenshot)."',
+        '".parser_escape($mysqli, $final_screenshot)."',
         '".parser_escape($mysqli, $final_address)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
@@ -942,5 +978,95 @@ function parser_get_catalog_links_sexlar($page = 1) {
     }
 
     return array_values($items);
+}
+
+/**
+ * Singan yoki 404 bo'lgan skrinshotlarni avtomatik aniqlab tuzatish
+ */
+function parser_repair_broken_screenshots($mysqli) {
+    $doc_root = parser_doc_root();
+    @chmod($doc_root . '/content/screenshots', 0777);
+
+    // /content/screenshots/ bo'lgan yoki bo'sh bo'lgan videolarni olamiz
+    $res = $mysqli->query("SELECT id, name, screenshot, recoil, address, server, translit, embed FROM ero_files WHERE screenshot LIKE '/content/screenshots/%' OR screenshot = '' OR screenshot IS NULL ORDER BY id DESC LIMIT 500");
+    if (!$res || $res->num_rows === 0) {
+        return 0;
+    }
+
+    $repaired_count = 0;
+    while ($row = $res->fetch_assoc()) {
+        $full_local = $doc_root . ($row['screenshot'] ?? '');
+        // Agar lokal fayl haqiqatan mavjud bo'lsa va o'lchami 200 baytdan katta bo'lsa, tegmaymiz
+        if (!empty($row['screenshot']) && file_exists($full_local) && filesize($full_local) > 200) {
+            continue;
+        }
+
+        $new_screenshot = '';
+        $addr = ($row['address'] ?? '') . ' ' . ($row['recoil'] ?? '') . ' ' . ($row['embed'] ?? '');
+
+        // 1. sexlar.link / 666.watch
+        if (($row['server'] ?? '') === 'sexlar.link' || strpos($addr, '666.watch') !== false || strpos($addr, 'sexlar.link') !== false) {
+            $vid_id = 0;
+            if (preg_match('|/storage/\d+/(\d+)/|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|embed/(\d+)|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|/(\d+)\.mp4|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|_(\d+)$|', $row['translit'] ?? '', $m)) {
+                $cand = intval($m[1]);
+                if ($cand >= 100 && $cand <= 100000) {
+                    $vid_id = $cand;
+                }
+            }
+
+            if ($vid_id > 0) {
+                $dir_block = floor($vid_id / 1000) * 1000;
+                $new_screenshot = "https://666.watch/contents/videos_screenshots/{$dir_block}/{$vid_id}/preview.jpg";
+            }
+        }
+
+        // 2. arhivporno.watch / pornosektor.com
+        if (empty($new_screenshot) && (($row['server'] ?? '') === 'arhivporno.watch' || strpos($addr, 'arhivporno') !== false || strpos($addr, 'pornosektor') !== false)) {
+            $vid_id = 0;
+            if (preg_match('|/storage/\d+/(\d+)/|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|embed/(\d+)|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|/(\d+)/|', $addr, $m)) {
+                $vid_id = intval($m[1]);
+            }
+            if ($vid_id > 0) {
+                $dir_block = floor($vid_id / 1000) * 1000;
+                $new_screenshot = "https://arhivporno.watch/contents/videos_screenshots/{$dir_block}/{$vid_id}/320x180/1.jpg";
+            }
+        }
+
+        // 3. uzporno.website
+        if (empty($new_screenshot) && (($row['server'] ?? '') === 'uzporno.website' || strpos($addr, 'uzporno') !== false)) {
+            if (preg_match('|/video/([^/]+)/|', $addr, $m) || preg_match('|/embed/([^/]+)/|', $addr, $m)) {
+                $slug = $m[1];
+                $new_screenshot = "https://uzporno.website/embed/{$slug}/";
+            }
+        }
+
+        // 4. Default poster
+        if (empty($new_screenshot)) {
+            $new_screenshot = '/designs/water.png';
+        }
+
+        if (!empty($new_screenshot)) {
+            $safe_s = parser_escape($mysqli, $new_screenshot);
+            $mysqli->query("UPDATE ero_files SET screenshot = '{$safe_s}' WHERE id = '{$row['id']}'");
+            $repaired_count++;
+        }
+    }
+
+    if ($repaired_count > 0) {
+        // Keshni tozalash
+        @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+    }
+
+    return $repaired_count;
 }
 

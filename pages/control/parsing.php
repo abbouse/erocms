@@ -43,6 +43,12 @@ if ($cats_query) {
 }
 
 $logs = [];
+$repair_info = '';
+
+if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots')) {
+    $rep_c = parser_repair_broken_screenshots($mysqli);
+    $repair_info = "Tekshirildi: jami {$rep_c} ta singan/404 rasm avtomatik aniqlanib, to‘g‘ri CDN havolalariga tiklandi!";
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -238,10 +244,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="functions_data" style="border-left: 4px solid #ff9900; background: #1a1815; padding: 16px; margin-bottom: 20px;">
     <h2 style="color:#ff9900; margin: 0 0 6px 0;"><i class="fa fa-cloud-download"></i> Universal Video Parser</h2>
-    <p style="color:#ccc; font-size:13px; line-height: 1.5; margin: 0;">
+    <p style="color:#ccc; font-size:13px; line-height: 1.5; margin: 0 0 10px 0;">
         Ushbu bo‘lim orqali <b>sexlar.link</b>, <b>arhivporno.watch</b>, <b>uzbxx.ru</b> va <b>uzporno.website</b> saytlaridan yangi videolarni bir bosishda saytingizdagi istalgan bo‘limga yoki avtomatik moslab yuklab olishingiz mumkin.
     </p>
+    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="/control.html?func=parsing&repair=1" style="background:#28a745; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 4px; font-weight: bold; font-size: 13px;">
+            <i class="fa fa-wrench"></i> Singan / 404 rasmlarni avtomatik tuzatish (CDN ga ulash)
+        </a>
+    </div>
 </div>
+
+<?php if (!empty($repair_info)): ?>
+<div class="functions_data" style="background:#132617; border:1px solid #28a745; color:#7ce898; padding: 14px; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+    <i class="fa fa-check-circle" style="font-size: 16px;"></i> <?=$repair_info?>
+</div>
+<?php endif; ?>
 
 <?php if (!empty($logs)): ?>
 <div class="functions_data" style="background:#111; border:1px solid #ff9900; margin-bottom:20px; padding: 15px;">

@@ -82,10 +82,12 @@ if (isset($_GET['lang']))   {
     exit;
 }
 
-if (file_exists($_SERVER['DOCUMENT_ROOT'].'/core/languages/'.$_SESSION['lang'].'.php'))
-    include $_SERVER['DOCUMENT_ROOT'].'/core/languages/'.$_SESSION['lang'].'.php';
-else
-    include $_SERVER['DOCUMENT_ROOT'].'/core/languages/ru.php';
+$sess_lang = $_SESSION['lang'] ?? 'ru';
+if (file_exists(__DIR__ . '/languages/' . $sess_lang . '.php')) {
+    include __DIR__ . '/languages/' . $sess_lang . '.php';
+} else {
+    include __DIR__ . '/languages/ru.php';
+}
 
 #Вверхняя часть сайта
 
@@ -243,7 +245,9 @@ echo '
 #Наложение копирайта
 
 function water($before, $after, $sign)	{
-    
+    if (!file_exists($before) || !file_exists($sign) || filesize($before) < 100) {
+        return false;
+    }
 	list($owidth, $oheight) = getimagesize($before);
 	
 	$width = 600;

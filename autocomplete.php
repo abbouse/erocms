@@ -33,6 +33,14 @@ $max_cron_added = 6;
 $added = 0;
 $results = [];
 
+// Singan yoki 404 bo'lgan skrinshotlarni avtomatik tuzatish
+if (function_exists('parser_repair_broken_screenshots')) {
+    $repaired = parser_repair_broken_screenshots($mysqli);
+    if ($repaired > 0) {
+        $results[] = "[Repair] {$repaired} ta video skrinshoti tiklandi.";
+    }
+}
+
 // 1. sexlar.link dan eng yangi videolar
 $sexlar_items = parser_get_catalog_links_sexlar(1);
 $donor_items = [];

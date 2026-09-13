@@ -78,6 +78,7 @@
 
     $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
     $thumb_full = (strpos($view['screenshot'], 'http') === 0) ? $view['screenshot'] : $full_host . $view['screenshot'];
+    $video_poster = !empty($view['screenshot']) ? $view['screenshot'] : '/designs/water.png';
     $page_url = $full_host . '/watch/' . $view['translit'] . '.html';
 ?>
 
@@ -169,12 +170,12 @@
             var player = new Playerjs({
                 id: "player",
                 file: "/view_'.$view['translit'].'",
-                poster: "'.$view['screenshot'].'",
+                poster: "'.$video_poster.'",
                 title: "'.filter($_SERVER['HTTP_HOST']).'"
             });
             </script>';
         } else {
-            echo '<video id="main-video-player" controls preload="metadata" poster="'.$view['screenshot'].'">
+            echo '<video id="main-video-player" controls preload="metadata" poster="'.$video_poster.'">
                 <source src="/view_'.$view['translit'].'" type="video/mp4">
                 Sizning brauzeringiz HTML5 videoni qo‘llab-quvvatlamaydi.
             </video>';
@@ -203,12 +204,14 @@
         <a href="/download/<?=$view['translit']?>.mp4" class="action-btn" title="<?=$lang['download']?>">
             <i class="fa fa-download"></i> <?=$lang['download']?> (<?=$view['downloads']?>)
         </a>
+        <?php /* Vaqtinchalik yopildi:
         <a href="https://t.me/share/url?url=<?=$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'])?>&text=<?=urlencode($view['name'])?>" target="_blank" class="action-btn" style="background:#0088cc;" title="Telegramda ulashish">
             <i class="fa fa-telegram"></i> Telegram
         </a>
         <a href="https://api.whatsapp.com/send?text=<?=urlencode($view['name'].' '.$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']))?>" target="_blank" class="action-btn" style="background:#25d366;" title="WhatsAppda ulashish">
             <i class="fa fa-whatsapp"></i> WhatsApp
         </a>
+        */ ?>
     </div>
 </div>
 
@@ -313,7 +316,7 @@ while ($sim = $similar_q->fetch_assoc()) {
         <div class="xxxhd-thumb">
             <a href="/watch/'.$sim['translit'].'.html" title="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'">
                 <div class="thumb-image-wrap">
-                    <img src="'.$sim['screenshot'].'" alt="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" />
+                    <img src="'.$sim['screenshot'].'" alt="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" onerror="this.onerror=null; this.src=\'/designs/water.png\';" />
                 </div>
                 <div class="xxxhd-thumb-name" title="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'">'.$sim['name'].'</div>
             </a>
