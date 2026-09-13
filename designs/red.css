@@ -2,6 +2,18 @@
    EroCMS Ultra-Modern Dark Theme (uzbxx.ru / uzporno.website)
    ========================================================= */
 
+:root {
+    --primary-accent: #ff9900;
+    --primary-hover: #e68a00;
+    --primary-accent-rgb: 255, 153, 0;
+    --header-bg: #23130e;
+    --header-border: #ff9900;
+    --menu-bg: #190c08;
+    --menu-item-bg: #372722;
+    --menu-item-hover: #4a352e;
+    --card-cat-bg: #201f1e;
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;

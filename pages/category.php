@@ -98,9 +98,9 @@
     <div class="xxxhd-title-top">
         <p style="font-size:13px; color:#959595; margin-bottom: 4px;">
             <a href="/"><i class="fa fa-home"></i> Bosh sahifa</a> &raquo; 
-            <b style="color:#ff9900;"><?=$category['name']?></b>
+            <b style="color:var(--primary-accent, #ff9900);"><?=$category['name']?></b>
         </p>
-        <h1><i class="fa fa-folder-open-o" style="color:#ff9900;"></i> <?=$category['name']?></h1>
+        <h1><i class="fa fa-folder-open-o" style="color:var(--primary-accent, #ff9900);"></i> <?=$category['name']?></h1>
     </div>
 
     <!-- Sorting Filter Tabs -->

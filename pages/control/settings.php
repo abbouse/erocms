@@ -55,6 +55,8 @@ if (isset($_POST['save_settings'])) {
             WHERE id = '1'
         ");
 
+        @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
+
         logs($user['id'], 'Sayt sozlamalari yangilandi', 0);
         $msg = "Barcha sozlamalar muvaffaqiyatli saqlandi!";
 

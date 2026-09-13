@@ -54,8 +54,9 @@ if (isset($_GET['action'])) {
                         @unlink($doc_root . $vid['address']);
                     }
                     $mysqli->query("DELETE FROM ero_files WHERE id = '{$vid['id']}'");
-                    $mysqli->query("DELETE FROM ero_likes WHERE id_file = '{$vid['id']}'");
-                    $mysqli->query("DELETE FROM ero_comments WHERE id_file = '{$vid['id']}'");
+                    $mysqli->query("DELETE FROM ero_likes WHERE id_video = '{$vid['id']}'");
+                    $mysqli->query("DELETE FROM ero_comments WHERE id_video = '{$vid['id']}'");
+                    $mysqli->query("DELETE FROM ero_favorites WHERE id_video = '{$vid['id']}'");
                     @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
                     $mysqli->query("UPDATE ero_dmca SET status = 1 WHERE id = '$item_id'");
                     $msg = '<div class="adm-alert adm-alert-success"><i class="fa fa-check"></i> Shikoyat qilingan video (translit: '.$translit.') saytdan butunlay o‘chirildi va murojaat bajarildi deb belgilandi!</div>';

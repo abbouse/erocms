@@ -50,6 +50,15 @@ mysqli_set_charset($mysqli, 'utf8mb4');
   KEY `id_video` (`id_video`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+$chk_comm_col = @$mysqli->query("SHOW COLUMNS FROM `ero_comments` LIKE 'id_file'");
+if ($chk_comm_col && $chk_comm_col->num_rows > 0) {
+    @$mysqli->query("ALTER TABLE `ero_comments` CHANGE `id_file` `id_video` INT(11) NOT NULL");
+}
+$chk_comm_txt = @$mysqli->query("SHOW COLUMNS FROM `ero_comments` LIKE 'comment'");
+if ($chk_comm_txt && $chk_comm_txt->num_rows > 0) {
+    @$mysqli->query("ALTER TABLE `ero_comments` CHANGE `comment` `text` TEXT NOT NULL");
+}
+
 $check_cols = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'likes'");
 if ($check_cols && $check_cols->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_files` ADD `likes` INT(11) NOT NULL DEFAULT 0");
@@ -305,7 +314,7 @@ echo '
       <p>&copy; '.date('Y').' <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'</p>
       <p style="margin: 8px 0; font-size: 11px; color: #707070;">Saytdagi barcha videolar ochiq manbalardan olingan bo‘lib, 18 yoshga to‘lmagan shaxslarga kirish taqiqlanadi.</p>
       <div style="margin: 10px 0; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <a href="/dmca.html" style="color: #ff9900; font-size: 12px; text-decoration: none; font-weight: bold;"><i class="fa fa-shield"></i> DMCA / Mualliflik huquqi</a>
+        <a href="/dmca.html" style="color: var(--primary-accent, #ff9900); font-size: 12px; text-decoration: none; font-weight: bold;"><i class="fa fa-shield"></i> DMCA / Mualliflik huquqi</a>
         <a href="/sitemap.html" style="color: #999; font-size: 12px; text-decoration: none;"><i class="fa fa-sitemap"></i> '.$lang['map'].'</a>
       </div>
       <div style="margin-top:8px;">

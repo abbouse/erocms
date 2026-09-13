@@ -24,8 +24,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
             @unlink($_SERVER['DOCUMENT_ROOT'] . $video_info['address']);
         }
         $mysqli->query("DELETE FROM ero_files WHERE id = '$del_id'");
-        $mysqli->query("DELETE FROM ero_likes WHERE id_file = '$del_id'");
-        $mysqli->query("DELETE FROM ero_comments WHERE id_file = '$del_id'");
+        $mysqli->query("DELETE FROM ero_likes WHERE id_video = '$del_id'");
+        $mysqli->query("DELETE FROM ero_comments WHERE id_video = '$del_id'");
+        $mysqli->query("DELETE FROM ero_favorites WHERE id_video = '$del_id'");
+        @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
         $msg = "Video (ID: $del_id) muvaffaqiyatli o‘chirildi.";
     }
 }
@@ -49,8 +51,10 @@ if (isset($_POST['bulk_action']) && !empty($_POST['video_ids'])) {
                 }
             }
             $mysqli->query("DELETE FROM ero_files WHERE id IN ($ids_str)");
-            $mysqli->query("DELETE FROM ero_likes WHERE id_file IN ($ids_str)");
-            $mysqli->query("DELETE FROM ero_comments WHERE id_file IN ($ids_str)");
+            $mysqli->query("DELETE FROM ero_likes WHERE id_video IN ($ids_str)");
+            $mysqli->query("DELETE FROM ero_comments WHERE id_video IN ($ids_str)");
+            $mysqli->query("DELETE FROM ero_favorites WHERE id_video IN ($ids_str)");
+            @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
             $msg = count($selected_ids) . " ta video butunlay o‘chirildi.";
         } elseif ($action === 'move' && isset($_POST['target_category'])) {
             $target_cat = (int)$_POST['target_category'];

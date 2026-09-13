@@ -28,7 +28,7 @@
 ?>
 
     <div class="xxxhd-title-top">
-        <h2><i class="fa fa-calendar" style="color:#ff9900;"></i> <?=$lang['new_video']?></h2>
+        <h2><i class="fa fa-calendar" style="color:var(--primary-accent, #ff9900);"></i> <?=$lang['new_video']?></h2>
     </div>
 
     <div class="xxxhd-thumbs-content">

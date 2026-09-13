@@ -24,7 +24,7 @@
 ?>
 
     <div class="xxxhd-title-top">
-        <h2><i class="fa fa-search" style="color:#ff9900;"></i> Qidiruv natijalari: "<?=htmlspecialchars($search, ENT_QUOTES, 'UTF-8')?>" (<?=$quantity[0]?> ta video)</h2>
+        <h2><i class="fa fa-search" style="color:var(--primary-accent, #ff9900);"></i> Qidiruv natijalari: "<?=htmlspecialchars($search, ENT_QUOTES, 'UTF-8')?>" (<?=$quantity[0]?> ta video)</h2>
     </div>
 
     <div class="xxxhd-thumbs-content">

@@ -81,7 +81,7 @@
                 <span class="cat-total-badge"><i class="fa fa-film"></i> '.$quantity[0].'</span>
                 <a href="/'.$row['translit'].'/" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">
                     <div class="thumb-cat-wrap">
-                        <i class="fa fa-folder-open-o" style="font-size: 28px; color: #ff9900; margin-bottom: 6px; display: block;"></i>
+                        <i class="fa fa-folder-open-o" style="font-size: 28px; color: var(--primary-accent, #ff9900); margin-bottom: 6px; display: block;"></i>
                         <div class="xxxhd-thumb-name">'.$row['name'].'</div>
                     </div>
                 </a>

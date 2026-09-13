@@ -1,6 +1,18 @@
 /* =========================================================
-   EroCMS Ultra-Modern Dark Theme (uzbxx.ru / uzporno.website)
+   EroCMS Ultra-Modern Dark Theme - Pink / Rose Edition
    ========================================================= */
+
+:root {
+    --primary-accent: #ff2a7a;
+    --primary-hover: #e01a69;
+    --primary-accent-rgb: 255, 42, 122;
+    --header-bg: #241019;
+    --header-border: #ff2a7a;
+    --menu-bg: #190a12;
+    --menu-item-bg: #381928;
+    --menu-item-hover: #4d2237;
+    --card-cat-bg: #22161e;
+}
 
 *, *::before, *::after {
     box-sizing: border-box;
@@ -9,7 +21,7 @@
 }
 
 body {
-    background-color: #21201f;
+    background-color: #201e1f;
     color: #959595;
     font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
     font-size: 14px;
@@ -24,7 +36,7 @@ a {
 }
 
 a:hover {
-    color: #ff9900;
+    color: #ff2a7a;
     text-decoration: none;
 }
 
@@ -32,7 +44,7 @@ a:hover {
 .xxxhd-wrapper {
     max-width: 1200px;
     margin: 0 auto;
-    background: #21201f;
+    background: #201e1f;
     box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
     min-height: 100vh;
     display: flex;
@@ -46,8 +58,8 @@ a:hover {
 
 /* === HEADER === */
 .xxxhd-head-wrap {
-    background: #23130e;
-    border-bottom: 2px solid #ff9900;
+    background: #241019;
+    border-bottom: 2px solid #ff2a7a;
 }
 
 .xxxhd-head {
@@ -70,19 +82,19 @@ a:hover {
 }
 
 .xxxhd-logo a span {
-    color: #ff9900;
+    color: #ff2a7a;
 }
 
 /* === NAVIGATION MENU === */
 .xxxhd-head-menu {
-    background: #190c08;
+    background: #190a12;
     padding: 6px 15px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 8px;
-    border-top: 1px solid #372722;
+    border-top: 1px solid #381928;
 }
 
 .xxxhd-head-menu-buttons {
@@ -95,61 +107,60 @@ a:hover {
 }
 
 .xxxhd-head-menu-buttons li a {
-    background: #372722;
+    background: #381928;
     color: #ebdbd6;
     border-radius: 3px;
-    height: 34px;
-    line-height: 34px;
     padding: 0 12px;
+    height: 32px;
+    line-height: 32px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     transition: all 0.2s ease;
 }
 
-.xxxhd-head-menu-buttons li a:hover,
-.xxxhd-head-menu-buttons li.active a {
-    background: #ff9900;
-    color: #000;
+.xxxhd-head-menu-buttons li a:hover {
+    background: #4d2237;
+    color: #ff2a7a;
+}
+
+.xxxhd-head-menu-buttons li a.active {
+    background: #ff2a7a;
+    color: #fff;
 }
 
 /* === SEARCH BAR === */
-.xxxhd-search {
-    flex: 1;
-    max-width: 320px;
-    min-width: 200px;
-}
-
 .xxxhd-search form {
     display: flex;
-    width: 100%;
+    align-items: center;
 }
 
-.xxxhd-search input {
-    background: #2a2827;
-    color: #fff;
-    border: 1px solid #514e4c;
+.xxxhd-search input[type="text"] {
+    background: #2a2628;
+    color: #ebdbd6;
+    border: 1px solid #51444b;
     border-right: none;
     border-radius: 3px 0 0 3px;
-    height: 34px;
-    outline: none;
-    font-size: 13px;
-    flex: 1;
     padding: 0 12px;
+    height: 34px;
+    font-size: 13px;
+    width: 200px;
+    outline: none;
+    transition: all 0.2s;
 }
 
-.xxxhd-search input:focus {
-    border-color: #ff9900;
-    background: #333;
+.xxxhd-search input[type="text"]:focus {
+    border-color: #ff2a7a;
+    background: #1e181b;
 }
 
 .xxxhd-search button {
-    background: #ff9900;
-    color: #000;
-    border: 1px solid #ff9900;
+    background: #ff2a7a;
+    color: #fff;
+    border: 1px solid #ff2a7a;
     border-radius: 0 3px 3px 0;
     width: 44px;
     height: 34px;
@@ -162,14 +173,14 @@ a:hover {
 }
 
 .xxxhd-search button:hover {
-    background: #e68a00;
+    background: #e01a69;
 }
 
 /* === TITLES & SECTIONS === */
 .xxxhd-title-top {
-    background: #1a1919;
-    border-bottom: 1px solid #323130;
-    border-top: 1px solid #323130;
+    background: #1a1819;
+    border-bottom: 1px solid #322f31;
+    border-top: 1px solid #322f31;
     padding: 10px 15px;
     margin-bottom: 8px;
 }
@@ -189,26 +200,26 @@ h2 {
 }
 
 h1.mark {
-    background: #141312;
-    border-bottom: 1px solid #323130;
+    background: #151113;
+    border-bottom: 1px solid #322f31;
     padding: 8px 15px;
     font-size: 14px;
-    color: #ff9900;
+    color: #ff2a7a;
     font-weight: 500;
 }
 
 /* === TOP ANNOUNCEMENTS / ADS === */
 .xxxhd-topl-block {
     padding: 8px 15px;
-    background: #141312;
-    border-bottom: 1px solid #323130;
+    background: #151113;
+    border-bottom: 1px solid #322f31;
     font-size: 13px;
     color: #959595;
     line-height: 1.6;
 }
 
 .xxxhd-topl-block a {
-    color: #ff9900;
+    color: #ff2a7a;
     margin-right: 12px;
     display: inline-block;
 }
@@ -243,8 +254,8 @@ h1.mark {
 }
 
 .xxxhd-thumb {
-    background: #1a1919;
-    border: 1px solid #323130;
+    background: #1a1819;
+    border: 1px solid #322f31;
     border-radius: 4px;
     overflow: hidden;
     position: relative;
@@ -255,7 +266,7 @@ h1.mark {
 }
 
 .xxxhd-thumb:hover {
-    border-color: #ff9900;
+    border-color: #ff2a7a;
     transform: translateY(-2px);
 }
 
@@ -306,11 +317,11 @@ h1.mark {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     color: #ccc;
-    background: #1a1919;
+    background: #1a1819;
 }
 
 .xxxhd-thumb:hover .xxxhd-thumb-name {
-    color: #ff9900;
+    color: #ff2a7a;
 }
 
 /* Category cards */
@@ -321,7 +332,7 @@ h1.mark {
 .xxxhd-thumb-cat .thumb-cat-wrap {
     padding: 24px 10px 14px 10px;
     text-align: center;
-    background: #201f1e;
+    background: #22161e;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -345,13 +356,13 @@ h1.mark {
     position: absolute;
     top: 6px;
     left: 6px;
-    background: #ff9900 !important;
-    color: #111 !important;
+    background: #ff2a7a !important;
+    color: #fff !important;
     font-weight: 800 !important;
     font-size: 11px !important;
     padding: 2px 7px !important;
     border-radius: 3px !important;
-    box-shadow: 0 2px 6px rgba(255, 153, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(255, 42, 122, 0.4);
     z-index: 5 !important;
     display: inline-flex !important;
     align-items: center;
@@ -396,15 +407,15 @@ h1.mark {
 .top-left {
     top: 4px;
     left: 4px;
-    background: #ff9900;
-    color: #000;
+    background: #ff2a7a;
+    color: #fff;
     font-weight: 900;
 }
 
 .top-right {
     top: 4px;
     right: 4px;
-    color: #ff9900;
+    color: #ff2a7a;
 }
 
 .bottom-left {
@@ -447,10 +458,10 @@ h1.mark {
 
 /* === INTERACTIVE LIKE / DISLIKE BAR === */
 .interaction-bar {
-    background: #141312;
+    background: #151113;
     padding: 12px 15px;
-    border-top: 1px solid #323130;
-    border-bottom: 1px solid #323130;
+    border-top: 1px solid #322f31;
+    border-bottom: 1px solid #322f31;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -465,9 +476,9 @@ h1.mark {
 }
 
 .like_btn, .disLike_btn {
-    background: #2b2826;
+    background: #2c2529;
     color: #ebdbd6;
-    border: 1px solid #514e4c;
+    border: 1px solid #51444b;
     border-radius: 4px;
     padding: 6px 14px;
     font-size: 14px;
@@ -492,9 +503,9 @@ h1.mark {
 }
 
 .rating-badge {
-    background: #2b2826;
-    border: 1px solid #514e4c;
-    color: #ff9900;
+    background: #2c2529;
+    border: 1px solid #51444b;
+    color: #ff2a7a;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 14px;
@@ -509,9 +520,9 @@ h1.mark {
 }
 
 .action-btn {
-    background: #372722;
+    background: #381928;
     color: #fff;
-    border: 1px solid #514e4c;
+    border: 1px solid #51444b;
     border-radius: 4px;
     padding: 6px 12px;
     font-size: 13px;
@@ -520,19 +531,20 @@ h1.mark {
     align-items: center;
     gap: 6px;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-    background: #ff9900;
-    color: #000;
-    border-color: #ff9900;
+    background: #ff2a7a;
+    color: #fff;
+    border-color: #ff2a7a;
 }
 
 /* === STATS & METADATA === */
 .video-meta-info {
     padding: 10px 15px;
-    background: #1a1919;
-    border-bottom: 1px solid #323130;
+    background: #1a1819;
+    border-bottom: 1px solid #322f31;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -547,39 +559,40 @@ h1.mark {
 
 .video-description-box {
     padding: 12px 15px;
-    background: #141312;
-    border-bottom: 1px solid #323130;
+    background: #151113;
+    border-bottom: 1px solid #322f31;
     color: #aaa;
     font-size: 14px;
 }
 
 .tags-cloud {
     padding: 10px 15px;
-    background: #1a1919;
-    border-bottom: 1px solid #323130;
+    background: #1a1819;
+    border-bottom: 1px solid #322f31;
 }
 
 .tag-badge {
-    background: #2b2826;
+    background: #2c2529;
     border: 1px solid #444;
-    color: #ff9900;
+    color: #ff2a7a;
     font-size: 12px;
     padding: 3px 8px;
     border-radius: 3px;
     margin: 2px 3px 2px 0;
     display: inline-block;
+    transition: all 0.2s ease;
 }
 
 .tag-badge:hover {
-    background: #ff9900;
-    color: #000;
+    background: #ff2a7a;
+    color: #fff;
 }
 
 /* === COMMENTS SECTION === */
 .comments-section {
     padding: 15px;
-    background: #161514;
-    border-top: 2px solid #323130;
+    background: #171315;
+    border-top: 2px solid #322f31;
     margin-top: 15px;
 }
 
@@ -594,8 +607,8 @@ h1.mark {
 }
 
 .comment-form {
-    background: #1e1c1b;
-    border: 1px solid #323130;
+    background: #1f191d;
+    border: 1px solid #322f31;
     border-radius: 4px;
     padding: 15px;
     margin-bottom: 20px;
@@ -607,7 +620,7 @@ h1.mark {
 
 .form-control-custom {
     width: 100%;
-    background: #2b2826;
+    background: #2c2529;
     border: 1px solid #444;
     border-radius: 3px;
     padding: 8px 12px;
@@ -617,7 +630,7 @@ h1.mark {
 }
 
 .form-control-custom:focus {
-    border-color: #ff9900;
+    border-color: #ff2a7a;
 }
 
 textarea.form-control-custom {
@@ -626,8 +639,8 @@ textarea.form-control-custom {
 }
 
 .btn-submit-comment {
-    background: #ff9900;
-    color: #000;
+    background: #ff2a7a;
+    color: #fff;
     border: none;
     border-radius: 3px;
     font-weight: 700;
@@ -638,7 +651,7 @@ textarea.form-control-custom {
 }
 
 .btn-submit-comment:hover {
-    background: #e68a00;
+    background: #e01a69;
 }
 
 .comment-list {
@@ -648,8 +661,8 @@ textarea.form-control-custom {
 }
 
 .comment-item {
-    background: #1c1b1a;
-    border: 1px solid #2e2c2b;
+    background: #1d171b;
+    border: 1px solid #31262d;
     border-radius: 4px;
     padding: 10px 14px;
 }
@@ -663,7 +676,7 @@ textarea.form-control-custom {
 }
 
 .comment-author {
-    color: #ff9900;
+    color: #ff2a7a;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -683,15 +696,15 @@ textarea.form-control-custom {
 
 /* === PAGINATION === */
 .pages {
-    background: #141312;
+    background: #151113;
     padding: 12px;
     text-align: center;
-    border-top: 1px solid #323130;
+    border-top: 1px solid #322f31;
     margin: 10px 0;
 }
 
 .pages a {
-    background: #2b2826;
+    background: #2c2529;
     color: #fff;
     border: 1px solid #444;
     padding: 6px 12px;
@@ -700,18 +713,19 @@ textarea.form-control-custom {
     font-size: 13px;
     font-weight: 600;
     display: inline-block;
+    transition: all 0.2s ease;
 }
 
 .pages a:hover, .pages a.active {
-    background: #ff9900;
-    color: #000;
-    border-color: #ff9900;
+    background: #ff2a7a;
+    color: #fff;
+    border-color: #ff2a7a;
 }
 
 /* === FOOTER === */
 .xxxhd-footer {
-    background: #0f0f0f;
-    border-top: 1px solid #323130;
+    background: #0f0d0e;
+    border-top: 1px solid #322f31;
     margin-top: auto;
 }
 
@@ -723,20 +737,20 @@ textarea.form-control-custom {
 }
 
 .xxxhd-foot a {
-    color: #ff9900;
+    color: #ff2a7a;
 }
 
 /* === UTILITIES & FORMS === */
 .functions_data {
     padding: 10px 15px;
-    background: #1a1919;
-    border: 1px solid #323130;
+    background: #1a1819;
+    border: 1px solid #322f31;
     margin-bottom: 10px;
 }
 
 .byecos {
-    background: #ff9900;
-    color: #000;
+    background: #ff2a7a;
+    color: #fff;
     border: none;
     border-radius: 3px;
     padding: 8px 20px;
@@ -745,7 +759,7 @@ textarea.form-control-custom {
 }
 
 .injected {
-    background: #2b2826;
+    background: #2c2529;
     border: 1px solid #444;
     color: #fff;
     padding: 8px;
@@ -754,9 +768,9 @@ textarea.form-control-custom {
 }
 
 .err {
-    background: #3d1515;
-    color: #ff8888;
-    border: 1px solid #7d2020;
+    background: #3d151f;
+    color: #ff88a8;
+    border: 1px solid #7d2038;
     padding: 10px 15px;
     border-radius: 4px;
     margin: 10px 0;

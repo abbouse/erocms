@@ -93,12 +93,20 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
 function admin_foot() {
     global $mysqli, $version;
     $exec_time = round(microtime(true) - ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)), 3);
+    $db_info = '';
+    try {
+        if ($mysqli instanceof mysqli) {
+            $db_info = @$mysqli->server_info ?: '';
+        }
+    } catch (\Throwable $e) {
+        $db_info = '';
+    }
     echo '</main>
 
 <footer class="adm-footer">
     <div style="max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>&copy; '.date('Y').' <b>EroCMS Pro</b> &mdash; Barcha huquqlar himoyalangan.</div>
-        <div style="color: #64748b;">PHP '.phpversion().' | MySQL '.($mysqli ? $mysqli->server_info : '').' | Bajarilish: '.$exec_time.'s</div>
+        <div style="color: #64748b;">PHP '.phpversion().(!empty($db_info) ? ' | MySQL '.$db_info : '').' | Bajarilish: '.$exec_time.'s</div>
     </div>
 </footer>
 

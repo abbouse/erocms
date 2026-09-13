@@ -161,9 +161,9 @@
     <p style="font-size:13px; color:#959595; margin-bottom: 6px;">
         <a href="/"><i class="fa fa-home"></i> <?=$lang['home']?></a> &raquo; 
         <a href="/<?=$category['translit']?>/"><?=$category['name']?></a> &raquo; 
-        <b style="color:#ff9900;"><?=$view['name']?></b>
+        <b style="color:var(--primary-accent, #ff9900);"><?=$view['name']?></b>
     </p>
-    <h1><i class="fa fa-play-circle" style="color: #ff9900;"></i> <?=$view['name']?></h1>
+    <h1><i class="fa fa-play-circle" style="color:var(--primary-accent, #ff9900);"></i> <?=$view['name']?></h1>
 </div>
 
 <!-- Responsive Player Container -->
@@ -218,7 +218,7 @@
 
     <div class="video-actions-group">
         <a href="/watch/<?=$view['translit']?>.html?favorites" class="action-btn" title="<?=$lang['to_favorites']?>">
-            <i class="fa fa-star" style="color:#ff9900;"></i> <?=$lang['to_favorites']?> (<?=$favorites[0]?>)
+            <i class="fa fa-star" style="color:var(--primary-accent, #ff9900);"></i> <?=$lang['to_favorites']?> (<?=$favorites[0]?>)
         </a>
         <a href="/download/<?=$view['translit']?>.mp4" class="action-btn" title="<?=$lang['download']?>">
             <i class="fa fa-download"></i> <?=$lang['download']?> (<?=$view['downloads']?>)
@@ -239,7 +239,7 @@
     <span><i class="fa fa-calendar"></i> Sana: <b><?=date('d.m.Y', $view['date'])?></b></span>
     <span><i class="fa fa-eye"></i> Ko‘rishlar: <b><?=$view['view']?></b></span>
     <span><i class="fa fa-clock-o"></i> Davomiyligi: <b><?=$view['duration']?></b></span>
-    <span><i class="fa fa-folder-open"></i> Bo‘lim: <a href="/<?=$category['translit']?>/" style="color:#ff9900;"><b><?=$category['name']?></b></a></span>
+    <span><i class="fa fa-folder-open"></i> Bo‘lim: <a href="/<?=$category['translit']?>/" style="color:var(--primary-accent, #ff9900);"><b><?=$category['name']?></b></a></span>
 </div>
 
 <?php if (!empty($view['description'])): ?>
@@ -250,7 +250,7 @@
 
 <?php if (!empty($tags)): ?>
 <div class="tags-cloud">
-    <i class="fa fa-tags" style="color:#ff9900; margin-right: 6px;"></i> Teglar: 
+    <i class="fa fa-tags" style="color:var(--primary-accent, #ff9900); margin-right: 6px;"></i> Teglar: 
     <?php
     foreach ($tags as $t) {
         $t = trim($t);
@@ -277,7 +277,7 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
 ?>
 <div class="comments-section">
     <div class="comments-header">
-        <i class="fa fa-comments-o" style="color: #ff9900; font-size: 20px;"></i> 
+        <i class="fa fa-comments-o" style="color:var(--primary-accent, #ff9900); font-size: 20px;"></i> 
         Izohlar va Fikrlar <span id="comments-count">(<?=$comments_count?>)</span>
     </div>
 
@@ -383,7 +383,7 @@ $(document).ready(function() {
         var $status = $('#comment-status');
 
         $btn.prop('disabled', true);
-        $status.css('color', '#ff9900').text('Yuborilmoqda...');
+        $status.css('color', 'var(--primary-accent, #ff9900)').text('Yuborilmoqda...');
 
         $.post('/index.php?func=ajax_comment', $form.serialize(), function(res) {
             $btn.prop('disabled', false);

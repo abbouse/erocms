@@ -182,6 +182,8 @@
         require 'pages/control/default.php';
     }
 
-    $mysqli->close();
-
     admin_foot();
+
+    if ($mysqli instanceof mysqli) {
+        @$mysqli->close();
+    }

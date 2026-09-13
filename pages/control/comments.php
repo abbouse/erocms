@@ -8,17 +8,27 @@ if (!defined('ADMIN_LOADED') && !isset($user)) {
     exit;
 }
 
-// Jadval mavjudligini ta'minlash
+// Jadval mavjudligini va to'g'ri strukturasini ta'minlash
 $mysqli->query("CREATE TABLE IF NOT EXISTS `ero_comments` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id_file` int(11) NOT NULL,
+  `id_video` int(11) NOT NULL,
   `author` varchar(128) NOT NULL,
-  `comment` text NOT NULL,
+  `text` text NOT NULL,
   `date` int(11) NOT NULL,
   `ip` varchar(45) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `id_file` (`id_file`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+  KEY `id_video` (`id_video`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+// Agar eski id_file yoki comment ustunlari qolgan bo'lsa avtomatik moslash
+$chk_col = @$mysqli->query("SHOW COLUMNS FROM `ero_comments` LIKE 'id_file'");
+if ($chk_col && $chk_col->num_rows > 0) {
+    @$mysqli->query("ALTER TABLE `ero_comments` CHANGE `id_file` `id_video` INT(11) NOT NULL");
+}
+$chk_txt = @$mysqli->query("SHOW COLUMNS FROM `ero_comments` LIKE 'comment'");
+if ($chk_txt && $chk_txt->num_rows > 0) {
+    @$mysqli->query("ALTER TABLE `ero_comments` CHANGE `comment` `text` TEXT NOT NULL");
+}
 
 $msg = null;
 
@@ -56,7 +66,7 @@ $total_pages = ceil($total_items / $per_page);
 $comments_res = $mysqli->query("
     SELECT c.*, f.name as video_name, f.translit as video_translit 
     FROM ero_comments c 
-    LEFT JOIN ero_files f ON c.id_file = f.id 
+    LEFT JOIN ero_files f ON c.id_video = f.id 
     ORDER BY c.id DESC 
     LIMIT $start, $per_page
 ");
@@ -118,7 +128,7 @@ $comments_res = $mysqli->query("
                                 <b><?=htmlspecialchars($c['author'])?></b>
                             </td>
                             <td style="color:#e2e8f0; font-size:13px; max-width:300px; word-break:break-word;">
-                                <?=htmlspecialchars($c['comment'])?>
+                                <?=htmlspecialchars($c['text'])?>
                             </td>
                             <td>
                                 <?php if (!empty($c['video_name'])): ?>
@@ -126,7 +136,7 @@ $comments_res = $mysqli->query("
                                         <?=htmlspecialchars($c['video_name'])?> &rarr;
                                     </a>
                                 <?php else: ?>
-                                    <span style="color:#64748b; font-size:12px;">O‘chirilgan video (#<?=$c['id_file']?>)</span>
+                                    <span style="color:#64748b; font-size:12px;">O‘chirilgan video (#<?=$c['id_video']?>)</span>
                                 <?php endif; ?>
                             </td>
                             <td style="font-size:11px; color:#94a3b8;">
