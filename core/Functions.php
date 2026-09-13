@@ -304,7 +304,20 @@ echo '
 
 function foot() {
 
-global $settings, $lang;
+global $settings, $lang, $user;
+
+$popunder_html = '';
+$is_admin = ($user && isset($user['access']) && $user['access'] == 1);
+$is_control = (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false);
+
+// Faqat oddiy foydalanuvchilarga popunder chiqariladi (admin panel va adminga xalaqit bermaslik uchun)
+if (!$is_admin && !$is_control) {
+    if (file_exists(__DIR__ . '/popunder.php')) {
+        ob_start();
+        include __DIR__ . '/popunder.php';
+        $popunder_html = ob_get_clean();
+    }
+}
 
 echo '
   </div><!-- xxxhd-content -->
@@ -328,6 +341,7 @@ echo '
   <h4 style="font-size:10px;text-align:center;color:#595a5c;padding:5px">'.$lang['h4'].'</h4>
 
 </div><!-- xxxhd-wrapper -->
+'.$popunder_html.'
   </body>
 </html>';
 
