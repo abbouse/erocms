@@ -19,17 +19,12 @@
             $description =  mysqli_real_escape_string($mysqli, filter($_POST['description']));
             $keywords =  mysqli_real_escape_string($mysqli, filter($_POST['keywords']));
             $counter =  mysqli_real_escape_string($mysqli, ($_POST['counter']));#filter() del.
-            $advertising =  mysqli_real_escape_string($mysqli, abs(intval($_POST['advertising'])));
             $player =  mysqli_real_escape_string($mysqli, abs(intval($_POST['player'])));
             $water =  mysqli_real_escape_string($mysqli, abs(intval($_POST['water'])));
             $cache =  mysqli_real_escape_string($mysqli, abs(intval($_POST['cache'])));
-            $WK_ID =  mysqli_real_escape_string($mysqli, abs(intval($_POST['WK_ID'])));
-            $WK_SECRET =  mysqli_real_escape_string($mysqli, filter($_POST['WK_SECRET']));
             $disclosed =  mysqli_real_escape_string($mysqli, filter($_POST['disclosed']));
             $alert =  mysqli_real_escape_string($mysqli, filter($_POST['alert']));
             $cron =  mysqli_real_escape_string($mysqli, filter($_POST['cron']));
-            $OAuth =  mysqli_real_escape_string($mysqli, filter($_POST['OAuth']));
-            $access_token =  mysqli_real_escape_string($mysqli, filter($_POST['access_token']));
             
             if (!filter_var($alert, FILTER_VALIDATE_EMAIL)) $warning = $lang['email_address'];
             else if (strlen($_POST['title']) > 128 or strlen($_POST['title']) < 12) $warning = $lang['short_or_long_name'];
@@ -42,7 +37,7 @@
             if (filter_var($alert, FILTER_VALIDATE_EMAIL) and $user['disclosed'] != $disclosed) mail($alert, 'Password changed', 'Access password changed, new password '.$disclosed); 
     
             $mysqli -> query("update ero_users set disclosed = '$disclosed', password = '".md5(md5($disclosed))."' where id = '$user[id]'");
-            $mysqli -> query("update ero_settings set water = '$water', access_token = '$access_token', OAuth = '$OAuth', cron = '$cron', recoil = '$recoil', designs = '$designs', cache = '$cache', alert = '$alert', WK_SECRET = '$WK_SECRET', WK_ID = '$WK_ID', player = '$player', title = '$title', description = '$description', keywords = '$keywords', counter = '$counter', advertising = '$advertising' where id = '1'");
+            $mysqli -> query("update ero_settings set water = '$water', cron = '$cron', recoil = '$recoil', designs = '$designs', cache = '$cache', alert = '$alert', player = '$player', title = '$title', description = '$description', keywords = '$keywords', counter = '$counter' where id = '1'");
             logs($user['id'], $lang['changed_system'], 0);
             
             header('Location: /control.html?func=settings');
@@ -71,29 +66,13 @@
 	
 	<p><textarea name="counter" class="injected" rows="4" cols="47"><?=$settings['counter']?></textarea></p>
     
-    <p><b><?=$lang['advertising_cost']?></b> </p>
-    
-    <p><input name="advertising" class="injected" type="text" value="<?=$settings['advertising']?>" /></p>
-
     <p><b><?=$lang['autocomplete_key']?></b> </p>
     
     <p><input name="cron" class="injected" type="text" value="<?=$settings['cron']?>" /></p>
 
-    <p><b>Access token</b> [<a href="https://vkhost.github.io">https://vkhost.github.io</a>] </p>
-    
-    <p><input name="access_token" class="injected" type="text" value="<?=$settings['access_token']?>" /></p>
-    
     <p><b><?=$lang['time_of_cache_files']?></b> </p>
     
     <p><input name="cache" class="injected" type="text" value="<?=$settings['cache']?>" /></p>
-    
-    <p><b>WK_ID</b> </p>
-    
-    <p><input name="WK_ID" class="injected" type="text" value="<?=$settings['WK_ID']?>" /></p>
-
-    <p><b>WK_SECRET</b> </p>
-    
-    <p><input name="WK_SECRET" class="injected" type="text" value="<?=$settings['WK_SECRET']?>" /></p>
 
     <p><b><?=$lang['email_notifications']?></b> </p>
     
@@ -102,10 +81,6 @@
     <p><b><?=$lang['pass']?></b> </p>
     
     <p><input name="disclosed" class="injected" type="text" value="<?=$user['disclosed']?>" /></p>
-
-    <p><b>OAuth Yandex Disk</b> </p>
-    
-    <p><input name="OAuth" class="injected" type="text" value="<?=$settings['OAuth']?>" /></p>
     
     <p><b><?=$lang['file_serving']?></b> </p>
     

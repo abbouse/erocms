@@ -72,8 +72,11 @@
             $view['view'] = intval($view['view']) + 1;
         }
     }
+    
+    $has_valid_thumb = (!empty($view['screenshot']) && $view['screenshot'] != '/designs/water.png');
+    $video_poster = $has_valid_thumb ? $view['screenshot'] : '/designs/no_poster.jpg';
         
-    head(sec($view['duration']), $view['screenshot'], 'video.other');
+    head(sec($view['duration']), $video_poster, 'video.other');
     advertising();
     
     $tags_raw = tags($view['tags']);
@@ -91,8 +94,7 @@
     $user_vote = $user_vote_q['type'] ?? '';
 
     $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
-    $thumb_full = (strpos($view['screenshot'], 'http') === 0) ? $view['screenshot'] : $full_host . $view['screenshot'];
-    $video_poster = !empty($view['screenshot']) ? $view['screenshot'] : '/designs/water.png';
+    $thumb_full = (strpos($video_poster, 'http') === 0) ? $video_poster : $full_host . $video_poster;
     $page_url = $full_host . '/watch/' . $view['translit'] . '.html';
 ?>
 
@@ -326,11 +328,13 @@ while ($sim = $similar_q->fetch_assoc()) {
     $tot_sim = intval($sim['likes']) + intval($sim['dislikes']);
     $rate_sim = $tot_sim > 0 ? round((intval($sim['likes']) / $tot_sim) * 100) . '%' : '98%';
 
+    $sim_img = (!empty($sim['screenshot']) && $sim['screenshot'] != '/designs/water.png') ? $sim['screenshot'] : '/designs/no_poster.jpg';
+
     echo '<div class="xxxhd-thumb-wr">
         <div class="xxxhd-thumb">
             <a href="/watch/'.$sim['translit'].'.html" title="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'">
                 <div class="thumb-image-wrap">
-                    <img src="'.$sim['screenshot'].'" alt="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" onerror="this.onerror=null; this.src=\'/designs/water.png\';" />
+                    <img src="'.$sim_img.'" alt="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" onerror="this.onerror=null; this.src=\'/designs/no_poster.jpg\';" />
                 </div>
                 <div class="xxxhd-thumb-name" title="'.htmlspecialchars($sim['name'], ENT_QUOTES, 'UTF-8').'">'.$sim['name'].'</div>
             </a>

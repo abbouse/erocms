@@ -26,18 +26,18 @@
         $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_files WHERE category = '{$row['id']}' AND date < '".time()."'")->fetch_row();
         $new_q = $mysqli->query("SELECT COUNT(*) FROM ero_files WHERE category = '{$row['id']}' AND date > '".(time()-86400)."' AND date < '".time()."'")->fetch_row();
 
-        $new_badge = ($new_q[0] > 0) ? '<span class="new">+'.intval($new_q[0]).'</span>' : '';
+        $new_badge = ($new_q[0] > 0) ? '<span class="cat-new-badge"><i class="fa fa-bolt"></i> +'.intval($new_q[0]).'</span>' : '';
         
         echo '<div class="xxxhd-thumb-wr">
             <div class="xxxhd-thumb xxxhd-thumb-cat">
+                '.$new_badge.'
+                <span class="cat-total-badge"><i class="fa fa-film"></i> '.$quantity[0].'</span>
                 <a href="/'.$row['translit'].'/" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">
                     <div class="thumb-cat-wrap">
                         <i class="fa fa-folder-open-o" style="font-size: 32px; color: #ff9900; margin-bottom: 8px; display: block;"></i>
                         <div class="xxxhd-thumb-name">'.$row['name'].'</div>
                     </div>
                 </a>
-                <span class="xxxhd-thumb-top top-right"><i class="fa fa-film"></i> '.$quantity[0].'</span>
-                '.$new_badge.'
             </div>
         </div>';
     }

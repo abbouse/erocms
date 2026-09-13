@@ -627,11 +627,10 @@
     $files_all = $mysqli -> query("select count(*) from ero_files") -> fetch_row();
     $screenshots = getFilesSize($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/');
     $video = getFilesSize($_SERVER['DOCUMENT_ROOT'].'/content/video/');    
-    $yandex = round(yd_total_space() / 1024 / 1000, 2);
     $cache = getFilesSize($_SERVER['DOCUMENT_ROOT'].'/content/cache/');
-    $ver = file_get_contents('https://erocms.ru/version.xml');
+    $ver = '2.0';
     
-    $mysqli -> query("update ero_information set all_files = '$files_all[0]', screenshots = '$screenshots', video = '$video', yandex = '$yandex', cache = '$cache', ver = '$ver' where id = '1'");
+    $mysqli -> query("update ero_information set all_files = '$files_all[0]', screenshots = '$screenshots', video = '$video', cache = '$cache', ver = '$ver' where id = '1'");
     
     header('location: /control.html?func=functions_data'); 
     exit;
@@ -851,7 +850,6 @@
     <?=$lang['all_video']?> <b><?=$information['all_files']?></b> <br />
     <?=$lang['folder_size']?> <u>/content/screenshots/</u> <b><?=$information['screenshots']?></b> <br />
     <?=$lang['folder_size']?> <u>/content/video/</u> <b><?=$information['video']?></b> <br />
-    <?=$lang['limit_yandex']?> <b><?=$information['yandex']?> мб.</b> <br />
     <?=$lang['total_cache_size']?> <b><?=$information['cache']?></b> <br />
     PHP <b><?=phpversion()?></b><br />
     

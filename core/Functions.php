@@ -63,6 +63,20 @@ if ($check_embed && $check_embed->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_files` ADD `embed` TEXT NULL");
 }
 
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_dmca` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `video_url` TEXT NOT NULL,
+  `message` TEXT NOT NULL,
+  `date` INT(11) NOT NULL,
+  `status` INT(11) NOT NULL DEFAULT '0',
+  `ip` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+require_once __DIR__ . '/SeoEngine.php';
+
 function time_ago($time) {
     $diff = time() - $time;
     if ($diff < 60) return 'hozirgina';
@@ -131,9 +145,9 @@ $css_v = file_exists($css_file) ? filemtime($css_file) : time();
 $host = filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
 $canonical = $protocol . $host . parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-$og_img = !empty($image) 
+$og_img = (!empty($image) && $image != '/designs/water.png') 
     ? ((strpos($image, 'http') === 0) ? $image : $protocol . $host . $image) 
-    : $protocol . $host . '/designs/water.png';
+    : $protocol . $host . '/designs/no_poster.jpg';
 
 $is_home = (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/' || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/index.php');
 
@@ -247,6 +261,10 @@ echo '
     <div class="xxxhd-foot">
       <p>&copy; '.date('Y').' <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'</p>
       <p style="margin: 8px 0; font-size: 11px; color: #707070;">Saytdagi barcha videolar ochiq manbalardan olingan bo‘lib, 18 yoshga to‘lmagan shaxslarga kirish taqiqlanadi.</p>
+      <div style="margin: 10px 0; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <a href="/dmca.html" style="color: #ff9900; font-size: 12px; text-decoration: none; font-weight: bold;"><i class="fa fa-shield"></i> DMCA / Mualliflik huquqi</a>
+        <a href="/sitemap.html" style="color: #999; font-size: 12px; text-decoration: none;"><i class="fa fa-sitemap"></i> '.$lang['map'].'</a>
+      </div>
       <div style="margin-top:8px;">
         <a href="/?lang=ru"><img src="/designs/icons/flags/ru.png" alt="Русский" title="Русский" /></a>
         <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English" title="English" /></a>
@@ -254,10 +272,8 @@ echo '
       </div>
     </div>
   </div>
-  <a href="/advertising.html"><p style="text-align:right;color:#ff9900;padding:5px 10px;font-size:12px">'.$lang['pay'].'</p></a>
   <p style="text-align:center;padding:5px">'.$settings['counter'].'</p>
   <h4 style="font-size:10px;text-align:center;color:#595a5c;padding:5px">'.$lang['h4'].'</h4>
-  <a href="/sitemap.html"><p style="text-align:center;color:#ff9900;padding:5px;font-size:12px">'.$lang['map'].'</p></a>
 
 </div><!-- xxxhd-wrapper -->
   </body>
@@ -728,10 +744,15 @@ $settings = $mysqli -> query("select * from ero_settings WHERE id = 1 limit 1") 
 $auth_pass = filter($_SESSION['password'] ?? $_COOKIE['password'] ?? '');
 $user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, $auth_pass)."'") -> fetch_assoc()) : null;
 
-# Онлайн
+# Онлайн (Real-time faollik hisoblagichi)
+$client_ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
+$now = time();
+$expire = $now + 300;
 
-$visitor = $mysqli -> query("select count(*) from ero_online where ip = '".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."'") -> fetch_row();
-
-if ($visitor[0] == 0) $mysqli -> query("INSERT INTO ero_online SET ip = '".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."', date = '".(time() + 300)."'");
-
-$mysqli -> query("delete from ero_online where date < '".time()."'");
+$check_vis = $mysqli->query("SELECT id FROM ero_online WHERE ip = '$client_ip' LIMIT 1");
+if ($check_vis && $check_vis->num_rows > 0) {
+    $mysqli->query("UPDATE ero_online SET date = '$expire' WHERE ip = '$client_ip'");
+} else {
+    $mysqli->query("INSERT INTO ero_online (ip, date) VALUES ('$client_ip', '$expire')");
+}
+$mysqli->query("DELETE FROM ero_online WHERE date < '$now'");

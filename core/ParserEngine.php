@@ -365,7 +365,7 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
             $final_screenshot = $poster_url;
         }
     } else {
-        $final_screenshot = '/designs/water.png';
+        $final_screenshot = '/designs/no_poster.jpg';
     }
 
     $final_address = $video_src;
@@ -511,7 +511,7 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
             $final_screenshot = $poster_url;
         }
     } else {
-        $final_screenshot = '/designs/water.png';
+        $final_screenshot = '/designs/no_poster.jpg';
     }
 
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
@@ -658,7 +658,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
             $final_screenshot = $poster_url;
         }
     } else {
-        $final_screenshot = '/designs/water.png';
+        $final_screenshot = '/designs/no_poster.jpg';
     }
 
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
@@ -879,7 +879,7 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
             $final_screenshot = $poster_url;
         }
     } else {
-        $final_screenshot = '/designs/water.png';
+        $final_screenshot = '/designs/no_poster.jpg';
     }
 
     // 9. Saqlash rejimi: server (MP4) yoki stream (embed/direct)
@@ -1052,7 +1052,7 @@ function parser_repair_broken_screenshots($mysqli) {
 
         // 4. Default poster
         if (empty($new_screenshot)) {
-            $new_screenshot = '/designs/water.png';
+            $new_screenshot = '/designs/no_poster.jpg';
         }
 
         if (!empty($new_screenshot)) {

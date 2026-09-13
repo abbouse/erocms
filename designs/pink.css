@@ -314,20 +314,68 @@ h1.mark {
 }
 
 /* Category cards */
+.xxxhd-thumb-cat {
+    min-height: 115px;
+}
+
 .xxxhd-thumb-cat .thumb-cat-wrap {
-    padding: 20px 10px;
+    padding: 24px 10px 14px 10px;
     text-align: center;
-    background: #252322;
+    background: #201f1e;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .xxxhd-thumb-cat .xxxhd-thumb-name {
     height: auto;
-    font-size: 14px;
+    min-height: 34px;
+    font-size: 13px;
     font-weight: 600;
     color: #fff;
     text-align: center;
     background: transparent;
-    padding: 10px;
+    padding: 6px 4px 0 4px;
+    line-height: 1.3;
+}
+
+.cat-new-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: #ff9900 !important;
+    color: #111 !important;
+    font-weight: 800 !important;
+    font-size: 11px !important;
+    padding: 2px 7px !important;
+    border-radius: 3px !important;
+    box-shadow: 0 2px 6px rgba(255, 153, 0, 0.4);
+    z-index: 5 !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 3px;
+    line-height: 16px;
+    pointer-events: none;
+}
+
+.cat-total-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.85) !important;
+    color: #eee !important;
+    border: 1px solid #444;
+    font-size: 11px !important;
+    padding: 2px 7px !important;
+    border-radius: 3px !important;
+    z-index: 5 !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 3px;
+    line-height: 16px;
+    pointer-events: none;
 }
 
 /* === OVERLAY BADGES === */

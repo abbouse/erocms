@@ -36,8 +36,25 @@
     ob_start();
     
     $title = $category['name'].' - '.$lang['look'].' '.filter($_SERVER['HTTP_HOST']);
-    $description = $category['meta'];
-    $keywords = $category['keywords'];
+    $description = !empty($category['meta']) ? $category['meta'] : '';
+    $keywords = !empty($category['keywords']) ? $category['keywords'] : '';
+
+    $seo_cats = function_exists('seo_get_categories_data') ? seo_get_categories_data() : [];
+    $cat_slug_clean = strtolower(trim($category['translit'] ?? ''));
+    if (isset($seo_cats[$cat_slug_clean])) {
+        if (empty($description)) {
+            $description = $seo_cats[$cat_slug_clean]['meta'];
+        }
+        if (empty($keywords)) {
+            $keywords = $seo_cats[$cat_slug_clean]['keywords'];
+        }
+    }
+    if (empty($description)) {
+        $description = $category['name'] . ' - eng sara va sifatli 18+ videolar sekschi.online saytida onlayn tomosha qiling.';
+    }
+    if (empty($keywords)) {
+        $keywords = $category['name'] . ', seks, porno, video, skachat, onlayn';
+    }
     
     // Bo'lim ko'rishlar sonini oshirish (botlar va reload spamdan himoyalangan)
     $cat_id = intval($category['id']);
@@ -124,11 +141,13 @@
             $tot = intval($row['likes']) + intval($row['dislikes']);
             $rate = $tot > 0 ? round((intval($row['likes']) / $tot) * 100) . '%' : '98%';
 
+            $img_src = (!empty($row['screenshot']) && $row['screenshot'] != '/designs/water.png') ? $row['screenshot'] : '/designs/no_poster.jpg';
+
             echo '<div class="xxxhd-thumb-wr">
                 <div class="xxxhd-thumb">
                     <a href="/watch/'.$row['translit'].'.html" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">
                         <div class="thumb-image-wrap">
-                            <img src="'.$row['screenshot'].'" alt="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" onerror="this.onerror=null; this.src=\'/designs/water.png\';" />
+                            <img src="'.$img_src.'" alt="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" onerror="this.onerror=null; this.src=\'/designs/no_poster.jpg\';" />
                         </div>
                         <div class="xxxhd-thumb-name" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">'.$row['name'].'</div>
                     </a>

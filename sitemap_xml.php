@@ -58,7 +58,8 @@ $videos_q = $mysqli->query("SELECT name, description, screenshot, translit, dura
 if ($videos_q) {
     while ($v = $videos_q->fetch_assoc()) {
         $v_url = "{$base_url}/watch/{$v['translit']}.html";
-        $thumb_url = (strpos($v['screenshot'], 'http') === 0) ? $v['screenshot'] : $base_url . $v['screenshot'];
+        $thumb_raw = (!empty($v['screenshot']) && $v['screenshot'] != '/designs/water.png') ? $v['screenshot'] : '/designs/no_poster.jpg';
+        $thumb_url = (strpos($thumb_raw, 'http') === 0) ? $thumb_raw : $base_url . $thumb_raw;
         
         $v_title = htmlspecialchars($v['name'], ENT_XML1, 'UTF-8');
         $v_desc = htmlspecialchars(!empty($v['description']) ? $v['description'] : $v['name'], ENT_XML1, 'UTF-8');
