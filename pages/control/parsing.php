@@ -302,11 +302,63 @@ $logs = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action_type = filter($_POST['action_type'] ?? '');
-    $donor = filter($_POST['donor'] ?? 'uzbxx');
     $category_choice = abs(intval($_POST['category'] ?? 0));
     $save_mode = filter($_POST['save_mode'] ?? 'stream');
 
-    if ($action_type === 'single_url') {
+    // 1. URLSIZ AVTO-PARSER (Eng yangi videolarni avtomatik yuklash)
+    if ($action_type === 'auto_all') {
+        $limit_count = min(30, max(1, abs(intval($_POST['auto_count'] ?? 10))));
+        $donor_choice = filter($_POST['auto_donor'] ?? 'both');
+
+        $all_links = [];
+
+        // uzbxx dan eng yangi havolalarni olish
+        if ($donor_choice === 'uzbxx' || $donor_choice === 'both') {
+            $cat_html1 = parser_get_html('https://uzbxx.ru/');
+            preg_match_all("|<a href=\"(https://uzbxx.ru/video/[^\"]+)\"|i", $cat_html1, $m1);
+            if (!empty($m1[1])) {
+                foreach (array_unique($m1[1]) as $link) {
+                    $all_links[] = ['donor' => 'uzbxx', 'url' => $link];
+                }
+            }
+        }
+
+        // uzporno dan eng yangi havolalarni olish
+        if ($donor_choice === 'uzporno' || $donor_choice === 'both') {
+            $cat_html2 = parser_get_html('https://uzporno.website/');
+            preg_match_all("|<a href=\"(https://uzporno.website/video/[^\"]+)\"|i", $cat_html2, $m2);
+            if (!empty($m2[1])) {
+                foreach (array_unique($m2[1]) as $link) {
+                    $all_links[] = ['donor' => 'uzporno', 'url' => $link];
+                }
+            }
+        }
+
+        if (empty($all_links)) {
+            $logs[] = ['status' => 'error', 'message' => 'Donor saytlardan video havolalar topilmadi.'];
+        } else {
+            $added = 0;
+            foreach ($all_links as $item) {
+                if ($added >= $limit_count) break;
+
+                if ($item['donor'] === 'uzbxx') {
+                    $res = parse_video_uzbxx($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                } else {
+                    $res = parse_video_uzporno($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                }
+
+                $logs[] = $res;
+                if ($res['status'] === 'success') {
+                    $added++;
+                }
+                usleep(250000);
+            }
+            // Keshni tozalash
+            @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
+        }
+    }
+    // 2. Yagona havola orqali
+    elseif ($action_type === 'single_url') {
         $single_url = trim($_POST['single_url'] ?? '');
         if (empty($single_url)) {
             $logs[] = ['status' => 'error', 'message' => 'Video havolasi kiritilmadi!'];
@@ -318,15 +370,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola! Faqat uzbxx.ru yoki uzporno.website havolalari qo‘llab-quvvatlanadi.'];
             }
+            @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
         }
-    } elseif ($action_type === 'mass_parse') {
+    }
+    // 3. Sahifalar bo'yicha ommaviy parslash
+    elseif ($action_type === 'mass_parse') {
+        $donor = filter($_POST['donor'] ?? 'uzbxx');
         $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
         $limit_count = min(30, max(1, abs(intval($_POST['count'] ?? 10))));
 
         if ($donor === 'uzbxx') {
             $catalog_url = ($page_num == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/{$page_num}";
             $cat_html = parser_get_html($catalog_url);
-            
             preg_match_all("|<a href=\"(https://uzbxx.ru/video/[^\"]+)\"|i", $cat_html, $matches);
             $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
 
@@ -341,13 +396,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($res['status'] === 'success') {
                         $collected++;
                     }
-                    usleep(300000); // 0.3s pauza
+                    usleep(250000);
                 }
+                @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
             }
         } elseif ($donor === 'uzporno') {
             $catalog_url = ($page_num == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page_num}";
             $cat_html = parser_get_html($catalog_url);
-
             preg_match_all("|<a href=\"(https://uzporno.website/video/[^\"]+)\"|i", $cat_html, $matches);
             $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
 
@@ -362,17 +417,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($res['status'] === 'success') {
                         $collected++;
                     }
-                    usleep(300000); // 0.3s pauza
+                    usleep(250000);
                 }
+                @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
             }
         }
     }
 }
 ?>
 
-<div class="functions_data">
-    <h2><i class="fa fa-cloud-download" style="color:#ff9900;"></i> Zamonaviy Video Parser (uzbxx.ru & uzporno.website)</h2>
-    <p style="color:#888; margin-top:4px;">Ushbu modul orqali uzbxx.ru va uzporno.website saytlaridan videolarni bir zumda saytingizga import qilishingiz mumkin.</p>
+<div class="functions_data" style="border-left: 4px solid #ff9900;">
+    <h2><i class="fa fa-cloud-download" style="color:#ff9900;"></i> Yangi Video Parser (uzbxx.ru & uzporno.website)</h2>
+    <p style="color:#aaa; margin-top:4px; font-size:13px;">
+        Ushbu modul orqali hech qanday havola yozmasdan ham bir bosishda eng so‘nggi yangi videolarni saytingizga yuklab olishingiz mumkin.
+    </p>
 </div>
 
 <?php if (!empty($logs)): ?>
@@ -392,18 +450,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <?php endif; ?>
 
-<!-- 1. Yagona havola orqali import qilish -->
-<div class="functions_data" style="margin-bottom:15px;">
-    <h3><i class="fa fa-link" style="color:#ff9900;"></i> 1. Yagona havola (URL) orqali video qo‘shish</h3>
-    <p style="color:#888; font-size:12px; margin-bottom:8px;">uzbxx.ru yoki uzporno.website dagi istalgan video sahifasi havolasini kiriting:</p>
+<!-- 1. ASOSIY: HECH QANDAY URLSIZ 1-BOSISHDA AVTO-PARSING -->
+<div class="functions_data" style="background:#191614; border: 2px solid #ff9900; margin-bottom:15px;">
+    <h3 style="color:#ff9900;"><i class="fa fa-bolt"></i> 1. Bir bosishda yangi videolarni avto-yuklash (URL KERAK EMAS!)</h3>
+    <p style="color:#bbb; font-size:13px; margin: 8px 0 12px;">
+        Hech qanday havola yozish shart emas! Shunchaki tugmani bosing va tizim donor saytlardan eng yangi videolarni avtomatik topib, saytingizga joylaydi:
+    </p>
     <form method="post">
-        <input type="hidden" name="action_type" value="single_url" />
+        <input type="hidden" name="action_type" value="auto_all" />
         <p>
-            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://uzbxx.ru/video/nomi/ yoki https://uzporno.website/video/nomi/" required style="width:100%; font-size:14px;" />
+            <b>Qaysi saytlardan olinsin:</b><br />
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="auto_donor" value="both" checked /> <b>Ikkalasidan ham (uzbxx.ru + uzporno.website)</b>
+            </label>
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="auto_donor" value="uzbxx" /> Faqat uzbxx.ru
+            </label>
+            <label style="cursor:pointer;">
+                <input type="radio" name="auto_donor" value="uzporno" /> Faqat uzporno.website
+            </label>
         </p>
-        <p style="margin-top:8px;">
+        <br />
+        <p>
+            <b>Yuklanadigan yangi videolar soni:</b>
+            <select name="auto_count" class="injected" style="width:120px; display:inline-block; margin-left:10px;">
+                <option value="5">5 ta video</option>
+                <option value="10" selected>10 ta video</option>
+                <option value="15">15 ta video</option>
+                <option value="20">20 ta video</option>
+            </select>
+            &nbsp;
             <b>Bo‘lim (Kategoriya):</b>
-            <select name="category" class="injected" style="width:250px; display:inline-block; margin-left:10px;">
+            <select name="category" class="injected" style="width:220px; display:inline-block; margin-left:10px;">
                 <option value="0">-- Avtomatik --</option>
                 <?php
                 $cats_q = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
@@ -414,72 +492,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </select>
             &nbsp;
             <b>Rejim:</b>
-            <select name="save_mode" class="injected" style="width:200px; display:inline-block; margin-left:10px;">
-                <option value="stream" selected>Oqim (Stream / Embed)</option>
-                <option value="download">Serverga yuklash (MP4)</option>
+            <select name="save_mode" class="injected" style="width:180px; display:inline-block; margin-left:10px;">
+                <option value="stream" selected>Oqim (Stream/Embed)</option>
+                <option value="download">Serverga MP4 yuklash</option>
             </select>
         </p>
-        <p style="margin-top:12px;">
-            <button type="submit" class="byecos"><i class="fa fa-download"></i> Videoni import qilish</button>
+        <br />
+        <p>
+            <button type="submit" class="byecos" style="font-size:15px; padding:10px 24px; background:#ff9900; color:#000;">
+                <i class="fa fa-cloud-download"></i> 🚀 Yangi videolarni darhol avto-yuklash
+            </button>
         </p>
     </form>
 </div>
 
-<!-- 2. Katalogdan ommaviy yuklash (Avto-grabber) -->
-<div class="functions_data">
-    <h3><i class="fa fa-tasks" style="color:#ff9900;"></i> 2. Katalogdan ommaviy parslash (Avto-grabber)</h3>
-    <p style="color:#888; font-size:12px; margin-bottom:8px;">Donor sayt katalogidan yangi videolarni avtomatik yig‘ib olish:</p>
+<!-- 2. Katalog sahifalari bo'yicha chuqur parslash -->
+<div class="functions_data" style="margin-bottom:15px;">
+    <h3><i class="fa fa-tasks" style="color:#ff9900;"></i> 2. Katalog sahifalari bo‘yicha parslash (Eski/oldingi sahifalar)</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:8px;">Donor saytning istalgan sahifasidan (2, 3, 4...) videolarni yuklab olish:</p>
     <form method="post">
         <input type="hidden" name="action_type" value="mass_parse" />
         <p>
             <b>Donor sayt:</b><br />
             <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="donor" value="uzbxx" checked /> <b>uzbxx.ru</b> (UzbXX)
+                <input type="radio" name="donor" value="uzbxx" checked /> <b>uzbxx.ru</b>
             </label>
             <label style="cursor:pointer;">
-                <input type="radio" name="donor" value="uzporno" /> <b>uzporno.website</b> (UzPorno)
+                <input type="radio" name="donor" value="uzporno" /> <b>uzporno.website</b>
             </label>
         </p>
         <br />
         <p>
             <b>Katalog sahifasi raqami:</b>
-            <input type="number" name="page_num" value="1" min="1" max="100" class="injected" style="width:80px; display:inline-block; margin-left:10px;" />
-            <small style="color:#888;">(1 - eng yangilar, 2, 3... - oldingi sahifalar)</small>
-        </p>
-        <br />
-        <p>
-            <b>Yuklanadigan videolar soni:</b>
+            <input type="number" name="page_num" value="2" min="1" max="100" class="injected" style="width:80px; display:inline-block; margin-left:10px;" />
+            &nbsp;
+            <b>Videolar soni:</b>
             <select name="count" class="injected" style="width:120px; display:inline-block; margin-left:10px;">
                 <option value="5">5 ta video</option>
                 <option value="10" selected>10 ta video</option>
-                <option value="15">15 ta video</option>
                 <option value="20">20 ta video</option>
             </select>
         </p>
         <br />
         <p>
-            <b>Bo‘lim (Kategoriya):</b>
-            <select name="category" class="injected" style="width:250px; display:inline-block; margin-left:10px;">
-                <option value="0">-- Avtomatik --</option>
-                <?php
-                $cats_q2 = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
-                while ($c = $cats_q2->fetch_assoc()) {
-                    echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
-                }
-                ?>
-            </select>
-            &nbsp;
-            <b>Rejim:</b>
-            <select name="save_mode" class="injected" style="width:200px; display:inline-block; margin-left:10px;">
-                <option value="stream" selected>Oqim (Stream / Embed)</option>
-                <option value="download">Serverga yuklash (MP4)</option>
-            </select>
+            <button type="submit" class="byecos"><i class="fa fa-play"></i> Ushbu sahifani parslash</button>
         </p>
-        <br />
+    </form>
+</div>
+
+<!-- 3. Yagona havola (URL) orqali video qo‘shish -->
+<div class="functions_data">
+    <h3><i class="fa fa-link" style="color:#ff9900;"></i> 3. Yagona havola (URL) orqali bitta video qo‘shish</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:8px;">Aniq bitta videoning to‘liq havolasini kiriting:</p>
+    <form method="post">
+        <input type="hidden" name="action_type" value="single_url" />
         <p>
-            <button type="submit" class="byecos" onclick="return confirm('Parslash boshlansinmi? Bu bir necha soniya vaqt olishi mumkin.');">
-                <i class="fa fa-play"></i> Parslashni boshlash
-            </button>
+            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://uzbxx.ru/video/nomi/ yoki https://uzporno.website/video/nomi/" required style="width:100%; font-size:14px;" />
+        </p>
+        <p style="margin-top:10px;">
+            <button type="submit" class="byecos"><i class="fa fa-download"></i> Havoladan import qilish</button>
         </p>
     </form>
 </div>

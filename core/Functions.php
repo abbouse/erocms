@@ -100,6 +100,9 @@ if ($user)  $view_control = '
 <li><a href="/control.php"><i class="fa fa-cog"></i> '.$lang['control_panel'].'</a></li>';
 else $view_control = null;
 
+$css_file = $_SERVER['DOCUMENT_ROOT'].'/designs/'.$settings['designs'].'.css';
+$css_v = file_exists($css_file) ? filemtime($css_file) : time();
+
 echo '
 <html lang="ru">
   <head>
@@ -121,7 +124,7 @@ echo '
 <link rel="canonical" href="'.$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'" />
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
-<link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css" />
+<link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css?v='.$css_v.'" />
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <title>'.$title.'</title>
   </head>
