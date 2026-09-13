@@ -84,6 +84,22 @@ $check_on_seen = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'last_seen
 if ($check_on_seen && $check_on_seen->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_online` ADD `last_seen` INT(11) NULL DEFAULT '0'");
 }
+$check_on_cc = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'country_code'");
+if ($check_on_cc && $check_on_cc->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_online` ADD `country_code` VARCHAR(4) NULL DEFAULT 'UZ'");
+}
+$check_act_cc = @$mysqli->query("SHOW COLUMNS FROM `ero_activity` LIKE 'country_code'");
+if ($check_act_cc && $check_act_cc->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_activity` ADD `country_code` VARCHAR(4) NULL DEFAULT 'UZ'");
+}
+
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_geoip_cache` (
+  `ip` VARCHAR(45) NOT NULL,
+  `country_code` VARCHAR(4) NOT NULL DEFAULT 'UZ',
+  `country_name` VARCHAR(100) NOT NULL DEFAULT 'O‘zbekiston',
+  `date` INT(11) NOT NULL,
+  PRIMARY KEY (`ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 @$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_dmca` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -127,6 +143,7 @@ if ($check_on_seen && $check_on_seen->num_rows == 0) {
 
 require_once __DIR__ . '/SeoEngine.php';
 require_once __DIR__ . '/ads_helper.php';
+require_once __DIR__ . '/GeoIpHelper.php';
 
 function time_ago($time) {
     $diff = time() - $time;
@@ -137,21 +154,18 @@ function time_ago($time) {
     return date('d.m.Y', $time);
 }
 
-/**
- * Qidiruv botlari, spiderlar va parserlarni aniqlash
- */
+// Qidiruv robotlari va crawlerlarni aniqlash
 function is_crawler_or_bot() {
     $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-    if (empty($user_agent)) {
-        return true; // Bo'sh user-agent ko'pincha bot yoki skript bo'ladi
-    }
+    if (empty($user_agent)) return false;
     
     $bot_patterns = [
-        'bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'google', 'yandex', 
-        'bing', 'msnbot', 'baidu', 'duckduck', 'teoma', 'yahoo', 'semrush', 
-        'ahrefs', 'mj12bot', 'petalbot', 'dotbot', 'rogerbot', 'exabot', 
-        'facebookexternalhit', 'facebot', 'ia_archiver', 'curl', 'wget', 
-        'python', 'php', 'httpclient', 'telegrambot', 'whatsapp', 'vkshare', 
+        'googlebot', 'yandex', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
+        'yeti', 'yodaobot', 'gigabot', 'ia_archiver', 'archive.org_bot',
+        'ahrefsbot', 'semrushbot', 'mj12bot', 'dotbot', 'rogue',
+        'petalbot', 'bytespider', 'zoominfobot', 'exabot', 'seokicks',
+        'curl', 'python', 'urllib', 'wget', 'httpclient', 'postman',
+        'telegrambot', 'whatsapp', 'facebookexternalhit', 'vkshare',
         'twitterbot', 'applebot', 'seznambot', 'screaming frog', 'lighthouse',
         'headlesschrome', 'chrome-lighthouse', 'headless', 'inspect'
     ];
@@ -172,7 +186,9 @@ function track_activity($action, $id_file = 0, $query_text = null) {
     $id_safe = (int)$id_file;
     $text_safe = ($query_text !== null && $query_text !== '') ? "'".mysqli_real_escape_string($mysqli, $query_text)."'" : "NULL";
     $time = time();
-    @$mysqli->query("INSERT INTO `ero_activity` (`ip`, `user_agent`, `action`, `id_file`, `query_text`, `date`) VALUES ('$ip', '".mysqli_real_escape_string($mysqli, $ua)."', '$action_safe', '$id_safe', $text_safe, '$time')");
+    $c_info = function_exists('get_ip_country_info') ? get_ip_country_info($ip) : ['code' => 'UZ', 'name' => 'O‘zbekiston'];
+    $c_code = mysqli_real_escape_string($mysqli, $c_info['code']);
+    @$mysqli->query("INSERT INTO `ero_activity` (`ip`, `user_agent`, `country_code`, `action`, `id_file`, `query_text`, `date`) VALUES ('$ip', '".mysqli_real_escape_string($mysqli, $ua)."', '$c_code', '$action_safe', '$id_safe', $text_safe, '$time')");
 }
 
 #Локализация
@@ -932,11 +948,13 @@ $raw_ua = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 250);
 $current_ua = mysqli_real_escape_string($mysqli, filter($raw_ua));
 $now = time();
 $expire = $now + 300;
+$c_info = function_exists('get_ip_country_info') ? get_ip_country_info($client_ip) : ['code' => 'UZ', 'name' => 'O‘zbekiston'];
+$c_code = mysqli_real_escape_string($mysqli, $c_info['code']);
 
 $check_vis = $mysqli->query("SELECT id FROM ero_online WHERE ip = '$client_ip' LIMIT 1");
 if ($check_vis && $check_vis->num_rows > 0) {
-    $mysqli->query("UPDATE ero_online SET date = '$expire', page_url = '$current_page', user_agent = '$current_ua', last_seen = '$now' WHERE ip = '$client_ip'");
+    $mysqli->query("UPDATE ero_online SET date = '$expire', page_url = '$current_page', user_agent = '$current_ua', country_code = '$c_code', last_seen = '$now' WHERE ip = '$client_ip'");
 } else {
-    $mysqli->query("INSERT INTO ero_online (ip, date, page_url, user_agent, last_seen) VALUES ('$client_ip', '$expire', '$current_page', '$current_ua', '$now')");
+    $mysqli->query("INSERT INTO ero_online (ip, date, page_url, user_agent, country_code, last_seen) VALUES ('$client_ip', '$expire', '$current_page', '$current_ua', '$c_code', '$now')");
 }
 $mysqli->query("DELETE FROM ero_online WHERE date < '$now'");

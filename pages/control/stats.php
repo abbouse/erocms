@@ -31,12 +31,50 @@ $on_start = ($on_page - 1) * $on_per_page;
 $total_on_pages = ceil($total_online_count / $on_per_page);
 
 $online_users_query = $mysqli->query("
-    SELECT ip, date, page_url, user_agent, last_seen 
+    SELECT ip, date, page_url, user_agent, country_code, last_seen 
     FROM ero_online 
     WHERE date > '$online_now' 
     ORDER BY date DESC 
     LIMIT $on_start, $on_per_page
 ");
+
+// IP Checker so'rovi
+$ip_check_result = null;
+$check_ip_query = trim($_GET['check_ip'] ?? '');
+if (!empty($check_ip_query)) {
+    $ip_info = function_exists('get_ip_country_info') ? get_ip_country_info($check_ip_query) : ['code' => 'UZ', 'name' => 'O‘zbekiston'];
+    $extra_info = [];
+    try {
+        $ctx = stream_context_create(['http' => ['timeout' => 1.5, 'ignore_errors' => true]]);
+        $api_json = @file_get_contents("http://ip-api.com/json/{$check_ip_query}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,timezone,isp,org,as,query", false, $ctx);
+        if ($api_json) {
+            $extra_info = @json_decode($api_json, true) ?: [];
+        }
+    } catch (\Throwable $e) {}
+
+    $c_code = strtoupper($extra_info['countryCode'] ?? $ip_info['code']);
+    $ip_check_result = [
+        'ip' => $check_ip_query,
+        'country_code' => $c_code,
+        'country_name' => function_exists('get_country_name_uz') ? get_country_name_uz($c_code) : ($extra_info['country'] ?? $ip_info['name']),
+        'region' => $extra_info['regionName'] ?? '',
+        'city' => $extra_info['city'] ?? '',
+        'isp' => $extra_info['isp'] ?? 'Noma’lum ISP',
+        'org' => $extra_info['org'] ?? '',
+        'timezone' => $extra_info['timezone'] ?? 'Asia/Tashkent'
+    ];
+}
+
+// Davlatlar bo'yicha umumiy statistika (Geografiya)
+$country_stats_q = $mysqli->query("
+    SELECT country_code, COUNT(*) as total_visits 
+    FROM ero_activity 
+    WHERE country_code != '' AND country_code != 'XX' 
+    GROUP BY country_code 
+    ORDER BY total_visits DESC 
+    LIMIT 8
+");
+$country_total_visits = (int)($mysqli->query("SELECT COUNT(*) FROM ero_activity WHERE country_code != '' AND country_code != 'XX'")->fetch_row()[0] ?? 0);
 
 // 2. Harakatlar oqimi (Activity Stream)
 $filter = filter($_GET['filter'] ?? 'all');
@@ -215,10 +253,11 @@ $top_searches = $mysqli->query("
                 <tr <?=($is_admin_user ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
                     <td style="color:#64748b; font-weight:700;"><?=$on_num++?></td>
                     <td>
-                        <code style="color:#e2e8f0; font-size:13px; font-weight:600;"><?=$u['ip']?></code>
+                        <?=render_ip_with_flag($u['ip'], $u['country_code'] ?? null)?>
                         <?php if ($is_admin_user): ?>
                             <span class="adm-badge adm-badge-warning" style="margin-left:6px;"><i class="fa fa-user-secret"></i> Siz (Admin)</span>
                         <?php endif; ?>
+                        <a href="/control.html?func=stats&check_ip=<?=$u['ip']?>#ip_checker_box" title="Ushbu IP ni tekshirish" style="color:#60a5fa; font-size:11px; margin-left:5px;"><i class="fa fa-info-circle"></i></a>
                     </td>
                     <td>
                         <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
@@ -285,6 +324,88 @@ $top_searches = $mysqli->query("
         ?>
     </div>
     <?php endif; ?>
+</div>
+
+<!-- Davlatlar Geografiyasi & IP Checker -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
+    <!-- 1. Davlatlar Bo'yicha Tashriflar -->
+    <div class="adm-card" style="margin-bottom:0;">
+        <div class="adm-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="adm-card-title"><i class="fa fa-globe" style="color: #ff9900;"></i> Tashriflar Geografiyasi (Davlatlar)</h3>
+            <span class="adm-badge adm-badge-info"><?=number_format($country_total_visits)?> ta faollik</span>
+        </div>
+        <div style="padding:15px;">
+            <?php if ($country_stats_q && $country_stats_q->num_rows > 0): ?>
+                <?php while ($c = $country_stats_q->fetch_assoc()): 
+                    $c_code = strtoupper($c['country_code']);
+                    $c_name = function_exists('get_country_name_uz') ? get_country_name_uz($c_code) : $c_code;
+                    $c_count = (int)$c['total_visits'];
+                    $c_percent = ($country_total_visits > 0) ? round(($c_count / $country_total_visits) * 100, 1) : 0;
+                ?>
+                <div style="margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:4px;">
+                        <span style="display:inline-flex; align-items:center; gap:6px; font-weight:600; color:#fff;">
+                            <?=function_exists('get_country_flag_badge') ? get_country_flag_badge($c_code, $c_name, true) : ''?>
+                            <span><?=$c_name?></span>
+                        </span>
+                        <span style="color:#94a3b8; font-size:12px;">
+                            <b><?=number_format($c_count)?></b> ta (<?=$c_percent?>%)
+                        </span>
+                    </div>
+                    <div style="width:100%; height:6px; background:#262935; border-radius:3px; overflow:hidden;">
+                        <div style="width:<?=max(4, $c_percent)?>%; height:100%; background:linear-gradient(90deg, #ff9900, #f59e0b); border-radius:3px;"></div>
+                    </div>
+                </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div style="text-align:center; padding:30px; color:#64748b;">
+                    <i class="fa fa-globe" style="font-size:32px; color:#383e50; display:block; margin-bottom:8px;"></i>
+                    Hozircha davlatlar statistikasi yig‘ilmoqda...
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- 2. IP Checker Vositalari -->
+    <div class="adm-card" id="ip_checker_box" style="margin-bottom:0;">
+        <div class="adm-card-header">
+            <h3 class="adm-card-title"><i class="fa fa-crosshairs" style="color: #60a5fa;"></i> IP Checker (Mehmon IP Tekshiruvi)</h3>
+        </div>
+        <div style="padding:15px;">
+            <form method="get" action="/control.html" style="margin-bottom:15px;">
+                <input type="hidden" name="func" value="stats" />
+                <div style="display:flex; gap:8px;">
+                    <input type="text" name="check_ip" class="adm-input" value="<?=htmlspecialchars($check_ip_query)?>" placeholder="Tekshirish uchun IP kiriting (masalan: 84.54.120.3)" style="flex:1;" required />
+                    <button type="submit" class="adm-btn adm-btn-primary" style="white-space:nowrap; padding:9px 16px;">
+                        <i class="fa fa-search"></i> Tekshirish
+                    </button>
+                </div>
+            </form>
+
+            <?php if ($ip_check_result): ?>
+                <div style="background:#151821; border:1px solid rgba(96,165,250,0.3); border-radius:6px; padding:15px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:8px;">
+                        <span style="font-size:14px; font-weight:700; color:#fff;">
+                            <?=function_exists('get_country_flag_badge') ? get_country_flag_badge($ip_check_result['country_code'], $ip_check_result['country_name']) : ''?>
+                            <code><?=$ip_check_result['ip']?></code>
+                        </span>
+                        <span class="adm-badge adm-badge-info"><?=$ip_check_result['country_name']?> (<?=$ip_check_result['country_code']?>)</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px;">
+                        <div><span style="color:#64748b;">Shahar:</span> <b style="color:#e2e8f0;"><?=$ip_check_result['city'] ?: 'Noma’lum'?></b></div>
+                        <div><span style="color:#64748b;">Viloyat / Region:</span> <b style="color:#e2e8f0;"><?=$ip_check_result['region'] ?: 'Noma’lum'?></b></div>
+                        <div><span style="color:#64748b;">Provayder (ISP):</span> <b style="color:#60a5fa;"><?=$ip_check_result['isp']?></b></div>
+                        <div><span style="color:#64748b;">Vaqt mintaqasi:</span> <b style="color:#e2e8f0;"><?=$ip_check_result['timezone']?></b></div>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div style="background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:6px; padding:20px; text-align:center; color:#64748b; font-size:12px;">
+                    <i class="fa fa-info-circle" style="font-size:24px; color:#60a5fa; display:block; margin-bottom:6px;"></i>
+                    Jadvallardagi istalgan IP yonidagi <i class="fa fa-info-circle" style="color:#60a5fa;"></i> tugmasini bosing yoki yuqoridagi qidiruvga IP yozing.
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
@@ -482,7 +603,8 @@ $top_searches = $mysqli->query("
                         <small style="color:#64748b;"><?=time_ago($act['date'])?></small>
                     </td>
                     <td>
-                        <code style="color:#e2e8f0; font-size:12px;"><?=$act['ip']?></code>
+                        <?=render_ip_with_flag($act['ip'], $act['country_code'] ?? null)?>
+                        <a href="/control.html?func=stats&check_ip=<?=$act['ip']?>#ip_checker_box" title="IP ni tekshirish" style="color:#60a5fa; font-size:10px; margin-left:4px;"><i class="fa fa-info-circle"></i></a>
                     </td>
                     <td>
                         <span class="adm-badge <?=$badge_class?>" style="font-size:12px;">

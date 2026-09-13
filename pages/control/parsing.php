@@ -252,16 +252,103 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
 <!-- ========================================================================= -->
 <!-- 1. ASOSIY ASINXRON CANLI PARSER (TIMEOUTSIZ, PROGRESS BAR VA JONLI LOG)   -->
 <!-- ========================================================================= -->
+<style>
+.adm-preset-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 7px 13px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.adm-preset-btn:hover {
+    background: #334155;
+    color: #ff9900;
+    border-color: #ff9900;
+    transform: translateY(-1px);
+}
+.adm-preset-btn.active {
+    background: rgba(255, 153, 0, 0.15);
+    color: #ff9900;
+    border-color: #ff9900;
+    box-shadow: 0 0 10px rgba(255, 153, 0, 0.3);
+}
+.donor-option {
+    transition: all 0.2s ease;
+}
+.donor-option:hover {
+    border-color: #ff9900 !important;
+}
+.donor-option input:checked + div b {
+    text-shadow: 0 0 8px currentColor;
+}
+</style>
+
+<!-- ========================================================================= -->
+<!-- 1. ASOSIY ASINXRON JONLI PARSER (TIMEOUTSIZ, PROGRESS BAR VA JONLI LOG)   -->
+<!-- ========================================================================= -->
 <div class="adm-card" style="background: #181b24; border: 2px solid #ff9900; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #282d3d; padding-bottom: 14px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #282d3d; padding-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div>
             <h3 style="color: #ff9900; margin: 0 0 4px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
                 <i class="fa fa-play-circle"></i> 1. Jonli Asinxron Parser (Nol Timeout Kafolati)
             </h3>
-            <span style="color: #94a3b8; font-size: 12px;">Har bir video alohida so'rovda o'tadi — server hech qachon qotib qolmaydi va 504 Gateway Timeout bermaydi.</span>
+            <span style="color: #94a3b8; font-size: 12px;">Har bir video alohida so‘rovda o‘tadi — server hech qachon qotib qolmaydi va 504 Gateway Timeout bermaydi.</span>
         </div>
-        <div id="liveStatusBadge" style="display: none; background: #1e293b; color: #38bdf8; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #38bdf8; display: flex; align-items: center; gap: 6px;">
+        <div id="liveStatusBadge" style="display: none; background: #1e293b; color: #38bdf8; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #38bdf8; align-items: center; gap: 8px;">
             <span class="adm-pulse-dot" style="background: #38bdf8;"></span> <span id="liveStatusText">Tayyor</span>
+        </div>
+    </div>
+
+    <!-- Tezkor 1-Klik Shablonlar (Presets) -->
+    <div style="margin-bottom: 20px; background: rgba(255, 153, 0, 0.04); border: 1px solid rgba(255, 153, 0, 0.2); border-radius: 8px; padding: 14px 16px;">
+        <div style="color: #ff9900; font-weight: bold; font-size: 13px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <span><i class="fa fa-magic"></i> ⚡ Tezkor 1-Klik Shablonlar (Presets):</span>
+            <span style="font-size: 11px; color: #94a3b8; font-weight: normal;">Bitta bosishda mos donor, sahifalar va toifani avtomatik sozlaydi</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="parserPresetsList">
+            <button type="button" class="adm-preset-btn active" data-donor="sexlar" data-url="" data-from="1" data-to="3" title="sexlar.link dan eng yangi o‘zbekcha videolar">
+                🇺🇿 Yangi O‘zbek (sexlar)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/" data-from="1" data-to="3" title="arhivporno.watch (barcha yangi videolar)">
+                🌟 Barcha Yangi (arhivporno)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-anal-porno/" data-from="1" data-to="3" title="Anal seks bo‘limi">
+                🍑 Anal Seksi
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-minet/" data-from="1" data-to="3" title="Minet / Oral seks bo‘limi">
+                👄 Minet / Oral
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-rakom/" data-from="1" data-to="3" title="Rakom / Doggystyle bo‘limi">
+                🐕 Rakom (Doggystyle)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="https://uzbxx.ru/category/Domashnee/" data-from="1" data-to="3" title="Uyda olingan / Domashnee">
+                🏠 Domashnee (uzbxx)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-bolshie-siski/" data-from="1" data-to="3" title="Katta emchaklar bo‘limi">
+                🍒 Katta Ko‘kraklar (Siski)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-studentov/" data-from="1" data-to="3" title="Talabalar bo‘limi">
+                🎓 Talabalar
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-molodih/" data-from="1" data-to="3" title="Yosh qizlar bo‘limi">
+                🔞 Yosh Qizlar (18+)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="" data-from="1" data-to="3" title="uzbxx.ru bosh sahifasi">
+                🇺🇿 Katta O‘zbek Bazasi (uzbxx)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="uzporno" data-url="" data-from="1" data-to="3" title="uzporno.website">
+                🌐 uzporno.website
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="all" data-url="" data-from="1" data-to="2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: bold; border-color: #10b981;" title="Barcha 4 donor ketma-ket">
+                🔥 BARCHA DONORLAR (Multi-Donor)
+            </button>
         </div>
     </div>
 
@@ -271,33 +358,40 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             <label style="color: #e2e8f0; font-weight: bold; font-size: 13px; display: block; margin-bottom: 8px;">
                 <i class="fa fa-globe" style="color: #ff9900;"></i> Donor Saytni Tanlang:
             </label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
                     <input type="radio" name="p_donor" value="sexlar" checked />
                     <div>
                         <b style="color: #10b981; font-size: 14px;">sexlar.link</b>
-                        <div style="color: #64748b; font-size: 11px;">Yangi o‘zbekcha videolar (MP4/Embed)</div>
+                        <div style="color: #64748b; font-size: 11px;">Yangi o‘zbekcha videolar</div>
                     </div>
                 </label>
-                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
                     <input type="radio" name="p_donor" value="arhivporno" />
                     <div>
                         <b style="color: #38bdf8; font-size: 14px;">arhivporno.watch</b>
-                        <div style="color: #64748b; font-size: 11px;">O‘zbek seksi va tematik arxiv</div>
+                        <div style="color: #64748b; font-size: 11px;">Barcha yangi & tematik arxiv</div>
                     </div>
                 </label>
-                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
                     <input type="radio" name="p_donor" value="uzbxx" />
                     <div>
                         <b style="color: #f59e0b; font-size: 14px;">uzbxx.ru</b>
                         <div style="color: #64748b; font-size: 11px;">Katta o‘zbek bazasi</div>
                     </div>
                 </label>
-                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
                     <input type="radio" name="p_donor" value="uzporno" />
                     <div>
                         <b style="color: #ec4899; font-size: 14px;">uzporno.website</b>
-                        <div style="color: #64748b; font-size: 11px;">O‘zbek va sharq videolari</div>
+                        <div style="color: #64748b; font-size: 11px;">O‘zbek & sharq videolari</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
+                    <input type="radio" name="p_donor" value="all" />
+                    <div>
+                        <b style="color: #a855f7; font-size: 14px;">🔥 BARCHA DONORLAR</b>
+                        <div style="color: #64748b; font-size: 11px;">4 ta donordan ketma-ket</div>
                     </div>
                 </label>
             </div>
@@ -308,11 +402,11 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">
                 <i class="fa fa-link" style="color: #ff9900;"></i> Maxsus donor bo‘lim/katalog havolasi (Ixtiyoriy — masalan faqat ma'lum toifani parslash uchun):
             </label>
-            <input type="text" id="p_custom_url" placeholder="Bo‘sh qoldiring yoki masalan: https://arhivporno.watch/cat-anal/{PAGE}/ yoki https://sexlar.link/categories/minet/{PAGE}/" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
+            <input type="text" id="p_custom_url" placeholder="Bo‘sh qoldiring yoki masalan: https://arhivporno.watch/cat-anal-porno/ yoki https://uzbxx.ru/category/Domashnee/" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
         </div>
 
         <!-- Parametrlar Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px;">
             <div>
                 <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
                     <i class="fa fa-step-backward" style="color: #ff9900;"></i> Boshlang‘ich sahifa:
@@ -329,7 +423,7 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
 
             <div>
                 <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
-                    <i class="fa fa-filter" style="color: #ff9900;"></i> Har sahifadan (Limit):
+                    <i class="fa fa-filter" style="color: #ff9900;"></i> Sahifa limiti:
                 </label>
                 <select id="p_limit_per_page" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
                     <option value="10">10 ta video / sahifa</option>
@@ -344,10 +438,21 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     <i class="fa fa-folder-open" style="color: #ff9900;"></i> Bo‘lim (Toifa):
                 </label>
                 <select id="p_category" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
-                    <option value="0" style="color: #10b981; font-weight: bold;">🎯 100% Intellektual Avtomatik Saralash (Tavsiya)</option>
+                    <option value="0" style="color: #10b981; font-weight: bold;">🎯 100% Intellektual Avto-Saralash (Tavsiya)</option>
                     <?php foreach ($cat_list as $c): ?>
                         <option value="<?=$c['id']?>"><?=$c['name']?></option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-tachometer" style="color: #ff9900;"></i> Tezlik rejimi:
+                </label>
+                <select id="p_speed" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+                    <option value="250" selected>⚡ Tezkor (0.25s pauza)</option>
+                    <option value="100">🚀 Turbo (0.1s pauza)</option>
+                    <option value="700">🛡️ Ehtiyotkor (0.7s pauza)</option>
                 </select>
             </div>
 
@@ -400,8 +505,8 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                 <div id="statErrors" style="color: #ef4444; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
             </div>
             <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
-                <div style="color: #94a3b8; font-size: 11px;">Hozirgi Sahifa</div>
-                <div id="statCurPage" style="color: #ff9900; font-size: 20px; font-weight: bold; margin-top: 4px;">-</div>
+                <div style="color: #94a3b8; font-size: 11px;">Hozirgi Donor / Sahifa</div>
+                <div id="statCurPage" style="color: #ff9900; font-size: 16px; font-weight: bold; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</div>
             </div>
         </div>
 
@@ -413,6 +518,23 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             </div>
             <div style="background: #0f172a; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #334155;">
                 <div id="progressBarFill" style="background: linear-gradient(90deg, #ff9900, #10b981); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+        </div>
+
+        <!-- Jonli Video Preview Kartochkasi (Oxirgi qayta ishlangan video) -->
+        <div id="liveVideoPreviewCard" style="display: none; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; gap: 14px; align-items: center;">
+                <img id="previewThumb" src="/designs/no_poster.jpg" style="width: 120px; height: 75px; object-fit: cover; border-radius: 6px; border: 1px solid #334155; flex-shrink: 0;" />
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 5px; flex-wrap: wrap;">
+                        <span id="previewStatusBadge" style="background: #10b981; color: #000; font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 4px;">QO‘SHILDI</span>
+                        <span id="previewCatBadge" style="background: #1e293b; color: #ff9900; border: 1px solid #ff9900; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold;">Toifa</span>
+                        <span id="previewDurationBadge" style="color: #94a3b8; font-size: 11px;"><i class="fa fa-clock-o"></i> 05:00</span>
+                        <span id="previewDonorBadge" style="color: #38bdf8; font-size: 11px;"><i class="fa fa-globe"></i> donor</span>
+                    </div>
+                    <a id="previewTitleLink" href="#" target="_blank" style="color: #fff; font-size: 13px; font-weight: bold; text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Video nomi</a>
+                    <div id="previewTagsLine" style="color: #64748b; font-size: 11px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Teglar avtomatik shakllantirildi</div>
+                </div>
             </div>
         </div>
 
@@ -506,6 +628,23 @@ $(document).ready(function() {
         return d.toTimeString().split(' ')[0];
     }
 
+    function playSuccessChime() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.4);
+        } catch (e) {}
+    }
+
     function addLog(type, message) {
         const timeStr = getNowTime();
         let color = '#cbd5e1';
@@ -544,34 +683,68 @@ $(document).ready(function() {
         $('#liveConsole').empty();
     });
 
+    // 0. PRESETS BOSILGANDA AVTO-TO'LDIRISH
+    $('.adm-preset-btn').on('click', function() {
+        $('.adm-preset-btn').removeClass('active');
+        $(this).addClass('active');
+
+        const donor = $(this).data('donor');
+        const customUrl = $(this).data('url') || '';
+        const pageFrom = $(this).data('from') || 1;
+        const pageTo = $(this).data('to') || 3;
+
+        $('input[name="p_donor"][value="' + donor + '"]').prop('checked', true);
+        $('#p_custom_url').val(customUrl);
+        $('#p_page_from').val(pageFrom);
+        $('#p_page_to').val(pageTo);
+        $('#p_category').val(0); // 100% Intellektual avto-saralash
+
+        addLog('info', 'Shablon tanlandi: <b>' + $(this).text().trim() + '</b>');
+    });
+
+    // Tarmoq uzilishlariga chidamli AJAX chaqiruvi (3 marta avto-qayta urinish)
+    async function ajaxWithRetry(ajaxOptions, maxRetries = 3, delayMs = 1200) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await $.ajax(ajaxOptions);
+            } catch (err) {
+                if (attempt >= maxRetries || shouldStop) {
+                    throw err;
+                }
+                addLog('info', '⚠️ Tarmoq xatosi, ' + attempt + '-qayta urinish (' + (delayMs / 1000) + 's dan so‘ng)...');
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+    }
+
     // 1. ASOSIY PARSER BOSHLASH
     $('#btnStartParse').on('click', async function() {
         if (isRunning && isPaused) {
-            // Rezyume qilish
             isPaused = false;
             $('#liveStatusText').text('Davom etmoqda...');
             $('#btnPauseParse').html('<i class="fa fa-pause"></i> ⏸️ Pauza');
             addLog('info', 'Parslash davom ettirildi.');
-            processNextQueueItem();
             return;
         }
 
         if (isRunning) return;
 
-        const donor = $('input[name="p_donor"]:checked').val() || 'sexlar';
+        const selectedDonor = $('input[name="p_donor"]:checked').val() || 'sexlar';
         const customUrl = $('#p_custom_url').val().trim();
         const pageFrom = parseInt($('#p_page_from').val()) || 1;
         const pageTo = parseInt($('#p_page_to').val()) || 1;
         const limitPerPage = parseInt($('#p_limit_per_page').val()) || 20;
         const category = parseInt($('#p_category').val()) || 0;
         const saveMode = $('#p_save_mode').val() || 'stream';
+        const pauseDelay = parseInt($('#p_speed').val()) || 250;
 
         if (pageTo < pageFrom) {
-            alert("Oxirgi sahifa boshlang'ich sahifadan kichik bo'lishi mumkin emas!");
+            alert("Oxirgi sahifa boshlang‘ich sahifadan kichik bo‘lishi mumkin emas!");
             return;
         }
 
-        // Holatni yangilash
+        const donorsToRun = (selectedDonor === 'all') ? ['sexlar', 'arhivporno', 'uzbxx', 'uzporno'] : [selectedDonor];
+
         isRunning = true;
         isPaused = false;
         shouldStop = false;
@@ -589,62 +762,21 @@ $(document).ready(function() {
         $('#statCurPage').text(pageFrom);
 
         $('#liveProgressArea').slideDown();
-        $('#liveStatusBadge').show();
+        $('#liveStatusBadge').show().css('display', 'inline-flex');
         $('#liveStatusText').text('Ishlamoqda...');
         $('#btnStartParse').prop('disabled', true).css('opacity', '0.6');
-        $('#btnPauseParse').show().html('<i class="fa fa-pause"></i> ⏸️ Pauza');
-        $('#btnStopParse').show();
+        $('#btnPauseParse').show().css('display', 'inline-flex').html('<i class="fa fa-pause"></i> ⏸️ Pauza');
+        $('#btnStopParse').show().css('display', 'inline-flex');
 
-        addLog('info', '🚀 Parslash boshlandi. Donor: <b>' + donor + '</b>, Sahifalar: ' + pageFrom + ' – ' + pageTo);
+        addLog('info', '🚀 <b>Parslash boshlandi!</b> Donorlar: <b>' + donorsToRun.join(', ') + '</b>, Sahifalar: ' + pageFrom + ' – ' + pageTo);
 
-        // Sahifalar bo'yicha ketma-ket yig'ish va parslash
-        for (let pg = pageFrom; pg <= pageTo; pg++) {
-            if (shouldStop) break;
-            while (isPaused) {
-                await new Promise(r => setTimeout(r, 500));
-                if (shouldStop) break;
-            }
+        // Barcha tanlangan donorlar bo'yicha ketma-ket parslash
+        for (const curDonor of donorsToRun) {
             if (shouldStop) break;
 
-            $('#statCurPage').text(pg + ' / ' + pageTo);
-            $('#progressLabel').text('Sahifa ' + pg + ' katalogi tekshirilmoqda (' + donor + ')...');
-            addLog('page', 'Sahifa <b>' + pg + '</b> dan havolalar olinmoqda...');
+            addLog('page', '🌐 Donorni yuklash boshlanmoqda: <b>' + curDonor + '</b>');
 
-            let pageItems = [];
-            try {
-                const catRes = await $.ajax({
-                    url: '/control.html?func=parsing',
-                    type: 'POST',
-                    dataType: 'json',
-                    data: {
-                        ajax_action: 'get_catalog',
-                        donor: donor,
-                        page: pg,
-                        custom_url: customUrl
-                    }
-                });
-
-                if (catRes && catRes.status === 'success' && catRes.items && catRes.items.length > 0) {
-                    pageItems = catRes.items;
-                    addLog('info', 'Sahifa ' + pg + ': <b>' + pageItems.length + '</b> ta video topildi.');
-                } else {
-                    addLog('error', 'Sahifa ' + pg + ': video havolalari topilmadi yoki oxirgi sahifaga yetildi.');
-                    break;
-                }
-            } catch (err) {
-                addLog('error', 'Sahifa ' + pg + ' yuklashda tarmoq xatosi: ' + err.statusText);
-                break;
-            }
-
-            // Ushbu sahifadagi videolarni navbatga qo'yish
-            const sliceCount = Math.min(limitPerPage, pageItems.length);
-            for (let i = 0; i < sliceCount; i++) {
-                queue.push(pageItems[i]);
-            }
-            $('#statTotal').text(queue.length);
-
-            // Shu sahifadagi videolarni birma-bir parslash
-            while (curIndex < queue.length) {
+            for (let pg = pageFrom; pg <= pageTo; pg++) {
                 if (shouldStop) break;
                 while (isPaused) {
                     await new Promise(r => setTimeout(r, 500));
@@ -652,58 +784,124 @@ $(document).ready(function() {
                 }
                 if (shouldStop) break;
 
-                const item = queue[curIndex];
-                const itemNum = curIndex + 1;
-                const percent = Math.round((itemNum / queue.length) * 100);
+                $('#statCurPage').text(curDonor + ' (p' + pg + '/' + pageTo + ')');
+                $('#progressLabel').text(curDonor + ' [Sahifa ' + pg + '] katalogi tekshirilmoqda...');
+                addLog('page', '<b>[' + curDonor + ']</b> Sahifa <b>' + pg + '</b> havolalari olinmoqda...');
 
-                $('#progressPercent').text(percent + '%');
-                $('#progressBarFill').css('width', percent + '%');
-                $('#progressLabel').text('Parslanmoqda: ' + itemNum + ' / ' + queue.length + ' (' + (item.title || 'Video') + ')');
-
+                let pageItems = [];
                 try {
-                    const parseRes = await $.ajax({
+                    const catRes = await ajaxWithRetry({
                         url: '/control.html?func=parsing',
                         type: 'POST',
                         dataType: 'json',
                         data: {
-                            ajax_action: 'parse_video',
-                            donor: donor,
-                            url: item.url,
-                            poster: item.poster || '',
-                            duration: item.duration || '',
-                            title: item.title || '',
-                            category_hint: item.category_hint || '',
-                            category: category,
-                            save_mode: saveMode
+                            ajax_action: 'get_catalog',
+                            donor: curDonor,
+                            page: pg,
+                            custom_url: (curDonor === selectedDonor ? customUrl : '')
                         }
                     });
 
-                    if (parseRes && parseRes.status === 'success') {
-                        totalAdded++;
-                        $('#statAdded').text(totalAdded);
-                        addLog('success', (parseRes.message || parseRes.title));
-                    } else if (parseRes && parseRes.status === 'skip') {
-                        totalSkipped++;
-                        $('#statSkipped').text(totalSkipped);
-                        addLog('skip', (parseRes.message || 'Allaqachon mavjud'));
+                    if (catRes && catRes.status === 'success' && catRes.items && catRes.items.length > 0) {
+                        pageItems = catRes.items;
+                        addLog('info', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': <b>' + pageItems.length + '</b> ta video topildi.');
                     } else {
-                        totalErrors++;
-                        $('#statErrors').text(totalErrors);
-                        addLog('error', (parseRes.message || 'Xatolik'));
+                        addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': video havolalari topilmadi yoki sahifalar tugadi.');
+                        break;
                     }
-                } catch (parseErr) {
-                    totalErrors++;
-                    $('#statErrors').text(totalErrors);
-                    addLog('error', 'Tarmoq xatosi: ' + parseErr.statusText + ' (' + item.url + ')');
+                } catch (err) {
+                    addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ' yuklashda xatolik: ' + err.statusText);
+                    break;
                 }
 
-                curIndex++;
-                // Micro-pauza (0.25s) server va donor yukini muvozanatlash uchun
-                await new Promise(r => setTimeout(r, 250));
-            }
+                // Navbatga qo'shish
+                const sliceCount = Math.min(limitPerPage, pageItems.length);
+                for (let i = 0; i < sliceCount; i++) {
+                    const itm = pageItems[i];
+                    itm._donor = curDonor;
+                    queue.push(itm);
+                }
+                $('#statTotal').text(queue.length);
 
-            // Sahifalar orasida 0.8 soniya pauza
-            await new Promise(r => setTimeout(r, 800));
+                // Ushbu sahifadagi videolarni birma-bir parslash
+                while (curIndex < queue.length) {
+                    if (shouldStop) break;
+                    while (isPaused) {
+                        await new Promise(r => setTimeout(r, 500));
+                        if (shouldStop) break;
+                    }
+                    if (shouldStop) break;
+
+                    const item = queue[curIndex];
+                    const itemNum = curIndex + 1;
+                    const percent = Math.round((itemNum / queue.length) * 100);
+
+                    $('#progressPercent').text(percent + '%');
+                    $('#progressBarFill').css('width', percent + '%');
+                    $('#progressLabel').text('[' + item._donor + '] Parslanmoqda: ' + itemNum + ' / ' + queue.length + ' (' + (item.title || 'Video') + ')');
+
+                    try {
+                        const parseRes = await ajaxWithRetry({
+                            url: '/control.html?func=parsing',
+                            type: 'POST',
+                            dataType: 'json',
+                            data: {
+                                ajax_action: 'parse_video',
+                                donor: item._donor,
+                                url: item.url,
+                                poster: item.poster || '',
+                                duration: item.duration || '',
+                                title: item.title || '',
+                                category_hint: item.category_hint || '',
+                                category: category,
+                                save_mode: saveMode
+                            }
+                        }, 2, 1000);
+
+                        if (parseRes && parseRes.status === 'success') {
+                            totalAdded++;
+                            $('#statAdded').text(totalAdded);
+                            addLog('success', (parseRes.message || parseRes.title));
+
+                            // Jonli Video Preview Kartochkasini yangilash
+                            $('#liveVideoPreviewCard').slideDown();
+                            if (parseRes.screenshot) {
+                                $('#previewThumb').attr('src', parseRes.screenshot);
+                            } else if (item.poster) {
+                                $('#previewThumb').attr('src', item.poster);
+                            }
+                            $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
+                            $('#previewCatBadge').text(parseRes.category_name || 'Avtomatik');
+                            $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
+                            $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                            $('#previewStatusBadge').css({background: '#10b981', color: '#000'}).text('QO‘SHILDI');
+                        } else if (parseRes && parseRes.status === 'skip') {
+                            totalSkipped++;
+                            $('#statSkipped').text(totalSkipped);
+                            addLog('skip', (parseRes.message || 'Allaqachon mavjud'));
+
+                            $('#liveVideoPreviewCard').slideDown();
+                            if (item.poster) $('#previewThumb').attr('src', item.poster);
+                            $('#previewTitleLink').text(item.title || 'Video').attr('href', '#');
+                            $('#previewStatusBadge').css({background: '#f59e0b', color: '#000'}).text('ALLAQACHON BOR');
+                            $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                        } else {
+                            totalErrors++;
+                            $('#statErrors').text(totalErrors);
+                            addLog('error', (parseRes ? parseRes.message : 'Xatolik yuz berdi'));
+                        }
+                    } catch (parseErr) {
+                        totalErrors++;
+                        $('#statErrors').text(totalErrors);
+                        addLog('error', 'Tarmoq xatosi: ' + parseErr.statusText + ' (' + item.url + ')');
+                    }
+
+                    curIndex++;
+                    await new Promise(r => setTimeout(r, pauseDelay));
+                }
+
+                await new Promise(r => setTimeout(r, 600));
+            }
         }
 
         // Yakunlash
@@ -715,7 +913,11 @@ $(document).ready(function() {
         $('#btnStopParse').hide();
         $('#progressBarFill').css('width', '100%');
         $('#progressPercent').text('100%');
-        $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli bajarildi!');
+        $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli yakunlandi!');
+
+        if (totalAdded > 0) {
+            playSuccessChime();
+        }
 
         addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
     });
@@ -759,7 +961,7 @@ $(document).ready(function() {
         $('#singleResultBox').show().html('<span style="color:#38bdf8;"><i class="fa fa-spinner fa-spin"></i> Video ma’lumotlari tahlil qilinmoqda va yuklanmoqda...</span>');
 
         try {
-            const res = await $.ajax({
+            const res = await ajaxWithRetry({
                 url: '/control.html?func=parsing',
                 type: 'POST',
                 dataType: 'json',
@@ -769,13 +971,15 @@ $(document).ready(function() {
                     category: category,
                     save_mode: saveMode
                 }
-            });
+            }, 2, 1000);
 
             if (res && res.status === 'success') {
-                $('#singleResultBox').html('<div style="background:#064e3b; border:1px solid #10b981; color:#34d399; padding:12px; border-radius:6px;">' +
-                    '<i class="fa fa-check-circle"></i> ' + (res.message || 'Muvaffaqiyatli qo‘shildi!') +
+                $('#singleResultBox').html('<div style="background:#064e3b; border:1px solid #10b981; color:#34d399; padding:12px; border-radius:6px; display:flex; gap:10px; align-items:center;">' +
+                    (res.screenshot ? '<img src="' + res.screenshot + '" style="width:70px; height:45px; object-fit:cover; border-radius:4px;" />' : '') +
+                    '<div><i class="fa fa-check-circle"></i> ' + (res.message || 'Muvaffaqiyatli qo‘shildi!') + '</div>' +
                 '</div>');
                 $('#singleVideoUrl').val('');
+                playSuccessChime();
             } else if (res && res.status === 'skip') {
                 $('#singleResultBox').html('<div style="background:#451a03; border:1px solid #f59e0b; color:#fbbf24; padding:12px; border-radius:6px;">' +
                     '<i class="fa fa-info-circle"></i> ' + (res.message || 'Allaqachon mavjud!') +
@@ -799,12 +1003,12 @@ $(document).ready(function() {
         const btn = $(this);
         btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Tekshirilmoqda...');
         try {
-            const res = await $.ajax({
+            const res = await ajaxWithRetry({
                 url: '/control.html?func=parsing',
                 type: 'POST',
                 dataType: 'json',
                 data: { ajax_action: 'repair_screenshots' }
-            });
+            }, 2, 1000);
             alert(res.message || 'Tuzatildi!');
         } catch (e) {
             alert('Xatolik: ' + e.statusText);

@@ -122,7 +122,7 @@ $query = $mysqli->query("SELECT * FROM ero_dmca $where_sql ORDER BY id DESC LIMI
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#94a3b8;">
                     <span><i class="fa fa-clock-o"></i> <?=date('d.m.Y H:i', $row['date'])?></span>
-                    <span><i class="fa fa-map-marker"></i> IP: <?=$row['ip']?></span>
+                    <span>IP: <?=function_exists('render_ip_with_flag') ? render_ip_with_flag($row['ip']) : $row['ip']?></span>
                     <?php if ($is_new): ?>
                         <span class="adm-badge adm-badge-danger">YANGI</span>
                     <?php else: ?>

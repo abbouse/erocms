@@ -21,7 +21,7 @@ $today_videos = $mysqli->query("SELECT count(*) FROM ero_files WHERE date >= '$t
 $categories_count = $mysqli->query("SELECT count(*) FROM ero_categories")->fetch_row()[0] ?? 0;
 
 $online_count = $mysqli->query("SELECT count(*) FROM ero_online WHERE date > '$now'")->fetch_row()[0] ?? 0;
-$online_list = $mysqli->query("SELECT ip, date, page_url, user_agent FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
+$online_list = $mysqli->query("SELECT ip, date, page_url, user_agent, country_code FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
 
 $dmca_unread = 0;
 $chk_dmca = $mysqli->query("SHOW TABLES LIKE 'ero_dmca'");
@@ -331,7 +331,7 @@ $top_videos = $mysqli->query("
                 <tr <?=($is_me ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
                     <td style="color:#64748b;"><?=$num++?></td>
                     <td>
-                        <code style="color:#e2e8f0; font-size:13px;"><?=$on['ip']?></code>
+                        <?=render_ip_with_flag($on['ip'], $on['country_code'] ?? null)?>
                         <?php if ($is_me): ?>
                             <span class="adm-badge adm-badge-warning" style="margin-left:6px;"><i class="fa fa-user-secret"></i> Siz</span>
                         <?php endif; ?>

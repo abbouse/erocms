@@ -141,7 +141,7 @@ $comments_res = $mysqli->query("
                             </td>
                             <td style="font-size:11px; color:#94a3b8;">
                                 <?=date('d.m.Y H:i', $c['date'])?><br />
-                                <code style="color:#64748b;"><?=$c['ip']?></code>
+                                <?=function_exists('render_ip_with_flag') ? render_ip_with_flag($c['ip']) : '<code>'.$c['ip'].'</code>'?>
                             </td>
                             <td style="text-align:right;">
                                 <a href="/control.html?func=comments&action=delete&id=<?=$c['id']?>" class="adm-btn adm-btn-danger adm-btn-sm" onclick="return confirm('Ushbu izohni o‘chirishni tasdiqlaysizmi?');" title="O‘chirish">

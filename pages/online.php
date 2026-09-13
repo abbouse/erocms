@@ -65,7 +65,7 @@ $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
                 <tr style="border-bottom:1px solid #282625; font-size:13px; color:#959595; <?=($is_me ? 'background:rgba(255,153,0,0.06);' : '')?>">
                     <td style="padding:10px 8px; color:#64748b; font-weight:bold;"><?=$num++?></td>
                     <td style="padding:10px 8px;">
-                        <code style="color:#e2e8f0; font-size:12px;"><?=$display_ip?></code>
+                        <?=function_exists('get_country_flag_badge') ? get_country_flag_badge($row['country_code'] ?? null) : ''?><code style="color:#e2e8f0; font-size:12px;"><?=$display_ip?></code>
                         <?php if ($is_me): ?>
                             <span style="background:#ff9900; color:#000; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:3px; margin-left:4px;">Siz</span>
                         <?php endif; ?>
