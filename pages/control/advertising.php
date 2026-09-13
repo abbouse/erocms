@@ -21,10 +21,12 @@ if (isset($_POST['save_ad_settings'])) {
     $popunder_desktop = trim($_POST['popunder_desktop'] ?? '');
     
     $banner_top_enabled = isset($_POST['banner_top_enabled']) ? 1 : 0;
-    $banner_top = trim($_POST['banner_top'] ?? '');
+    $banner_top_desktop = trim($_POST['banner_top_desktop'] ?? '');
+    $banner_top_mobile = trim($_POST['banner_top_mobile'] ?? '');
     
     $banner_bottom_enabled = isset($_POST['banner_bottom_enabled']) ? 1 : 0;
-    $banner_bottom = trim($_POST['banner_bottom'] ?? '');
+    $banner_bottom_desktop = trim($_POST['banner_bottom_desktop'] ?? '');
+    $banner_bottom_mobile = trim($_POST['banner_bottom_mobile'] ?? '');
     
     $text_ads_enabled = isset($_POST['text_ads_enabled']) ? 1 : 0;
 
@@ -34,9 +36,13 @@ if (isset($_POST['save_ad_settings'])) {
         'popunder_mobile' => $popunder_mobile,
         'popunder_desktop' => $popunder_desktop,
         'banner_top_enabled' => $banner_top_enabled,
-        'banner_top' => $banner_top,
+        'banner_top_desktop' => $banner_top_desktop,
+        'banner_top_mobile' => $banner_top_mobile,
+        'banner_top' => $banner_top_desktop ?: $banner_top_mobile,
         'banner_bottom_enabled' => $banner_bottom_enabled,
-        'banner_bottom' => $banner_bottom,
+        'banner_bottom_desktop' => $banner_bottom_desktop,
+        'banner_bottom_mobile' => $banner_bottom_mobile,
+        'banner_bottom' => $banner_bottom_desktop ?: $banner_bottom_mobile,
         'text_ads_enabled' => $text_ads_enabled
     ];
 
@@ -177,29 +183,57 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
         </div>
 
         <!-- Reklama kodlari textarea maydonlari -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <!-- Popunder Mobile -->
             <div class="adm-form-group">
                 <label class="adm-label"><i class="fa fa-mobile" style="color:#ff9900; font-size:16px;"></i> Mobil Popunder Kodi (ExoClick Mobile):</label>
-                <textarea name="popunder_mobile" class="adm-input" style="height: 140px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick mobil popunder kodi"><?=htmlspecialchars($cfg['popunder_mobile'])?></textarea>
+                <textarea name="popunder_mobile" class="adm-input" style="height: 120px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick mobil popunder kodi"><?=htmlspecialchars($cfg['popunder_mobile'] ?? '')?></textarea>
                 <small style="color: #64748b; font-size: 11px;">Smartfon va planshetlardan kirganlar uchun ishlaydi.</small>
             </div>
 
+            <!-- Popunder Desktop -->
             <div class="adm-form-group">
                 <label class="adm-label"><i class="fa fa-desktop" style="color:#60a5fa; font-size:14px;"></i> Kompyuter (Desktop) Popunder Kodi:</label>
-                <textarea name="popunder_desktop" class="adm-input" style="height: 140px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick desktop popunder kodi"><?=htmlspecialchars($cfg['popunder_desktop'])?></textarea>
+                <textarea name="popunder_desktop" class="adm-input" style="height: 120px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> ExoClick desktop popunder kodi"><?=htmlspecialchars($cfg['popunder_desktop'] ?? '')?></textarea>
                 <small style="color: #64748b; font-size: 11px;">Bo‘sh qoldirilsa, avtomatik tarzda yuqoridagi mobil popunder ishlayveradi.</small>
             </div>
+        </div>
 
-            <div class="adm-form-group">
-                <label class="adm-label"><i class="fa fa-picture-o" style="color:#22c55e;"></i> Player Ustidagi Banner Kodi (728x90 yoki 300x250):</label>
-                <textarea name="banner_top" class="adm-input" style="height: 110px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> yoki <iframe> banner kodi"><?=htmlspecialchars($cfg['banner_top'])?></textarea>
-                <small style="color: #64748b; font-size: 11px;">Video playerning tepasida chiqadigan reklama kodi.</small>
+        <!-- 1. Player Ustidagi Banner (Kompyuter va Mobil Alohida) -->
+        <div style="background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #22c55e; font-size: 13px; margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-picture-o"></i> Player Ustidagi Banner (728x90 Kompyuter va 300x250/300x100 Mobil):
             </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-desktop" style="color:#60a5fa;"></i> Kompyuter (Desktop) uchun (728x90 yoki 900x250):</label>
+                    <textarea name="banner_top_desktop" class="adm-input" style="height: 100px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <iframe> kompyuter banner kodi"><?=htmlspecialchars($cfg['banner_top_desktop'] ?? $cfg['banner_top'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Faqat monitor va noutbuklarda (keng ekranda) ko‘rinadi.</small>
+                </div>
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-mobile" style="color:#ff9900; font-size:15px;"></i> Mobil (Telefon) uchun (300x250 yoki 300x100):</label>
+                    <textarea name="banner_top_mobile" class="adm-input" style="height: 100px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <iframe> mobil banner kodi"><?=htmlspecialchars($cfg['banner_top_mobile'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Faqat smartfonlarda chiqadi, ekran o‘lchamiga sig‘adi.</small>
+                </div>
+            </div>
+        </div>
 
-            <div class="adm-form-group">
-                <label class="adm-label"><i class="fa fa-picture-o" style="color:#f59e0b;"></i> Player Ostidagi Banner Kodi (300x250 yoki moslashuvchan):</label>
-                <textarea name="banner_bottom" class="adm-input" style="height: 110px; font-family: monospace; font-size: 11px; line-height: 1.4; resize: vertical;" placeholder="<script ...> yoki <iframe> banner kodi"><?=htmlspecialchars($cfg['banner_bottom'])?></textarea>
-                <small style="color: #64748b; font-size: 11px;">Video ostida, statistika tepasida chiqadigan reklama kodi.</small>
+        <!-- 2. Player Ostidagi Banner (Kompyuter va Mobil Alohida) -->
+        <div style="background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #f59e0b; font-size: 13px; margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-picture-o"></i> Player Ostidagi Banner (300x250 yoki 728x90):
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-desktop" style="color:#60a5fa;"></i> Kompyuter (Desktop) uchun:</label>
+                    <textarea name="banner_bottom_desktop" class="adm-input" style="height: 100px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <iframe> kompyuter banner kodi"><?=htmlspecialchars($cfg['banner_bottom_desktop'] ?? $cfg['banner_bottom'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Video ostidagi keng ekranli reklama joyi.</small>
+                </div>
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-mobile" style="color:#ff9900; font-size:15px;"></i> Mobil (Telefon) uchun (300x250):</label>
+                    <textarea name="banner_bottom_mobile" class="adm-input" style="height: 100px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <iframe> mobil banner kodi"><?=htmlspecialchars($cfg['banner_bottom_mobile'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Mobil telefonlarda video ostida chiqadigan reklama.</small>
+                </div>
             </div>
         </div>
 
