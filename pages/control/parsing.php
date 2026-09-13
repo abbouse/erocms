@@ -142,11 +142,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // 2. KATALOG / SAHIFA BO'YICHA OMMAVIY PARSLASH
+        // 2. KATALOG / SAHIFA BO'YICHA OMMAVIY PARSLASH (bitta sahifa)
         elseif ($action_type === 'mass_parse') {
             $donor = filter($_POST['donor'] ?? 'sexlar');
             $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
-            $limit_count = min(30, max(1, abs(intval($_POST['count'] ?? 10))));
+            $limit_count = min(50, max(1, abs(intval($_POST['count'] ?? 10))));
             $custom_url = trim($_POST['custom_catalog_url'] ?? '');
 
             $items_to_parse = [];
@@ -214,6 +214,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // 2b. PAGINATION: SAHIFALAR ORALIG'I BO'YICHA OMMAVIY PARSLASH
+        elseif ($action_type === 'paginate_parse') {
+            $donor      = filter($_POST['pg_donor'] ?? 'sexlar');
+            $page_from  = max(1, abs(intval($_POST['page_from'] ?? 1)));
+            $page_to    = max(1, abs(intval($_POST['page_to'] ?? 3)));
+            $per_page   = min(50, max(1, abs(intval($_POST['pg_per_page'] ?? 20))));
+            $save_mode  = filter($_POST['save_mode'] ?? 'stream');
+            $category_choice = abs(intval($_POST['category'] ?? 0));
+
+            // Max 10 sahifagacha bir vaqtda
+            if ($page_to - $page_from > 9) {
+                $page_to = $page_from + 9;
+            }
+
+            $total_added  = 0;
+            $total_skip   = 0;
+            $total_error  = 0;
+            $seen_urls    = [];
+
+            for ($pg = $page_from; $pg <= $page_to; $pg++) {
+                $items_page = [];
+
+                if ($donor === 'sexlar') {
+                    $items_page = parser_get_catalog_links_sexlar($pg);
+                } elseif ($donor === 'arhivporno') {
+                    $items_page = parser_get_catalog_links_arhivporno($pg);
+                } elseif ($donor === 'uzbxx') {
+                    $raw = parser_get_catalog_links_uzbxx($pg);
+                    foreach ($raw as $l) $items_page[] = ['url' => $l];
+                } elseif ($donor === 'uzporno') {
+                    $raw = parser_get_catalog_links_uzporno($pg);
+                    foreach ($raw as $l) $items_page[] = ['url' => $l];
+                }
+
+                if (empty($items_page)) {
+                    $logs[] = ['status' => 'error', 'message' => "Sahifa {$pg}: video havolalari topilmadi. Parslash to'xtatildi."];
+                    break; // Oxirgi sahifaga yetilgan, to'xtat
+                }
+
+                $page_added = 0;
+                foreach ($items_page as $item) {
+                    if ($total_added >= $per_page * ($page_to - $page_from + 1)) break;
+                    $v_url = is_array($item) ? ($item['url'] ?? '') : $item;
+                    if (empty($v_url) || isset($seen_urls[$v_url])) continue;
+                    $seen_urls[$v_url] = 1;
+
+                    $res = null;
+                    if ($donor === 'sexlar') {
+                        $res = parse_video_sexlar($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
+                    } elseif ($donor === 'arhivporno') {
+                        $res = parse_video_arhivporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
+                    } elseif ($donor === 'uzbxx') {
+                        $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                    } elseif ($donor === 'uzporno') {
+                        $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                    }
+
+                    if ($res) {
+                        $logs[] = array_merge($res, ['_page' => $pg]);
+                        if ($res['status'] === 'success') { $total_added++; $page_added++; }
+                        elseif ($res['status'] === 'skip') $total_skip++;
+                        else $total_error++;
+                    }
+                    usleep(300000); // 0.3s pauza
+                }
+                $logs[] = ['status' => 'info', 'message' => "--- Sahifa {$pg} tugadi: +{$page_added} yangi video ---"];
+                sleep(1); // sahifalar orasida 1 soniya kutish
+            }
+
+            $logs[] = ['status' => 'summary', 'message' => "✅ Pagination yakunlandi: <b>{$total_added}</b> qo'shildi, <b>{$total_skip}</b> o'tkazildi, <b>{$total_error}</b> xato. ({$donor}, sahifa {$page_from}–{$page_to})"];
+
+            $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
+            @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+        }
+
         // 3. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH
         elseif ($action_type === 'single_url') {
             $single_url = trim($_POST['single_url'] ?? '');
@@ -268,7 +343,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php if (!empty($log['status']) && $log['status'] === 'success'): ?>
             <div style="color: #28a745; margin-bottom: 6px;"><i class="fa fa-check-circle"></i> [Qo‘shildi] <?=$log['message']?></div>
         <?php elseif (!empty($log['status']) && $log['status'] === 'skip'): ?>
-            <div style="color: #ffc107; margin-bottom: 6px;"><i class="fa fa-info-circle"></i> [O‘tkazildi] <?=$log['message']?></div>
+            <div style="color: #ffc107; margin-bottom: 6px;"><i class="fa fa-info-circle"></i> [O'tkazildi] <?=$log['message']?></div>
+        <?php elseif (!empty($log['status']) && $log['status'] === 'info'): ?>
+            <div style="color: #17a2b8; margin-bottom: 8px; margin-top: 4px; border-top: 1px solid #1a3040; padding-top: 6px;"><i class="fa fa-arrow-right"></i> <?=$log['message']?></div>
+        <?php elseif (!empty($log['status']) && $log['status'] === 'summary'): ?>
+            <div style="color: #fff; margin-bottom: 6px; margin-top: 8px; padding: 8px; background:#1a3020; border-radius:4px; border:1px solid #28a745; font-weight:bold;"><?=$log['message']?></div>
         <?php else: ?>
             <div style="color: #dc3545; margin-bottom: 6px;"><i class="fa fa-times-circle"></i> [Xatolik] <?=($log['message'] ?? 'Nomaʼlum xatolik')?></div>
         <?php endif; ?>
@@ -380,10 +459,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
-<!-- 3. KATALOG SAHIFALARI BO'YICHA OMMAVIY PARSLASH -->
+<!-- 3. BITTA SAHIFA BO'YICHA OMMAVIY PARSLASH -->
 <div class="functions_data" style="margin-bottom:20px; padding:16px;">
-    <h3 style="color:#ff9900; margin:0 0 8px 0;"><i class="fa fa-tasks"></i> 3. Katalog sahifalari bo‘yicha yuklash (Sahifa raqami bo‘yicha)</h3>
-    <p style="color:#888; font-size:12px; margin:0 0 12px 0;">Donor saytning istalgan sahifasidagi (2, 3, 4...) barcha videolarni birdaniga ko‘chirib olish:</p>
+    <h3 style="color:#ff9900; margin:0 0 8px 0;"><i class="fa fa-tasks"></i> 3. Bitta katalog sahifasini parslash</h3>
+    <p style="color:#888; font-size:12px; margin:0 0 12px 0;">Donor saytning istalgan sahifasidagi (2, 3, 4...) barcha videolarni birdaniga ko'chirib olish:</p>
     <form method="post">
         <input type="hidden" name="action_type" value="mass_parse" />
         <p style="line-height: 2; margin-bottom: 12px;">
@@ -404,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
             <div style="width: 110px;">
                 <b>Sahifa raqami:</b><br />
-                <input type="number" name="page_num" value="2" min="1" max="200" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;" />
+                <input type="number" name="page_num" value="2" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;" />
             </div>
             <div style="width: 130px;">
                 <b>Videolar soni:</b><br />
@@ -413,10 +492,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="10" selected>10 ta video</option>
                     <option value="20">20 ta video</option>
                     <option value="30">30 ta video</option>
+                    <option value="50">50 ta video</option>
                 </select>
             </div>
             <div style="flex: 1; min-width: 220px;">
-                <b>Bo‘lim (Kategoriya):</b><br />
+                <b>Bo'lim (Kategoriya):</b><br />
                 <select name="category" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
                     <option value="0">🎯 Avtomatik aniqlash</option>
                     <?php foreach ($cat_list as $c): ?>
@@ -440,9 +520,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
-<!-- 4. AVTOMATIK FON PARSERI (CRON TIZIMI) -->
+<!-- 4. PAGINATION: KO'P SAHIFALI OMMAVIY PARSLASH -->
+<div class="functions_data" style="background:#0d1520; border: 2px solid #17a2b8; margin-bottom:20px; padding:18px; border-radius: 4px;">
+    <h3 style="color:#17a2b8; margin:0 0 8px 0;"><i class="fa fa-list-ol"></i> 4. 🔄 Ko'p sahifali Pagination Parslash <span style="background:#ff9900; color:#000; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:bold; margin-left:8px;">YANGI</span></h3>
+    <p style="color:#bbb; font-size:13px; line-height: 1.5; margin:0 0 15px 0;">
+        Donor saytning <b>bir nechta sahifalarini ketma-ket</b> avtomatik parslaydi. Masalan, 2-sahifadan 10-sahifagacha barcha videolarni bir bosishda yuklash mumkin. (Max 10 sahifa bir yo'la)
+    </p>
+    <form method="post">
+        <input type="hidden" name="action_type" value="paginate_parse" />
+        <p style="line-height: 2; margin-bottom: 12px;">
+            <b>Donor sayt:</b><br />
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="pg_donor" value="sexlar" checked /> <b style="color:#28a745;">sexlar.link</b> (O'zbek videolari - Tavsiya)
+            </label>
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="pg_donor" value="arhivporno" /> <b>arhivporno.watch</b>
+            </label>
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="pg_donor" value="uzbxx" /> <b>uzbxx.ru</b>
+            </label>
+            <label style="cursor:pointer;">
+                <input type="radio" name="pg_donor" value="uzporno" /> <b>uzporno.website</b>
+            </label>
+        </p>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+            <div style="width: 110px;">
+                <b>Boshlang'ich sahifa:</b><br />
+                <input type="number" name="page_from" value="1" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#17a2b8; font-weight:bold; border:1px solid #17a2b8; border-radius:4px; font-size:15px;" />
+            </div>
+            <div style="width: 110px;">
+                <b>Oxirgi sahifa:</b><br />
+                <input type="number" name="page_to" value="5" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#17a2b8; font-weight:bold; border:1px solid #17a2b8; border-radius:4px; font-size:15px;" />
+            </div>
+            <div style="width: 160px;">
+                <b>Har sahifadan (max):</b><br />
+                <select name="pg_per_page" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
+                    <option value="10">10 ta/sahifa</option>
+                    <option value="20" selected>20 ta/sahifa</option>
+                    <option value="30">30 ta/sahifa</option>
+                    <option value="50">50 ta/sahifa (barchasi)</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <b>Bo'lim (Kategoriya):</b><br />
+                <select name="category" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
+                    <option value="0">🎯 Avtomatik aniqlash (Mavzuga qarab)</option>
+                    <?php foreach ($cat_list as $c): ?>
+                        <option value="<?=$c['id']?>" <?=($c['translit'] === 'uzbek' ? 'selected style="font-weight:bold; color:#ff9900;"' : '')?>><?=$c['name']?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div style="width: 180px;">
+                <b>Saqlash rejimi:</b><br />
+                <select name="save_mode" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
+                    <option value="stream" selected>Oqim / Embed (Tezkor)</option>
+                    <option value="server">Serverga MP4 yuklash</option>
+                </select>
+            </div>
+        </div>
+        <p style="margin-top: 18px; margin-bottom: 0; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <button type="submit" class="byecos" style="font-size:15px; padding:12px 32px; background:#17a2b8; color:#fff; font-weight:bold; border:none; cursor:pointer; border-radius: 4px;">
+                <i class="fa fa-list-ol"></i> 🚀 Ko'p sahifali parslashni boshlash
+            </button>
+            <span style="color:#888; font-size:12px;">⚠️ Ko'p sahifa = ko'p vaqt. Server timeout bo'lishi mumkin. Kichik sahifa oralig'idan boshlang (masalan 1–3).</span>
+        </p>
+    </form>
+</div>
+
+<!-- 5. AVTOMATIK FON PARSERI (CRON TIZIMI) -->
 <div class="functions_data" style="background:#15181a; border-left: 4px solid #17a2b8; padding:16px;">
-    <h3 style="color:#17a2b8; margin:0 0 8px 0;"><i class="fa fa-clock-o"></i> 4. Avtomatik Fon Parseri (CRON)</h3>
+    <h3 style="color:#17a2b8; margin:0 0 8px 0;"><i class="fa fa-clock-o"></i> 5. Avtomatik Fon Parseri (CRON)</h3>
     <p style="color:#bbb; font-size:13px; line-height: 1.5; margin:0 0 10px 0;">
         Saytingizga muntazam ravishda yangi videolarni fon rejimida avtomatik yuklab borishi uchun serveringizda (FastPanel, cPanel yoki crontab) quyidagi havola bo‘yicha Cron qo‘yishingiz mumkin:
     </p>
