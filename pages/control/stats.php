@@ -21,6 +21,23 @@ $today_downloads = (int)($mysqli->query("SELECT COUNT(*) FROM ero_activity WHERE
 $total_favs = (int)($mysqli->query("SELECT COUNT(*) FROM ero_favorites")->fetch_row()[0] ?? 0);
 $total_likes_all = (int)($mysqli->query("SELECT SUM(likes) FROM ero_files")->fetch_row()[0] ?? 0);
 
+// Onlayn foydalanuvchilar hisobi va sahifalash
+$online_now = time();
+$total_online_count = (int)($mysqli->query("SELECT COUNT(*) FROM ero_online WHERE date > '$online_now'")->fetch_row()[0] ?? 0);
+
+$on_page = max(1, (int)($_GET['on_page'] ?? 1));
+$on_per_page = 15;
+$on_start = ($on_page - 1) * $on_per_page;
+$total_on_pages = ceil($total_online_count / $on_per_page);
+
+$online_users_query = $mysqli->query("
+    SELECT ip, date, page_url, user_agent, last_seen 
+    FROM ero_online 
+    WHERE date > '$online_now' 
+    ORDER BY date DESC 
+    LIMIT $on_start, $on_per_page
+");
+
 // 2. Harakatlar oqimi (Activity Stream)
 $filter = filter($_GET['filter'] ?? 'all');
 $where_act = ["1=1"];
@@ -147,6 +164,127 @@ $top_searches = $mysqli->query("
             <div style="font-size:11px; color:#94a3b8; margin-top:2px;">MP4 yuklab olingan</div>
         </div>
     </div>
+
+    <div class="adm-stat-card">
+        <div class="adm-stat-icon" style="background:rgba(34,197,94,0.15); color:#22c55e;"><i class="fa fa-users"></i></div>
+        <div class="adm-stat-info">
+            <div class="adm-stat-label">Hozirgi Onlayn</div>
+            <div class="adm-stat-value" style="color:#22c55e; display:flex; align-items:center; gap:8px;">
+                <span class="adm-pulse-dot"></span> <?=number_format($total_online_count)?>
+            </div>
+            <div style="font-size:11px; color:#94a3b8; margin-top:2px;">Ayni damda saytda</div>
+        </div>
+    </div>
+</div>
+
+<!-- Hozirgi Onlayn Foydalanuvchilar (Monitoring & Pagination) -->
+<div class="adm-card" id="online_section" style="margin-bottom:24px;">
+    <div class="adm-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h3 class="adm-card-title">
+            <span class="adm-pulse-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e; margin-right:8px;"></span>
+            Hozirgi Onlayn Tashrif Buyuruvchilar (<?=$total_online_count?> nafar)
+        </h3>
+        <span class="adm-badge adm-badge-success"><i class="fa fa-clock-o"></i> Oxirgi 5 daqiqadagi real-vaqt faollik</span>
+    </div>
+
+    <div class="adm-table-wrap">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th width="40">#</th>
+                    <th>IP Manzil</th>
+                    <th>Hozirgi Sahifasi</th>
+                    <th>Qurilma & OS</th>
+                    <th>Brauzer</th>
+                    <th>Oxirgi faollik</th>
+                    <th width="90">Holati</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($online_users_query && $online_users_query->num_rows > 0): ?>
+                <?php 
+                $on_num = $on_start + 1;
+                $my_admin_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+                while ($u = $online_users_query->fetch_assoc()): 
+                    $u_info = parse_user_agent_details($u['user_agent'] ?? '');
+                    $is_admin_user = ($u['ip'] === $my_admin_ip);
+                    $page_link = !empty($u['page_url']) ? $u['page_url'] : '/';
+                    $sec_ago = max(0, 300 - ($u['date'] - $online_now));
+                    $time_text = ($sec_ago < 30) ? 'Hozirgina faol' : floor($sec_ago / 60) . ' daqiqa oldin';
+                ?>
+                <tr <?=($is_admin_user ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
+                    <td style="color:#64748b; font-weight:700;"><?=$on_num++?></td>
+                    <td>
+                        <code style="color:#e2e8f0; font-size:13px; font-weight:600;"><?=$u['ip']?></code>
+                        <?php if ($is_admin_user): ?>
+                            <span class="adm-badge adm-badge-warning" style="margin-left:6px;"><i class="fa fa-user-secret"></i> Siz (Admin)</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <i class="fa fa-external-link" style="font-size:10px; opacity:0.7;"></i>
+                            <span><?=htmlspecialchars($page_link)?></span>
+                        </a>
+                    </td>
+                    <td>
+                        <span style="display:inline-flex; align-items:center; gap:6px; color:<?=$u_info['badge_color']?>; font-weight:600; font-size:12px;">
+                            <i class="fa <?=$u_info['device_icon']?>"></i>
+                            <?=$u_info['device']?>
+                        </span>
+                    </td>
+                    <td>
+                        <span style="display:inline-flex; align-items:center; gap:6px; color:#94a3b8; font-size:12px;" title="<?=htmlspecialchars($u['user_agent'] ?? '')?>">
+                            <i class="fa <?=$u_info['browser_icon']?>" style="color:#60a5fa;"></i>
+                            <?=$u_info['browser']?>
+                        </span>
+                    </td>
+                    <td style="color:#94a3b8; font-size:12px;">
+                        <i class="fa fa-clock-o" style="opacity:0.6;"></i> <?=$time_text?>
+                    </td>
+                    <td>
+                        <span class="adm-badge adm-badge-success" style="font-size:11px;">
+                            <span class="adm-pulse-dot"></span> Onlayn
+                        </span>
+                    </td>
+                </tr>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="7" style="text-align:center; padding:30px; color:#64748b;">
+                        Hozircha onlayn foydalanuvchilar mavjud emas.
+                    </td>
+                </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <?php if ($total_on_pages > 1): ?>
+    <div class="adm-pagination" style="margin-top:15px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);">
+        <?php
+        $on_base = $_GET;
+        unset($on_base['on_page']);
+        $on_prefix = '/control.html?' . http_build_query($on_base) . '&on_page=';
+
+        if ($on_page > 1) {
+            echo '<a href="' . $on_prefix . ($on_page - 1) . '#online_section">&laquo; Oldingi</a>';
+        }
+
+        $r = 2;
+        for ($p = max(1, $on_page - $r); $p <= min($total_on_pages, $on_page + $r); $p++) {
+            if ($p == $on_page) {
+                echo '<span class="active">' . $p . '</span>';
+            } else {
+                echo '<a href="' . $on_prefix . $p . '#online_section">' . $p . '</a>';
+            }
+        }
+
+        if ($on_page < $total_on_pages) {
+            echo '<a href="' . $on_prefix . ($on_page + 1) . '#online_section">Keyingi &raquo;</a>';
+        }
+        ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">

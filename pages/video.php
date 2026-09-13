@@ -56,7 +56,7 @@
 
     $title = $view['name'].' - '.filter($_SERVER['HTTP_HOST']);
     $description = !empty($view['description']) ? mb_substr(strip_tags($view['description']), 0, 160, 'UTF-8') : $view['name'];
-    $keywords = str_replace(' ', ', ', $view['tags']);
+    $keywords = !empty($view['tags']) ? htmlspecialchars(trim($view['tags'], ', ')) : $view['name'];
     // Ko'rishlar sonini oshirish (Faqat haqiqiy tashrif buyuruvchilar, botlar va reload spamdan himoyalangan)
     $video_id = intval($view['id']);
     if (!is_crawler_or_bot()) {
@@ -82,8 +82,16 @@
     head(sec($view['duration']), $video_poster, 'video.other');
     advertising();
     
-    $tags_raw = tags($view['tags']);
-    $tags = !empty($tags_raw) ? explode(' ', $tags_raw) : [];
+    if (!empty($view['tags'])) {
+        if (strpos($view['tags'], ',') !== false) {
+            $tags = array_filter(array_map('trim', explode(',', $view['tags'])));
+        } else {
+            $tags_raw = tags($view['tags']);
+            $tags = !empty($tags_raw) ? explode(' ', $tags_raw) : [];
+        }
+    } else {
+        $tags = [];
+    }
 
     // Ovozlar va foiz
     $likes_count = intval($view['likes']);

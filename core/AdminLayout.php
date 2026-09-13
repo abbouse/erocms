@@ -56,10 +56,10 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
             <span class="adm-brand-badge">ADMIN</span>
         </a>
         <div class="adm-header-actions">
-            <span class="adm-live-badge">
+            <a href="/control.html?func=stats#online_section" class="adm-live-badge" title="Onlayn foydalanuvchilar monitoringi" style="text-decoration:none;">
                 <span class="adm-pulse-dot"></span>
                 <span>Onlayn: <b>'.$online_count.'</b></span>
-            </span>
+            </a>
             <a href="/" target="_blank" class="adm-btn-site">
                 <i class="fa fa-external-link"></i> Saytni ko‘rish
             </a>

@@ -44,38 +44,68 @@ function parser_escape($mysqli, $str) {
 }
 
 /**
- * Xavfsiz va barqaror HTTP GET so'rovi
+ * Xavfsiz, bloklanishga qarshi va barqaror HTTP GET so'rovi (Anti-Block & Retry)
  */
-function parser_fetch($url, $referer = '') {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-    curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_ENCODING, '');
-    curl_setopt($ch, CURLOPT_COOKIEJAR, PARSER_COOKIE_FILE);
-    curl_setopt($ch, CURLOPT_COOKIEFILE, PARSER_COOKIE_FILE);
-
-    $headers = [
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language: ru-RU,ru;q=0.9,uz;q=0.8,en;q=0.7',
-        'Cache-Control: no-cache',
-        'Pragma: no-cache',
+function parser_fetch($url, $referer = '', $max_retries = 2) {
+    static $user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0'
     ];
-    if (!empty($referer)) {
-        curl_setopt($ch, CURLOPT_REFERER, $referer);
-    }
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $ua = $user_agents[array_rand($user_agents)];
 
-    $data = curl_exec($ch);
-    curl_close($ch);
-    return $data;
+    for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 6);
+        curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_COOKIEJAR, PARSER_COOKIE_FILE);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, PARSER_COOKIE_FILE);
+
+        $headers = [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language: ru-RU,ru;q=0.9,uz;q=0.8,en-US;q=0.7,en;q=0.6',
+            'Sec-Ch-Ua: "Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            'Sec-Ch-Ua-Mobile: ?0',
+            'Sec-Ch-Ua-Platform: "Windows"',
+            'Sec-Fetch-Dest: document',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-Site: none',
+            'Sec-Fetch-User: ?1',
+            'Upgrade-Insecure-Requests: 1',
+            'Cache-Control: no-cache',
+            'Pragma: no-cache',
+        ];
+        if (!empty($referer)) {
+            curl_setopt($ch, CURLOPT_REFERER, $referer);
+        }
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+        $data = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (!empty($data) && strlen($data) > 100 && $http_code < 400) {
+            return $data;
+        }
+
+        if ($attempt < $max_retries) {
+            usleep(300000); // 0.3s kutish va boshqa UA bilan qayta urinish
+            $ua = $user_agents[array_rand($user_agents)];
+        }
+    }
+
+    return $data ?? '';
 }
 
 /**
@@ -335,32 +365,32 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     $hint = mb_strtolower(trim(($context['category_hint'] ?? '') . ' ' . ($context['donor_category'] ?? '') . ' ' . ($context['catalog_url'] ?? '')), 'UTF-8');
     if (!empty($hint)) {
         $hint_map = [
-            'minet'           => ['minet', 'cat-minet', 'oral', 'otsos', 'в рот', 'минет'],
-            'anal'            => ['anal', 'cat-anal', 'cat-v-popu', 'cat-v-zhopu', 'анал', 'анальный'],
-            'rakom'           => ['rakom', 'cat-rakom', 'cat-szadi', 'раком', 'doggy'],
-            'domashnee'       => ['domashnee', 'cat-domashnee', 'cat-lyubitelskoe', 'домашнее', 'любительское'],
-            'studenty'        => ['studenty', 'cat-studenty', 'cat-studentki', 'студенты', 'студентки'],
-            'siski'           => ['siski', 'cat-bolshie-siski', 'cat-grudastye', 'большие сиськи', 'сиськи'],
-            'big'             => ['big', 'cat-bolshie-chleny', 'большие члены', 'большой член'],
-            'mamki'           => ['mamki', 'cat-mamki', 'cat-milfy', 'мамки', 'милфы', 'мамочки'],
-            'molodye'         => ['molodye', 'cat-molodye', 'cat-yunye', 'молодые', 'юные'],
-            'sperma'          => ['sperma', 'cat-sperma', 'сперма', 'залпы'],
-            'gruppovoe'       => ['gruppovoe', 'cat-gruppovoe', 'cat-troinichok', 'групповое', 'тройничок'],
-            'kunnilingus'     => ['kunnilingus', 'cat-kunnilingus', 'куннилингус', 'кунни'],
+            'minet'           => ['minet', 'cat-minet', 'cat-glubokii-minet', 'cat-konchaut-v-rot', 'oral', 'otsos', 'в рот', 'минет'],
+            'anal'            => ['anal', 'cat-anal', 'cat-anal-porno', 'cat-russkii-anal', 'cat-zhestkii-anal', 'analnyy-seks', 'cat-v-popu', 'cat-v-zhopu', 'анал', 'анальный'],
+            'rakom'           => ['rakom', 'cat-rakom', 'cat-porno-rakom', 'cat-szadi', 'раком', 'doggy'],
+            'domashnee'       => ['domashnee', 'cat-domashnee', 'cat-domashnee-porno', 'cat-domashnii-incest', 'cat-porno-s-zhenoi', 'cat-lyubitelskoe', 'proverennoe-lyubitelskoe', 'lyubitelskoe', 'домашнее', 'любительское'],
+            'studenty'        => ['studenty', 'cat-studenty', 'cat-porno-studentov', 'cat-studentki', 'студенты', 'студентки'],
+            'siski'           => ['siski', 'cat-bolshie-siski', 'cat-uprugie-siski', 'bolshaya-grud', 'cat-grudastye', 'большие сиськи', 'сиськи'],
+            'big'             => ['big', 'cat-bolshie-chleny', 'cat-bolshoi-chlen', 'большие члены', 'большой член'],
+            'mamki'           => ['mamki', 'cat-mamki', 'cat-porno-zrelih', 'cat-porno-milf', 'cat-porno-s-mamoi', 'mamochki', 'cat-milfy', 'мамки', 'милфы', 'мамочки'],
+            'molodye'         => ['molodye', 'cat-molodye', 'cat-porno-molodih', 'cat-anal-s-molodimi', 'cat-starie-s-molodimi', '18-letnie', 'podrostki', 'cat-yunye', 'молодые', 'юные'],
+            'sperma'          => ['sperma', 'cat-sperma', 'cat-konchaut-na-lico', 'сперма', 'залпы'],
+            'gruppovoe'       => ['gruppovoe', 'cat-gruppovoe', 'cat-gruppovoe-porno', 'cat-seks-vtroem', 'cat-troinichok', 'групповое', 'тройничок'],
+            'kunnilingus'     => ['kunnilingus', 'cat-kunnilingus', 'cat-lizhet-pizdu', 'куннилингус', 'кунни'],
             'lishenie_celki'  => ['lishenie_celki', 'cat-lishenie-celki', 'лишение целки', 'целка'],
-            'pyanye'          => ['pyanye', 'cat-pyanye', 'пьяные'],
+            'pyanye'          => ['pyanye', 'cat-pyanye', 'cat-seks-so-spyaschimi', 'пьяные'],
             'beremennye'      => ['beremennye', 'cat-beremennye', 'беременные'],
-            'volosatye'       => ['volosatye', 'cat-volosatye', 'волосатые'],
+            'volosatye'       => ['volosatye', 'cat-volosatye', 'cat-volosataya-pizda', 'волосатые'],
             'bdsm'            => ['bdsm', 'cat-bdsm', 'бдсм'],
-            'zhestkoe'        => ['zhestkoe', 'cat-zhestkoe', 'cat-jestokoe', 'жесткое', 'жестокое'],
-            'negry'           => ['negry', 'cat-negry', 'негры'],
-            'blonde'          => ['blonde', 'cat-blondinki', 'блондинки'],
-            'bryunetki'       => ['bryunetki', 'cat-bryunetki', 'брюнетки'],
+            'zhestkoe'        => ['zhestkoe', 'cat-zhestkoe', 'cat-zhestkoe-porno', 'grubyy-seks', 'cat-iznasilovaniya', 'cat-jestokoe', 'жесткое', 'жестокое'],
+            'negry'           => ['negry', 'cat-negry', 'cat-zhena-s-negrom', 'cat-bolshoi-chernii-chlen', 'негры'],
+            'blonde'          => ['blonde', 'cat-blondinki', 'cat-porno-s-blondinkami', 'блондинки'],
+            'bryunetki'       => ['bryunetki', 'cat-bryunetki', 'cat-porno-s-brunetkami', 'брюнетки'],
             'lesbiyanki'      => ['lesbiyanki', 'cat-lesbiyanki', 'лесбиянки'],
-            'asian'           => ['asian', 'cat-aziatki', 'азиатки'],
-            'russkoe'         => ['russkoe', 'cat-russkoe', 'русское'],
-            'anime-hentai'    => ['anime-hentai', 'cat-anime', 'аниме', 'хентай'],
-            'uzbek'           => ['cat-uzbekskii-seks', 'uzbek', 'uzbekskoe', 'узбекский']
+            'asian'           => ['asian', 'cat-aziatki', 'cat-kitaiskoe-porno', 'азиатки', 'азия'],
+            'russkoe'         => ['russkoe', 'cat-russkoe', 'cat-russkoe-porno', 'cat-russkii-incest', 'русское'],
+            'anime-hentai'    => ['anime-hentai', 'cat-anime', 'cat-ai-porno', 'аниме', 'хентай'],
+            'uzbek'           => ['cat-uzbekskii-seks', 'uzbekskoe', 'uzbek', 'узбекский', 'узбекское']
         ];
         foreach ($hint_map as $translit => $tokens) {
             foreach ($tokens as $tk) {
@@ -376,25 +406,25 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     $text = mb_strtolower($title . ' ' . $tags_str . ' ' . ($context['description'] ?? ''), 'UTF-8');
 
     $priority_rules = [
-        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет|членосос|oral|rotga|ogizga)/iu' => 'minet',
-        '/(?:анал|anal|в жопу|в попу|в задниц|в очко|анальн|tor amga|ketiga|anali)/iu' => 'anal',
-        '/(?:раком|догги|doggy|сзади|рачком|поза раком|rakom|orqasidan)/iu' => 'rakom',
-        '/(?:кунни|лизать пис|лижет|куннилинг|am yalash|cunnilingus)/iu' => 'kunnilingus',
-        '/(?:лишение целки|девствен|первый раз|целк|qizlik|bokiralik)/iu' => 'lishenie_celki',
-        '/(?:пьян|буха|под градусом|набухал|mast holda|alkogol)/iu' => 'pyanye',
+        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет|членосос|oral|rotga|ogizga|og\'ziga|blowjob|suck|amur)/iu' => 'minet',
+        '/(?:анал|anal|в жопу|в попу|в задниц|в очко|анальн|tor amga|ketiga|anali|orqasiga|orqaga|ass|analnoe)/iu' => 'anal',
+        '/(?:раком|догги|doggy|doggystyle|сзади|рачком|поза раком|rakom|orqasidan|orqadan|tizzalab)/iu' => 'rakom',
+        '/(?:кунни|лизать пис|лижет|куннилинг|am yalash|cunnilingus|klitor|til bilan)/iu' => 'kunnilingus',
+        '/(?:лишение целки|девствен|первый раз|целк|qizlik|bokiralik|birinchi marta)/iu' => 'lishenie_celki',
+        '/(?:пьян|буха|под градусом|набухал|mast holda|alkogol|mast)/iu' => 'pyanye',
         '/(?:беремен|с пузом|с животом|pregnant|homilador)/iu' => 'beremennye',
         '/(?:хентай|аниме|hentai|anime|3d hentai)/iu' => 'anime-hentai',
-        '/(?:студент|студентк|общаг|сесси|вписк|talaba)/iu' => 'studenty',
-        '/(?:сперм|конча|залп|кончил|cumshot|yuziga sperma)/iu' => 'sperma',
-        '/(?:домашн|частн|любительск|home|скрытая камера|слив|samopal|uyda)/iu' => 'domashnee',
-        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия|threesome)/iu' => 'gruppovoe',
-        '/(?:большие сиськи|сиськ|грудаст|дойки|tits|big tits|огромные сиськи|katta emchak|emish)/iu' => 'siski',
-        '/(?:большие члены|большой член|огромный хуй|big cock|толстый член|katta olat|ulkan asbob)/iu' => 'big',
+        '/(?:студент|студентк|общаг|сесси|вписк|talaba|talabalar|yotoqxona)/iu' => 'studenty',
+        '/(?:сперм|конча|залп|кончил|cumshot|yuziga sperma|oqizish|bukkake)/iu' => 'sperma',
+        '/(?:домашн|частн|любительск|home|скрытая камера|слив|samopal|uyda|er-xotin|kelin|kelinchak|xotin)/iu' => 'domashnee',
+        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия|threesome|guruhli)/iu' => 'gruppovoe',
+        '/(?:большие сиськи|сиськ|грудаст|дойки|tits|big tits|огромные сиськи|katta emchak|emish|emchaklar)/iu' => 'siski',
+        '/(?:большие члены|большой член|огромный хуй|big cock|толстый член|katta olat|ulkan asbob|katta quroq)/iu' => 'big',
         '/(?:бдсм|bdsm|госпож|рабын|порка|плеть|подчинение)/iu' => 'bdsm',
-        '/(?:жесток|жестк|груб|hardcore|разрыв дырки)/iu' => 'zhestkoe',
-        '/(?:лесби|девушки целуются|lesbian|qizlar qizlar)/iu' => 'lesbiyanki',
-        '/(?:мамк|мамашк|милф|milf|зрел|мачех|kelin|kelinchak|xola)/iu' => 'mamki',
-        '/(?:молод|юная|малолет|teen|18 лет|yosh qiz|yoshlik)/iu' => 'molodye',
+        '/(?:жесток|жестк|груб|hardcore|разрыв дырки|qopol|shafqatsiz)/iu' => 'zhestkoe',
+        '/(?:лесби|девушки целуются|lesbian|qizlar qizlar|ikki qiz)/iu' => 'lesbiyanki',
+        '/(?:мамк|мамашк|милф|milf|зрел|мачех|xola|katta xotin)/iu' => 'mamki',
+        '/(?:молод|юная|малолет|teen|18 лет|yosh qiz|yoshlik|maktab)/iu' => 'molodye',
         '/(?:волосат|небрит|пушист|мохнат|hairy|tukli)/iu' => 'volosatye',
         '/(?:негр|чернокож|bbc|qoratanli)/iu' => 'negry',
         '/(?:блондин|blonde|светловолосая|sariq sochli)/iu' => 'blonde',
@@ -415,6 +445,12 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     $default_uzbek = $find_id('uzbek');
     if ($default_uzbek) {
         return $default_uzbek;
+    }
+
+    // Agar uzbek toifasi bo'lmasa, eng mos keladigan umumiy toifa - 'domashnee'
+    $default_domashnee = $find_id('domashnee');
+    if ($default_domashnee) {
+        return $default_domashnee;
     }
 
     return !empty($cats[0]['id']) ? intval($cats[0]['id']) : 1;
@@ -499,6 +535,13 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
         $tags_arr = array_map('trim', $m[1]);
     } elseif (preg_match_all('|<a href="https://uzbxx\.ru/tags/[^"]+"><i class="fa fa-tags"></i>\s*(.*?)</a>|is', $html, $m)) {
         $tags_arr = array_map('trim', $m[1]);
+    }
+    if (preg_match('|<meta\s+name=["\']keywords["\']\s+content=["\']([^"\']+)["\']|is', $html, $m_kw)) {
+        $kw_items = explode(',', $m_kw[1]);
+        foreach ($kw_items as $kwi) {
+            $kwi = trim($kwi);
+            if (!empty($kwi)) $tags_arr[] = $kwi;
+        }
     }
     // Kategoriyalardan ham teglarni olamiz
     if (preg_match_all('|<a href="https://uzbxx\.ru/category/[^"]+">([^<]+)</a>|is', $html, $m_c)) {
@@ -850,11 +893,19 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
 
     // Teglar va toifalar
     $tags_arr = [];
-    if (preg_match_all('|<div class="full-meta cats-links">.*?<a[^>]+title="([^"]+)"|is', $html, $m)) {
-        foreach ($m[1] as $c_tag) $tags_arr[] = trim($c_tag);
+    if (preg_match_all('#<a[^>]+href="https://arhivporno\.watch/cat-[^"]+"[^>]*>(.*?)</a>#is', $html, $m_cat)) {
+        foreach ($m_cat[1] as $ct) {
+            $clean_ct = trim(strip_tags($ct));
+            if (!empty($clean_ct) && mb_strlen($clean_ct, 'UTF-8') < 35 && stripos($clean_ct, 'видео') === false) {
+                $tags_arr[] = $clean_ct;
+            }
+        }
     }
     if (preg_match_all('|<div class="full-meta tags-links">.*?<a[^>]+title="([^"]+)"|is', $html, $m_t)) {
-        foreach ($m_t[1] as $t_tag) $tags_arr[] = trim($t_tag);
+        foreach ($m_t[1] as $t_tag) {
+            $t_clean = trim(preg_replace('/-.*$/', '', $t_tag));
+            if (!empty($t_clean)) $tags_arr[] = $t_clean;
+        }
     }
 
     // Kategoriya
@@ -1252,17 +1303,23 @@ function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '')
         $url = trim($page_or_url);
     }
 
-    $html = parser_fetch($url, 'https://arhivporno.watch/cat-uzbekskii-seks/');
+    $html = parser_fetch($url, 'https://arhivporno.watch/');
+    if (empty($html) && empty($custom_url) && $page > 2) {
+        // Agar o'zbek bo'limi tugagan bo'lsa (2 sahifadan so'ng), asosiy yangi videolar oqimidan davom ettiramiz
+        $url = "https://arhivporno.watch/{$page}/";
+        $html = parser_fetch($url, 'https://arhivporno.watch/');
+    }
     if (empty($html)) return [];
 
     $items = [];
-    preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff".*?<img[^>]+data-original="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>|is', $html, $m);
+    preg_match_all('#<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff".*?<img[^>]+(?:data-original|src)="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>(?:.*?<p>(.*?)</p>)?#is', $html, $m);
 
     if (!empty($m[1])) {
         foreach ($m[1] as $idx => $link) {
+            $title_raw = trim(strip_tags($m[4][$idx] ?? ''));
             $items[$link] = [
                 'url'           => $link,
-                'title'         => '',
+                'title'         => $title_raw,
                 'poster'        => $m[2][$idx] ?? '',
                 'duration'      => $m[3][$idx] ?? '05:00',
                 'category_hint' => $url

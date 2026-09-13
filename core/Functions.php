@@ -72,6 +72,19 @@ if ($check_embed && $check_embed->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_files` ADD `embed` TEXT NULL");
 }
 
+$check_on_page = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'page_url'");
+if ($check_on_page && $check_on_page->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_online` ADD `page_url` VARCHAR(500) NULL DEFAULT '/'");
+}
+$check_on_ua = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'user_agent'");
+if ($check_on_ua && $check_on_ua->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_online` ADD `user_agent` VARCHAR(255) NULL DEFAULT ''");
+}
+$check_on_seen = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'last_seen'");
+if ($check_on_seen && $check_on_seen->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_online` ADD `last_seen` INT(11) NULL DEFAULT '0'");
+}
+
 @$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_dmca` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) NOT NULL,
@@ -822,15 +835,108 @@ $settings = $mysqli -> query("select * from ero_settings WHERE id = 1 limit 1") 
 $auth_pass = filter($_SESSION['password'] ?? $_COOKIE['password'] ?? '');
 $user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, $auth_pass)."'") -> fetch_assoc()) : null;
 
+# Foydalanuvchi qurilmasi va brauzerini aniqlash
+function parse_user_agent_details($ua) {
+    $res = [
+        'device' => 'Kompyuter',
+        'device_icon' => 'fa-desktop',
+        'os' => 'Windows',
+        'os_icon' => 'fa-windows',
+        'browser' => 'Brauzer',
+        'browser_icon' => 'fa-globe',
+        'badge_color' => '#64748b'
+    ];
+
+    if (empty($ua)) return $res;
+
+    // Robot / Botlar
+    if (preg_match('/(googlebot|bingbot|yandexbot|ahrefs|semrush|baiduspider|curl|python|wget|facebookexternalhit|whatsapp|telegrambot)/i', $ua)) {
+        return [
+            'device' => 'Robot / Bot',
+            'device_icon' => 'fa-cogs',
+            'os' => 'Qidiruv boti',
+            'os_icon' => 'fa-bug',
+            'browser' => 'Crawler / Spider',
+            'browser_icon' => 'fa-globe',
+            'badge_color' => '#f59e0b'
+        ];
+    }
+
+    // Qurilma & OS
+    if (stripos($ua, 'Android') !== false) {
+        $res['device'] = 'Mobil (Android)';
+        $res['device_icon'] = 'fa-mobile';
+        $res['os'] = 'Android';
+        $res['os_icon'] = 'fa-android';
+        $res['badge_color'] = '#22c55e';
+    } elseif (stripos($ua, 'iPhone') !== false) {
+        $res['device'] = 'iPhone';
+        $res['device_icon'] = 'fa-mobile';
+        $res['os'] = 'iOS';
+        $res['os_icon'] = 'fa-apple';
+        $res['badge_color'] = '#38bdf8';
+    } elseif (stripos($ua, 'iPad') !== false) {
+        $res['device'] = 'iPad';
+        $res['device_icon'] = 'fa-tablet';
+        $res['os'] = 'iPadOS';
+        $res['os_icon'] = 'fa-apple';
+        $res['badge_color'] = '#38bdf8';
+    } elseif (stripos($ua, 'Macintosh') !== false || stripos($ua, 'Mac OS') !== false) {
+        $res['device'] = 'Mac (Apple)';
+        $res['device_icon'] = 'fa-desktop';
+        $res['os'] = 'macOS';
+        $res['os_icon'] = 'fa-apple';
+        $res['badge_color'] = '#e2e8f0';
+    } elseif (stripos($ua, 'Windows') !== false) {
+        $res['device'] = 'Kompyuter (PC)';
+        $res['device_icon'] = 'fa-desktop';
+        $res['os'] = 'Windows';
+        $res['os_icon'] = 'fa-windows';
+        $res['badge_color'] = '#60a5fa';
+    } elseif (stripos($ua, 'Linux') !== false) {
+        $res['device'] = 'Linux';
+        $res['device_icon'] = 'fa-desktop';
+        $res['os'] = 'Linux';
+        $res['os_icon'] = 'fa-linux';
+        $res['badge_color'] = '#fbbf24';
+    }
+
+    // Brauzer
+    if (stripos($ua, 'Telegram') !== false) {
+        $res['browser'] = 'Telegram Web';
+        $res['browser_icon'] = 'fa-paper-plane';
+    } elseif (stripos($ua, 'Edg') !== false) {
+        $res['browser'] = 'MS Edge';
+        $res['browser_icon'] = 'fa-edge';
+    } elseif (stripos($ua, 'OPR') !== false || stripos($ua, 'Opera') !== false) {
+        $res['browser'] = 'Opera';
+        $res['browser_icon'] = 'fa-globe';
+    } elseif (stripos($ua, 'Chrome') !== false) {
+        $res['browser'] = 'Chrome';
+        $res['browser_icon'] = 'fa-chrome';
+    } elseif (stripos($ua, 'Safari') !== false) {
+        $res['browser'] = 'Safari';
+        $res['browser_icon'] = 'fa-safari';
+    } elseif (stripos($ua, 'Firefox') !== false) {
+        $res['browser'] = 'Firefox';
+        $res['browser_icon'] = 'fa-firefox';
+    }
+
+    return $res;
+}
+
 # Онлайн (Real-time faollik hisoblagichi)
 $client_ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
+$current_page = mysqli_real_escape_string($mysqli, filter($_SERVER['REQUEST_URI'] ?? '/'));
+$raw_ua = substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 250);
+$current_ua = mysqli_real_escape_string($mysqli, filter($raw_ua));
 $now = time();
 $expire = $now + 300;
 
 $check_vis = $mysqli->query("SELECT id FROM ero_online WHERE ip = '$client_ip' LIMIT 1");
 if ($check_vis && $check_vis->num_rows > 0) {
-    $mysqli->query("UPDATE ero_online SET date = '$expire' WHERE ip = '$client_ip'");
+    $mysqli->query("UPDATE ero_online SET date = '$expire', page_url = '$current_page', user_agent = '$current_ua', last_seen = '$now' WHERE ip = '$client_ip'");
 } else {
-    $mysqli->query("INSERT INTO ero_online (ip, date) VALUES ('$client_ip', '$expire')");
+    $mysqli->query("INSERT INTO ero_online (ip, date, page_url, user_agent, last_seen) VALUES ('$client_ip', '$expire', '$current_page', '$current_ua', '$now')");
 }
 $mysqli->query("DELETE FROM ero_online WHERE date < '$now'");

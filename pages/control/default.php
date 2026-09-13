@@ -21,7 +21,7 @@ $today_videos = $mysqli->query("SELECT count(*) FROM ero_files WHERE date >= '$t
 $categories_count = $mysqli->query("SELECT count(*) FROM ero_categories")->fetch_row()[0] ?? 0;
 
 $online_count = $mysqli->query("SELECT count(*) FROM ero_online WHERE date > '$now'")->fetch_row()[0] ?? 0;
-$online_list = $mysqli->query("SELECT ip, date FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
+$online_list = $mysqli->query("SELECT ip, date, page_url, user_agent FROM ero_online WHERE date > '$now' ORDER BY date DESC LIMIT 10");
 
 $dmca_unread = 0;
 $chk_dmca = $mysqli->query("SHOW TABLES LIKE 'ero_dmca'");
@@ -311,8 +311,10 @@ $top_videos = $mysqli->query("
                 <tr>
                     <th width="40">#</th>
                     <th>IP Manzil</th>
-                    <th>Holati</th>
+                    <th>Hozirgi Sahifa</th>
+                    <th>Qurilma / Brauzer</th>
                     <th>Oxirgi faollik</th>
+                    <th width="80">Holati</th>
                 </tr>
             </thead>
             <tbody>
@@ -320,28 +322,46 @@ $top_videos = $mysqli->query("
                 $num = 1;
                 $my_ip = $_SERVER['REMOTE_ADDR'] ?? '';
                 while ($on = $online_list->fetch_assoc()): 
+                    $u_info = parse_user_agent_details($on['user_agent'] ?? '');
                     $seconds_ago = max(0, 300 - ($on['date'] - $now));
                     $act_text = ($seconds_ago < 30) ? 'Hozirgina faol' : floor($seconds_ago / 60) . ' daqiqa oldin';
                     $is_me = ($on['ip'] === $my_ip);
+                    $page_link = !empty($on['page_url']) ? $on['page_url'] : '/';
                 ?>
                 <tr <?=($is_me ? 'style="background:rgba(255,153,0,0.06);"' : '')?>>
                     <td style="color:#64748b;"><?=$num++?></td>
                     <td>
                         <code style="color:#e2e8f0; font-size:13px;"><?=$on['ip']?></code>
                         <?php if ($is_me): ?>
-                            <span class="adm-badge adm-badge-warning" style="margin-left:6px;">Siz (Admin)</span>
+                            <span class="adm-badge adm-badge-warning" style="margin-left:6px;"><i class="fa fa-user-secret"></i> Siz</span>
                         <?php endif; ?>
                     </td>
                     <td>
-                        <span class="adm-badge adm-badge-success">
+                        <a href="<?=$page_link?>" target="_blank" style="color:var(--primary-accent, #ff9900); text-decoration:none; font-size:12px; font-weight:600; max-width:200px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <i class="fa fa-external-link" style="font-size:10px; opacity:0.6;"></i> <?=htmlspecialchars($page_link)?>
+                        </a>
+                    </td>
+                    <td>
+                        <span style="display:inline-flex; align-items:center; gap:5px; color:<?=$u_info['badge_color']?>; font-size:12px; font-weight:600;">
+                            <i class="fa <?=$u_info['device_icon']?>"></i> <?=$u_info['device']?>
+                        </span>
+                        <span style="color:#94a3b8; font-size:11px; margin-left:4px;">(<?=$u_info['browser']?>)</span>
+                    </td>
+                    <td style="color:#94a3b8; font-size:12px;"><?=$act_text?></td>
+                    <td>
+                        <span class="adm-badge adm-badge-success" style="font-size:11px;">
                             <span class="adm-pulse-dot"></span> Onlayn
                         </span>
                     </td>
-                    <td style="color:#94a3b8; font-size:12px;"><?=$act_text?></td>
                 </tr>
                 <?php endwhile; ?>
             </tbody>
         </table>
+    </div>
+    <div style="padding:12px; text-align:right; background:rgba(255,255,255,0.02); border-top:1px solid rgba(255,255,255,0.06);">
+        <a href="/control.html?func=stats#online_section" class="adm-btn adm-btn-secondary adm-btn-sm">
+            <i class="fa fa-users"></i> Barcha Onlayn Foydalanuvchilarni Ko‘rish (Statistikada) &rarr;
+        </a>
     </div>
     <?php else: ?>
     <div style="text-align:center; padding:20px; color:#64748b;">
