@@ -36,67 +36,22 @@
     #Новые видео
     
     ?>
-    
-    <p class="functions_data" align="center"><?=$lang['new_video']?></p>
-    
-    <style>
 
-    .data_set {
-    position: relative;
-    width: 24.1%;
-    display: inline-block;
-    overflow: hidden;
-    vertical-align: top;
-    padding: 0;
-    box-shadow: 0 0 12px #292929;
-    margin: 5px 3px;
-    transition: ease all .3s;
-    }
+    <div class="xxxhd-title-top"><h2><?=$lang['new_video']?></h2></div>
+    <div class="xxxhd-thumbs-content">
 
-    .width {
-    position: relative;
-    }
-
-    .love {
-    top: 0;
-    right: 0;
-    padding: 4px 5px 4px 9px;
-    background: rgba(0,0,0,0.7);
-    }
-
-    h2 {
-    display: block;
-    font-size: 1.5em;
-    margin-block-start: 0.83em;
-    margin-block-end: 0.83em;
-    margin-inline-start: 0px;
-    margin-inline-end: 0px;
-    font-weight: bold;
-    }
-
-    .appellative a {
-    display: block;
-    background-color: #444444;
-    line-height: 22px;
-    cursor: pointer;
-    padding: 4px 3px 3px;
-    height: 53px;
-    color: #fff;
-    overflow: hidden;
-    }
-
-    </style>
-    
     <?
 
     $query = $mysqli -> query("select screenshot, name, duration, translit from ero_files where date < '".time()."' order by date desc limit 3");
 
     while($row = $query -> fetch_assoc())
-    
-    echo '<a href="/watch/'.$row['translit'].'.html" class="tach" title="'.$row['name'].'">
-    <img class="screenshots" src="'. $row['screenshot'] .'" alt="'.$row['name'].'" />
-    <span class="sample">'.$row['duration'].'</span>
-    <h2 style="font-size: 12px;">'.$row['name'].'</h2></a>';
+    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb">
+    <a href="/watch/'.$row['translit'].'.html" title="'.$row['name'].'">
+    <img src="'.$row['screenshot'].'" alt="'.$row['name'].'" width="300" height="180" />
+    <div class="xxxhd-thumb-name" title="'.$row['name'].'">'.$row['name'].'</div>
+    </a>
+    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
+    </div></div>';
     
     #Вывод категорий
     
@@ -110,11 +65,19 @@
 
     if ($new[0] > 0) $new = '<span class="new">'.$new[0].'</span>'; else $new = false;
     
-    echo '<a href="/'.$row['translit'].'/" class="tach" title="'.$row['name'].'">
-    '.$new.' <span class="sample">'.$quantity[0].'</span>
-    <h2 style="font-size: 12px;"> <img src="/designs/icons/view/category.png" width="16" height="16" /> '.$row['name'].'</h2></a>';
+    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb xxxhd-thumb-cat">
+    <a href="/'.$row['translit'].'/" title="'.$row['name'].'">
+    <div class="xxxhd-thumb-name">'.$row['name'].'</div>
+    </a>
+    <span class="xxxhd-thumb-top top-right">'.$quantity[0].'</span>
+    '.$new.'
+    </div></div>';
     
     }
+
+    ?>
+    </div><!-- xxxhd-thumbs-content -->
+    <?
 
     $handle = fopen($caching, 'w'); 
 	

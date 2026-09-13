@@ -51,10 +51,9 @@ global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $l
 $favorites = $mysqli -> query("select count(*) from ero_favorites where data = '".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."'") -> fetch_row();
 $visitors = $mysqli -> query("select count(*) from ero_online") -> fetch_row();
 
-if ($user)  $view_control   =   '<tr>
-<th><div class="menu_j">    <a href="/control.php" class="tach"><img src="/designs/icons/view/control.png" width="16" height="16"> '.$lang['control_panel'].'</a></div></th>
-<th><div class="menu_j">    <a href="/control.php?func=parsing" class="tach"><img src="/designs/icons/view/parsing.png" width="16" height="16"> '.$lang['parsing_files'].'</a></div></th>
-</tr>';     else    $view_control = null;
+if ($user)  $view_control = '
+<li><a href="/control.php"><i class="fa fa-cog"></i> '.$lang['control_panel'].'</a></li>';
+else $view_control = null;
 
 echo '
 <html lang="ru">
@@ -65,9 +64,7 @@ echo '
 <meta name="description" content="'.$description.'" />
 <meta name="keywords" content="'.$keywords.'" />
 <meta name="robots" content="INDEX,ALL" />
-<meta name="document-state" content="dynamic" />
-<meta name="theme-color" content="#c75c5c" />
-<meta name="yandex-verification" content="91783abd1399c7fe" />
+<meta name="theme-color" content="#21201f" />
 <meta property="og:type" content="article" />
 <meta property="og:title" content="'.$title.'" />';
 if ($var != null)
@@ -78,46 +75,42 @@ echo '
 <meta property="og:description" content="'.$description.'" />
 <link rel="canonical" href="'.$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'" />
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 <link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css" />
 <title>'.$title.'</title>
   </head>
   <body>
- 
-    <div class="title" align="center">
-    <a href="/"><img src="/designs/red_graphics/logo.png" alt="'.filter($_SERVER['HTTP_HOST']).'" /></a>
+
+<div class="xxxhd-wrapper">
+  <div class="xxxhd-head-wrap">
+    <div class="xxxhd-head">
+      <div class="xxxhd-head-top">
+        <div class="xxxhd-logo">
+          <a href="/" title="'.filter($_SERVER['HTTP_HOST']).'">
+            SEKSCH<span>I</span>.ONLINE
+          </a>
+        </div>
+      </div>
     </div>
-    
-    <h1 class="mark">'.$title.'</h1>  
-    
-    <div class="menu">
-
-    <p align="center">
-    
-<table cellpadding="7" width="100%">
-  
-  '.$view_control.'
-  
-  <tr>
-    <th><div class="menu_j"><a href="/favorites" class="tach" title="'.$lang['chosen'].'"><img src="/designs/icons/view/my_favorites.png" width="16" height="16"> '.$lang['chosen'].' ('.$favorites[0].')</a></div></th>
-    <th><div class="menu_j"><a href="/online.html" class="tach"><img src="/designs/icons/view/online.png" width="16" height="16"> '.$lang['online'].' '.$visitors[0].' '.$lang['people'].'</a></div></th>
-  </tr>
- 
-  <tr>
-    <th><div class="menu_j"><a href="/new.html" class="tach" title="'.$lang['new'].'"> '.$lang['new'].' </a></div></th>
-    <th><div class="menu_j">    <a href="/top.html" class="tach" title="'.$lang['popular'].'"> '.$lang['popular'].'</a></div></th>
-  </tr>
- 
-</table>
-
-	</p>
-	
-    <div align="center">
-    <form id="search" method="get" action="/search_" class="search">
-    <input id="search-field" type="search" name="i" placeholder="'.$lang['search'].'" class="input" />
-    <input type="submit" name="" value="" class="submit" />
-    </form>
-   
-    </div>';
+    <div class="xxxhd-head-menu">
+      <ul class="xxxhd-head-menu-buttons">
+        <li><a href="/new.html"><i class="fa fa-calendar"></i> '.$lang['new'].'</a></li>
+        <li><a href="/top.html"><i class="fa fa-fire"></i> '.$lang['popular'].'</a></li>
+        <li><a href="/favorites"><i class="fa fa-star"></i> '.$lang['chosen'].'('.$favorites[0].')</a></li>
+        <li><a href="/online.html"><i class="fa fa-users"></i> '.$lang['online'].' '.$visitors[0].'</a></li>
+        <li><a href="/sitemap.html"><i class="fa fa-list"></i> Barcha</a></li>
+        '.$view_control.'
+      </ul>
+      <div class="xxxhd-search">
+        <form method="get" action="/search_">
+          <input type="text" name="i" placeholder="'.$lang['search'].'" />
+          <button type="submit"><i class="fa fa-search"></i></button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="xxxhd-content">
+    <h1 class="mark">'.$title.'</h1>';
 
 }
 
@@ -128,29 +121,25 @@ function foot() {
 global $settings, $lang;
 
 echo '
-</div>
+  </div><!-- xxxhd-content -->
 
-<div class="foot">
-&copy; <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'
+  <div class="xxxhd-footer">
+    <div class="xxxhd-foot">
+      &copy; <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'
+      <div style="margin-top:8px;">
+        <a href="/?lang=ru"><img src="/designs/icons/flags/ru.png" alt="Русский" /></a>
+        <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English" /></a>
+        <a href="/?lang=ua"><img src="/designs/icons/flags/ua.png" alt="Українська" /></a>
+      </div>
+    </div>
+  </div>
+  <a href="/advertising.html"><p style="text-align:right;color:#ff9900;padding:5px 10px">'.$lang['pay'].'</p></a>
+  <p style="text-align:center;padding:5px">'.$settings['counter'].'</p>
+  <h4 style="font-size:10px;text-align:center;color:#595a5c;padding:5px">'.$lang['h4'].'</h4>
+  <a href="/sitemap.html"><p style="text-align:center;color:#ff9900;padding:5px">'.$lang['map'].'</p></a>
 
-<div align="right">
-    <a href="/?lang=ru"> <img src="/designs/icons/flags/ru.png" alt="Русский язык" /></a> 
-    <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English language" /></a>
-    <a href="/?lang=ua"><img src="/designs/icons/flags/ua.png" alt="Українська мова" /></a>
-    <a href="/?lang=az"><img src="/designs/icons/flags/az.png" alt="Azeibarcan dili" /></a>
-</div>
-
-</div>
-
-<a href="/advertising.html"><p align="right" style="color: #c75c5c">'.$lang['pay'].'</p></a>
-
-<p align="center">'.$settings['counter'].'</p>
-
-<h4 style="font-size: 10px; text-align: center;">'.$lang['h4'].'</h4>
-
-<a href="/sitemap.html"><p align="center" style="color: #c75c5c">'.$lang['map'].'</p></a>
-
-</body>
+</div><!-- xxxhd-wrapper -->
+  </body>
 </html>';
 
 }

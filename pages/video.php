@@ -63,30 +63,30 @@
         
     ?>
         
-    <p class="functions_data">
-        
-    <a href="/" title="<?=$lang['home']?>"><?=$lang['home']?></a> &raquo; 
-    <a href="/<?=$category['translit']?>/" title="<?=$category['name']?>"><?=$category['name']?></a> &raquo; 
-    <b><?=$view['name']?></b>
-        
-    </p>
-
-    <p class="view">
-    
-    <img src="/designs/icons/view/added.png" width="16" height="16" /> <?=date('Y-m-d H:i:s', $view['date']);?> 
-    <img src="/designs/icons/view/view.png" width="16" height="16" /> <?=$view['view'];?> 
-    <img src="/designs/icons/view/duration.png" width="16" height="16" /> <?=($view['duration']);?> <br />
-
-    </p>
-    
-    <?
+<div class="xxxhd-title-top">
+<p style="font-size:13px;color:#959595">
+<a href="/"><?=$lang['home']?></a> &raquo;
+<a href="/<?=$category['translit']?>/"><?=$category['name']?></a> &raquo;
+<b style="color:#ff9900"><?=$view['name']?></b>
+</p>
+<p style="font-size:12px;color:#595a5c;margin-top:4px">
+<i class="fa fa-calendar"></i> <?=date('Y-m-d', $view['date']);?>
+&nbsp;<i class="fa fa-eye"></i> <?=$view['view'];?>
+&nbsp;<i class="fa fa-clock-o"></i> <?=($view['duration']);?>
+</p>
+</div>
+<?php
     
     if ($view['server'] == 'vk.com' or $view['server'] == 'drive.google.com')    {
         
+    echo '<div class="xxxhd-player" style="position:relative;width:100%;background:#000;">';
+
     echo '<iframe src="'.$view['address'].'" width="100%" height="320" frameborder="0"></iframe>';
 
     }   else    {
     
+    echo '<div class="xxxhd-player" style="position:relative;width:100%;background:#000;">';
+
     if ($settings['player'] == 0) echo '
     <video width="100%" controls="controls" poster="'.$view['screenshot'].'">
     <source src="/view_'.$view['translit'].'">
@@ -109,6 +109,8 @@
     });
     </script>';
     
+    echo '</div><!-- xxxhd-player -->';
+
     }
     
     ?>
@@ -177,7 +179,7 @@
   
 </table>
 
-	</div>
+    </div>
 
     <?
     
@@ -187,7 +189,8 @@
     
     </p>
     
-    <p class="view">Похожие видео</p>
+    <div class="xxxhd-title-top"><h2>O'xshash videolar</h2></div>
+    <div class="xxxhd-thumbs-content">
 
     <?
     
@@ -199,15 +202,18 @@
     $edit = '<p align="right"><a href="/editing_'.$row['id'].'.html"><img src="/designs/icons/view/edit.png" width="16" height="16" /> '.$lang['edit'].'</a>
     <a href="/deletion_'.$row['id'].'.html"><img src="/designs/icons/view/remove.png" width="16" height="16" /> '.$lang['remove'].'</a></p>'; else $edit = false;
     
-    ?>
-    
-    <a href="/watch/<?=$row['translit']?>.html" class="tach" title="<?=$row['name']?>">
-    <img class="screenshots" src="<?= $row['screenshot'] ?>" alt="<?=$row['name']?>" />
-    <span class="sample"><?=$row['duration']?></span>
-    <h2 style="font-size: 12px;"><?=$row['name']?></h2></a><?=$edit?>
-    
-    <?
+    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb">
+    <a href="/watch/'.$row['translit'].'.html" title="'.$row['name'].'">
+    <img src="'.$row['screenshot'].'" alt="'.$row['name'].'" />
+    <div class="xxxhd-thumb-name">'.$row['name'].'</div>
+    </a>
+    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
+    </div></div>';
     
     }
+
+    ?>
+    </div><!-- xxxhd-thumbs-content -->
+    <?
 
     $query -> free();

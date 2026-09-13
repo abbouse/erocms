@@ -6,7 +6,7 @@
 Быстро, качественно, недорого.
 */
 
-    $mysqli = new mysqli('localhost', 'erocms', 'pass', 'erocms');
+    $mysqli = new mysqli('localhost', 'sekschi', 'sekschi123', 'sekschi');
 
     if ($mysqli -> connect_error) {
         die('Error : ('. $mysqli -> connect_errno .') '. $mysqli -> connect_error);

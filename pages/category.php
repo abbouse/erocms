@@ -108,10 +108,15 @@
     $edit = '<p align="right"><a href="/editing_'.$row['id'].'.html"><img src="/designs/icons/view/edit.png" width="16" height="16" /> '.$lang['edit'].'</a>
     <a href="/deletion_'.$row['id'].'.html"><img src="/designs/icons/view/remove.png" width="16" height="16" /> '.$lang['remove'].'</a></p>'; else $edit = false;
     
-    echo '<a href="/watch/'.$row['translit'].'.html" class="tach" title="'.$row['name'].'">
-    <img class="screenshots" src="'. $row['screenshot'] .'" alt="'.$row['name'].'" />
-    <span class="sample">'.$row['duration'].'</span>
-    <h2 style="font-size: 12px;">'.$row['name'].'</h2></a>'.$edit;
+    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb">
+    <a href="/watch/'.$row['translit'].'.html" title="'.$row['name'].'">
+    <img src="'.$row['screenshot'].'" alt="'.$row['name'].'" width="300" height="180" />
+    <div class="xxxhd-thumb-name" title="'.$row['name'].'">'.$row['name'].'</div>
+    </a>
+    <span class="xxxhd-thumb-top top-right"><i class="fa fa-eye"></i> '.$row['view'].'</span>
+    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
+    '.$edit.'
+    </div></div>';
     
     }
     
