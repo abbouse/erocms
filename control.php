@@ -170,6 +170,19 @@
     ];
     $current_title = $page_titles[$func] ?? 'Boshqaruv Paneli';
 
+    // Tezkor AJAX so'rovlari uchun (Header/Footer yuklanmasdan toza JSON javob berish)
+    if (!empty($_REQUEST['ajax_action']) || !empty($_GET['ajax'])) {
+        require_once 'core/ClassSimpleImage.php';
+        $subpage_file = 'pages/control/' . $func . '.php';
+        if (file_exists($subpage_file)) {
+            require $subpage_file;
+        }
+        if ($mysqli instanceof mysqli) {
+            @$mysqli->close();
+        }
+        exit;
+    }
+
     admin_head($current_title, $func);
 
     require_once 'core/ClassSimpleImage.php';

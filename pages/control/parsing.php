@@ -1,12 +1,20 @@
 <?php
 
 /*
- * erocms Universal Video Parser Moduli
+ * erocms Ultra Universal Video Parser Engine 2.0
+ * 
  * Qo'llab-quvvatlanuvchi donor saytlar:
- * 1. sexlar.link (O'zbek seks videolari - Yangi & Tezkor)
+ * 1. sexlar.link (Yangi o'zbek videolari - Tezkor va sifatli)
  * 2. arhivporno.watch (cat-uzbekskii-seks arxivi)
  * 3. uzbxx.ru
  * 4. uzporno.website
+ * 
+ * Imkoniyatlari:
+ * - ⚡ 100% Asinxron AJAX Batch Runner (Nol Gateway Timeout kafolati!)
+ * - 🎯 Aqlli Intellektual Toifaga Ajratish (27 ta bo'lim bo'yicha semantik tahlil)
+ * - 🔄 Ko'p sahifali Pagination (1-sahifadan N-sahifagacha avtomatik aylanadi)
+ * - 🏷️ Boyitilgan SEO Sarlavha, Meta Description va SEO Teglar avto-generatsiyasi
+ * - ⏸️ Jonli pauza, to'xtatish va real-vaqt hisoblagichlari
  */
 
 ini_set('display_errors', 0);
@@ -33,7 +41,127 @@ if (!function_exists('parse_video_sexlar')) {
     }
 }
 
-// Barcha kategoriyalar ro'yxatini olish
+// =========================================================================
+// 1. ASINXRON AJAX ENDPOINTLAR (GATEWAY TIMEOUT 100% OLDINI OLADI)
+// =========================================================================
+$ajax_action = filter($_REQUEST['ajax_action'] ?? '');
+if (!empty($ajax_action)) {
+    while (ob_get_level()) { ob_end_clean(); }
+    header('Content-Type: application/json; charset=UTF-8');
+    @set_time_limit(120);
+
+    // 1.1. Katalogdagi videolarni sahifa bo'yicha olish
+    if ($ajax_action === 'get_catalog') {
+        $donor = filter($_POST['donor'] ?? 'sexlar');
+        $page = max(1, abs(intval($_POST['page'] ?? 1)));
+        $custom_url = trim($_POST['custom_url'] ?? '');
+        
+        $items = [];
+        try {
+            if (!empty($custom_url)) {
+                if (stripos($custom_url, 'sexlar.link') !== false) {
+                    $donor = 'sexlar';
+                    $items = parser_get_catalog_links_sexlar($page, $custom_url);
+                } elseif (stripos($custom_url, 'arhivporno.watch') !== false) {
+                    $donor = 'arhivporno';
+                    $items = parser_get_catalog_links_arhivporno($page, $custom_url);
+                } elseif (stripos($custom_url, 'uzporno.website') !== false) {
+                    $donor = 'uzporno';
+                    $items = parser_get_catalog_links_uzporno($page, $custom_url);
+                } else {
+                    $donor = 'uzbxx';
+                    $items = parser_get_catalog_links_uzbxx($page, $custom_url);
+                }
+            } else {
+                if ($donor === 'sexlar') {
+                    $items = parser_get_catalog_links_sexlar($page);
+                } elseif ($donor === 'arhivporno') {
+                    $items = parser_get_catalog_links_arhivporno($page);
+                } elseif ($donor === 'uzbxx') {
+                    $items = parser_get_catalog_links_uzbxx($page);
+                } elseif ($donor === 'uzporno') {
+                    $items = parser_get_catalog_links_uzporno($page);
+                }
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'donor'  => $donor,
+                'page'   => $page,
+                'count'  => count($items),
+                'items'  => $items
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $e) {
+            echo json_encode([
+                'status'  => 'error',
+                'message' => 'Katalog yuklashda xatolik: ' . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+
+    // 1.2. Bitta videoni parslash va bazaga yozish
+    if ($ajax_action === 'parse_video') {
+        $donor = filter($_POST['donor'] ?? 'sexlar');
+        $video_url = trim($_POST['url'] ?? '');
+        $category = abs(intval($_POST['category'] ?? 0));
+        $save_mode = filter($_POST['save_mode'] ?? 'stream');
+        $cat_context = [
+            'poster'        => trim($_POST['poster'] ?? ''),
+            'duration'      => trim($_POST['duration'] ?? ''),
+            'title'         => trim($_POST['title'] ?? ''),
+            'category_hint' => trim($_POST['category_hint'] ?? '')
+        ];
+
+        if (empty($video_url)) {
+            echo json_encode(['status' => 'error', 'message' => 'Video manzili kiritilmadi!'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        try {
+            $res = null;
+            if ($donor === 'sexlar' || stripos($video_url, 'sexlar.link') !== false) {
+                $res = parse_video_sexlar($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
+            } elseif ($donor === 'arhivporno' || stripos($video_url, 'arhivporno.watch') !== false) {
+                $res = parse_video_arhivporno($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
+            } elseif ($donor === 'uzbxx' || stripos($video_url, 'uzbxx.ru') !== false) {
+                $res = parse_video_uzbxx($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
+            } elseif ($donor === 'uzporno' || stripos($video_url, 'uzporno.website') !== false) {
+                $res = parse_video_uzporno($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
+            } else {
+                $res = ['status' => 'error', 'message' => 'Noma‘lum donor video manzili!'];
+            }
+
+            // Keshni tozalash
+            if (!empty($res['status']) && $res['status'] === 'success') {
+                $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
+                @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+            }
+
+            echo json_encode($res ?: ['status' => 'error', 'message' => 'Parslashda xatolik yuz berdi'], JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $e) {
+            echo json_encode(['status' => 'error', 'message' => 'Server xatosi: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+
+    // 1.3. 404 / Singan rasmlarni avto-tuzatish
+    if ($ajax_action === 'repair_screenshots') {
+        try {
+            $count = function_exists('parser_repair_broken_screenshots') ? parser_repair_broken_screenshots($mysqli) : 0;
+            echo json_encode([
+                'status'  => 'success',
+                'count'   => $count,
+                'message' => "Jami {$count} ta singan yoki 404 skrinshot tekshirilib, to‘g‘ri CDN havolasiga tiklandi."
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+}
+
+// Barcha mavjud kategoriyalar
 $cat_list = [];
 $cats_query = $mysqli->query("SELECT id, name, translit FROM ero_categories ORDER BY name ASC");
 if ($cats_query) {
@@ -45,252 +173,14 @@ if ($cats_query) {
 $logs = [];
 $repair_info = '';
 
-if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots')) {
-    $rep_c = parser_repair_broken_screenshots($mysqli);
-    $repair_info = "Tekshirildi: jami {$rep_c} ta singan/404 rasm avtomatik aniqlanib, to‘g‘ri CDN havolalariga tiklandi!";
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Standart POST so'rovlari (eski usul yoki fallback uchun)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($ajax_action)) {
     try {
         $action_type = filter($_POST['action_type'] ?? '');
         $category_choice = abs(intval($_POST['category'] ?? 0));
         $save_mode = filter($_POST['save_mode'] ?? 'stream');
 
-        // 1. HECH QANDAY URLSIZ ENG YANGI VIDEOLARNI AVTO-YUKLASH (1-BOSISHDA)
-        if ($action_type === 'auto_all') {
-            $limit_count = min(30, max(1, abs(intval($_POST['auto_count'] ?? 10))));
-            $donor_choice = filter($_POST['auto_donor'] ?? 'sexlar');
-
-            $all_items = [];
-
-            // 1. sexlar.link
-            if ($donor_choice === 'all' || $donor_choice === 'sexlar') {
-                $links_sexlar = parser_get_catalog_links_sexlar(1);
-                foreach ($links_sexlar as $item) {
-                    $all_items[] = [
-                        'donor' => 'sexlar',
-                        'url' => $item['url'],
-                        'poster' => $item['poster'] ?? '',
-                        'duration' => $item['duration'] ?? '05:00'
-                    ];
-                }
-            }
-
-            // 2. arhivporno.watch
-            if ($donor_choice === 'all' || $donor_choice === 'arhivporno') {
-                $links_arhiv = parser_get_catalog_links_arhivporno(1);
-                foreach ($links_arhiv as $item) {
-                    $all_items[] = [
-                        'donor' => 'arhivporno',
-                        'url' => $item['url'],
-                        'poster' => $item['poster'] ?? '',
-                        'duration' => $item['duration'] ?? '05:00'
-                    ];
-                }
-            }
-
-            // 3. uzbxx.ru
-            if ($donor_choice === 'all' || $donor_choice === 'uzbxx') {
-                $links_uzbxx = parser_get_catalog_links_uzbxx(1);
-                foreach ($links_uzbxx as $link) {
-                    $all_items[] = ['donor' => 'uzbxx', 'url' => $link];
-                }
-            }
-
-            // 4. uzporno.website
-            if ($donor_choice === 'all' || $donor_choice === 'uzporno') {
-                $links_uzporno = parser_get_catalog_links_uzporno(1);
-                foreach ($links_uzporno as $link) {
-                    $all_items[] = ['donor' => 'uzporno', 'url' => $link];
-                }
-            }
-
-            if (empty($all_items)) {
-                $logs[] = ['status' => 'error', 'message' => 'Donor saytlardan yangi videolar topilmadi.'];
-            } else {
-                if ($donor_choice === 'all') {
-                    shuffle($all_items);
-                }
-
-                $added = 0;
-                foreach ($all_items as $item) {
-                    if ($added >= $limit_count) break;
-
-                    $res = null;
-                    if ($item['donor'] === 'sexlar') {
-                        $res = parse_video_sexlar($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, $item);
-                    } elseif ($item['donor'] === 'arhivporno') {
-                        $res = parse_video_arhivporno($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, $item);
-                    } elseif ($item['donor'] === 'uzbxx') {
-                        $res = parse_video_uzbxx($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    } elseif ($item['donor'] === 'uzporno') {
-                        $res = parse_video_uzporno($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    }
-
-                    if ($res) {
-                        $logs[] = $res;
-                        if (!empty($res['status']) && $res['status'] === 'success') {
-                            $added++;
-                        }
-                    }
-                    usleep(200000); // 0.2 soniya pauza
-                }
-
-                // Keshni tozalash
-                $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
-                @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
-            }
-        }
-
-        // 2. KATALOG / SAHIFA BO'YICHA OMMAVIY PARSLASH (bitta sahifa)
-        elseif ($action_type === 'mass_parse') {
-            $donor = filter($_POST['donor'] ?? 'sexlar');
-            $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
-            $limit_count = min(50, max(1, abs(intval($_POST['count'] ?? 10))));
-            $custom_url = trim($_POST['custom_catalog_url'] ?? '');
-
-            $items_to_parse = [];
-
-            if (!empty($custom_url)) {
-                if (stripos($custom_url, 'sexlar.link') !== false) {
-                    $donor = 'sexlar';
-                    $items_to_parse = parser_get_catalog_links_sexlar($custom_url);
-                } elseif (stripos($custom_url, 'arhivporno.watch') !== false) {
-                    $donor = 'arhivporno';
-                    $items_to_parse = parser_get_catalog_links_arhivporno($custom_url);
-                } elseif (stripos($custom_url, 'uzporno.website') !== false) {
-                    $donor = 'uzporno';
-                    $raw_links = parser_get_catalog_links_uzporno($page_num);
-                    foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
-                } else {
-                    $donor = 'uzbxx';
-                    $raw_links = parser_get_catalog_links_uzbxx($page_num);
-                    foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
-                }
-            } else {
-                if ($donor === 'sexlar') {
-                    $items_to_parse = parser_get_catalog_links_sexlar($page_num);
-                } elseif ($donor === 'arhivporno') {
-                    $items_to_parse = parser_get_catalog_links_arhivporno($page_num);
-                } elseif ($donor === 'uzbxx') {
-                    $raw_links = parser_get_catalog_links_uzbxx($page_num);
-                    foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
-                } elseif ($donor === 'uzporno') {
-                    $raw_links = parser_get_catalog_links_uzporno($page_num);
-                    foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
-                }
-            }
-
-            if (empty($items_to_parse)) {
-                $logs[] = ['status' => 'error', 'message' => "Ushbu sahifadan video havolalari topilmadi ({$donor}, sahifa {$page_num})."];
-            } else {
-                $added = 0;
-                foreach ($items_to_parse as $item) {
-                    if ($added >= $limit_count) break;
-                    $v_url = is_array($item) ? $item['url'] : $item;
-
-                    $res = null;
-                    if ($donor === 'sexlar') {
-                        $res = parse_video_sexlar($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
-                    } elseif ($donor === 'arhivporno') {
-                        $res = parse_video_arhivporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
-                    } elseif ($donor === 'uzbxx') {
-                        $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    } elseif ($donor === 'uzporno') {
-                        $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    }
-
-                    if ($res) {
-                        $logs[] = $res;
-                        if (!empty($res['status']) && $res['status'] === 'success') {
-                            $added++;
-                        }
-                    }
-                    usleep(200000);
-                }
-
-                $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
-                @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
-            }
-        }
-
-        // 2b. PAGINATION: SAHIFALAR ORALIG'I BO'YICHA OMMAVIY PARSLASH
-        elseif ($action_type === 'paginate_parse') {
-            $donor      = filter($_POST['pg_donor'] ?? 'sexlar');
-            $page_from  = max(1, abs(intval($_POST['page_from'] ?? 1)));
-            $page_to    = max(1, abs(intval($_POST['page_to'] ?? 3)));
-            $per_page   = min(50, max(1, abs(intval($_POST['pg_per_page'] ?? 20))));
-            $save_mode  = filter($_POST['save_mode'] ?? 'stream');
-            $category_choice = abs(intval($_POST['category'] ?? 0));
-
-            // Max 10 sahifagacha bir vaqtda
-            if ($page_to - $page_from > 9) {
-                $page_to = $page_from + 9;
-            }
-
-            $total_added  = 0;
-            $total_skip   = 0;
-            $total_error  = 0;
-            $seen_urls    = [];
-
-            for ($pg = $page_from; $pg <= $page_to; $pg++) {
-                $items_page = [];
-
-                if ($donor === 'sexlar') {
-                    $items_page = parser_get_catalog_links_sexlar($pg);
-                } elseif ($donor === 'arhivporno') {
-                    $items_page = parser_get_catalog_links_arhivporno($pg);
-                } elseif ($donor === 'uzbxx') {
-                    $raw = parser_get_catalog_links_uzbxx($pg);
-                    foreach ($raw as $l) $items_page[] = ['url' => $l];
-                } elseif ($donor === 'uzporno') {
-                    $raw = parser_get_catalog_links_uzporno($pg);
-                    foreach ($raw as $l) $items_page[] = ['url' => $l];
-                }
-
-                if (empty($items_page)) {
-                    $logs[] = ['status' => 'error', 'message' => "Sahifa {$pg}: video havolalari topilmadi. Parslash to'xtatildi."];
-                    break; // Oxirgi sahifaga yetilgan, to'xtat
-                }
-
-                $page_added = 0;
-                foreach ($items_page as $item) {
-                    if ($total_added >= $per_page * ($page_to - $page_from + 1)) break;
-                    $v_url = is_array($item) ? ($item['url'] ?? '') : $item;
-                    if (empty($v_url) || isset($seen_urls[$v_url])) continue;
-                    $seen_urls[$v_url] = 1;
-
-                    $res = null;
-                    if ($donor === 'sexlar') {
-                        $res = parse_video_sexlar($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
-                    } elseif ($donor === 'arhivporno') {
-                        $res = parse_video_arhivporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
-                    } elseif ($donor === 'uzbxx') {
-                        $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    } elseif ($donor === 'uzporno') {
-                        $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    }
-
-                    if ($res) {
-                        $logs[] = array_merge($res, ['_page' => $pg]);
-                        if ($res['status'] === 'success') { $total_added++; $page_added++; }
-                        elseif ($res['status'] === 'skip') $total_skip++;
-                        else $total_error++;
-                    }
-                    usleep(300000); // 0.3s pauza
-                }
-                $logs[] = ['status' => 'info', 'message' => "--- Sahifa {$pg} tugadi: +{$page_added} yangi video ---"];
-                sleep(1); // sahifalar orasida 1 soniya kutish
-            }
-
-            $logs[] = ['status' => 'summary', 'message' => "✅ Pagination yakunlandi: <b>{$total_added}</b> qo'shildi, <b>{$total_skip}</b> o'tkazildi, <b>{$total_error}</b> xato. ({$donor}, sahifa {$page_from}–{$page_to})"];
-
-            $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
-            @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
-        }
-
-        // 3. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH
-        elseif ($action_type === 'single_url') {
+        if ($action_type === 'single_url') {
             $single_url = trim($_POST['single_url'] ?? '');
             if (empty($single_url)) {
                 $logs[] = ['status' => 'error', 'message' => 'Video havolasi kiritilmadi!'];
@@ -304,302 +194,623 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif (stripos($single_url, 'uzporno.website') !== false) {
                     $logs[] = parse_video_uzporno($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
                 } else {
-                    $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola! Faqat sexlar.link, arhivporno.watch, uzbxx.ru yoki uzporno.website havolalari qabul qilinadi.'];
+                    $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola!'];
                 }
-
                 $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
                 @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
             }
         }
     } catch (Throwable $e) {
-        $logs[] = ['status' => 'error', 'message' => 'Xatolik: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')'];
+        $logs[] = ['status' => 'error', 'message' => 'Xatolik: ' . $e->getMessage()];
     }
+}
+
+if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots')) {
+    $rep_c = parser_repair_broken_screenshots($mysqli);
+    $repair_info = "Tekshirildi: jami {$rep_c} ta singan/404 rasm avtomatik aniqlanib, to‘g‘ri CDN havolalariga tiklandi!";
 }
 ?>
 
-<div class="functions_data" style="border-left: 4px solid #ff9900; background: #1a1815; padding: 16px; margin-bottom: 20px;">
-    <h2 style="color:#ff9900; margin: 0 0 6px 0;"><i class="fa fa-cloud-download"></i> Universal Video Parser</h2>
-    <p style="color:#ccc; font-size:13px; line-height: 1.5; margin: 0 0 10px 0;">
-        Ushbu bo‘lim orqali <b>sexlar.link</b>, <b>arhivporno.watch</b>, <b>uzbxx.ru</b> va <b>uzporno.website</b> saytlaridan yangi videolarni bir bosishda saytingizdagi istalgan bo‘limga yoki avtomatik moslab yuklab olishingiz mumkin.
-    </p>
-    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="/control.html?func=parsing&repair=1" style="background:#28a745; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px; padding: 7px 14px; border-radius: 4px; font-weight: bold; font-size: 13px;">
-            <i class="fa fa-wrench"></i> Singan / 404 rasmlarni avtomatik tuzatish (CDN ga ulash)
-        </a>
+<div class="adm-card" style="border-left: 4px solid #ff9900; background: #16181e; margin-bottom: 24px; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 style="color: #ff9900; margin: 0 0 6px 0; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+                <i class="fa fa-bolt"></i> Ultra Universal Video Parser 2.0
+                <span style="background: #10b981; color: #000; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold;">AJAX BATCH RUNNER</span>
+            </h2>
+            <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.5;">
+                Donor saytlardan (<b>sexlar.link</b>, <b>arhivporno.watch</b>, <b>uzbxx.ru</b>, <b>uzporno.website</b>) barcha videolarni sahifalab, to‘liq SEO teglar va tavsiflari bilan <b>gateway timeout bo‘lmasdan</b> yuklab olish tizimi.
+            </p>
+        </div>
+        <div>
+            <button type="button" id="btnRepairScreenshots" class="adm-btn" style="background: #059669; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fa fa-wrench"></i> Singan / 404 rasmlarni tuzatish
+            </button>
+        </div>
     </div>
 </div>
 
 <?php if (!empty($repair_info)): ?>
-<div class="functions_data" style="background:#132617; border:1px solid #28a745; color:#7ce898; padding: 14px; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
-    <i class="fa fa-check-circle" style="font-size: 16px;"></i> <?=$repair_info?>
+<div class="adm-alert adm-alert-success" style="margin-bottom: 20px;">
+    <i class="fa fa-check-circle"></i> <?=$repair_info?>
 </div>
 <?php endif; ?>
 
 <?php if (!empty($logs)): ?>
-<div class="functions_data" style="background:#111; border:1px solid #ff9900; margin-bottom:20px; padding: 15px;">
-    <h3 style="color:#ff9900; margin:0 0 12px 0;"><i class="fa fa-list-alt"></i> Parslash natijalari:</h3>
-    <div style="max-height: 280px; overflow-y: auto; font-family: monospace; font-size: 13px; background:#000; padding:12px; border-radius:4px;">
-    <?php foreach ($logs as $log): ?>
-        <?php if (!empty($log['status']) && $log['status'] === 'success'): ?>
-            <div style="color: #28a745; margin-bottom: 6px;"><i class="fa fa-check-circle"></i> [Qo‘shildi] <?=$log['message']?></div>
-        <?php elseif (!empty($log['status']) && $log['status'] === 'skip'): ?>
-            <div style="color: #ffc107; margin-bottom: 6px;"><i class="fa fa-info-circle"></i> [O'tkazildi] <?=$log['message']?></div>
-        <?php elseif (!empty($log['status']) && $log['status'] === 'info'): ?>
-            <div style="color: #17a2b8; margin-bottom: 8px; margin-top: 4px; border-top: 1px solid #1a3040; padding-top: 6px;"><i class="fa fa-arrow-right"></i> <?=$log['message']?></div>
-        <?php elseif (!empty($log['status']) && $log['status'] === 'summary'): ?>
-            <div style="color: #fff; margin-bottom: 6px; margin-top: 8px; padding: 8px; background:#1a3020; border-radius:4px; border:1px solid #28a745; font-weight:bold;"><?=$log['message']?></div>
-        <?php else: ?>
-            <div style="color: #dc3545; margin-bottom: 6px;"><i class="fa fa-times-circle"></i> [Xatolik] <?=($log['message'] ?? 'Nomaʼlum xatolik')?></div>
-        <?php endif; ?>
-    <?php endforeach; ?>
+<div class="adm-card" style="margin-bottom: 24px; background: #11141a; border: 1px solid #334155;">
+    <h3 style="color: #ff9900; margin: 0 0 12px 0; font-size: 15px;"><i class="fa fa-list-alt"></i> Parslash natijasi:</h3>
+    <div style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 13px; background: #000; padding: 12px; border-radius: 4px;">
+        <?php foreach ($logs as $l): ?>
+            <div style="color: <?=($l['status'] === 'success' ? '#10b981' : ($l['status'] === 'skip' ? '#f59e0b' : '#ef4444'))?>; margin-bottom: 4px;">
+                [<?=strtoupper($l['status'])?>] <?=$l['message']?>
+            </div>
+        <?php endforeach; ?>
     </div>
 </div>
 <?php endif; ?>
 
-<!-- 1. URLSIZ BIR BOSISHDA TEZKOR AVTO-YUKLASH -->
-<div class="functions_data" style="background:#1c1916; border: 2px solid #ff9900; margin-bottom:20px; padding:18px; border-radius: 4px;">
-    <h3 style="color:#ff9900; margin:0 0 8px 0;"><i class="fa fa-bolt"></i> 1. Bir bosishda yangi videolarni avto-yuklash (URL KERAK EMAS!)</h3>
-    <p style="color:#bbb; font-size:13px; margin: 0 0 15px 0;">
-        Hech qanday havola kiritish shart emas! Donor saytni va bo‘limni tanlang, tugmani bosing — videolar darhol saytingizga yuklanadi:
-    </p>
-    <form method="post">
-        <input type="hidden" name="action_type" value="auto_all" />
-        <p style="line-height: 2; margin-bottom: 12px;">
-            <b>Qaysi donor saytdan yuklansin:</b><br />
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="sexlar" checked /> <b style="color:#28a745;">sexlar.link</b> (Yangi o‘zbek videolari - Tavsiya)
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="all" /> <b>Barcha donorlardan (sexlar + arhivporno + uzbxx + uzporno)</b>
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="arhivporno" /> <b>arhivporno.watch</b>
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="uzbxx" /> <b>uzbxx.ru</b>
-            </label>
-            <label style="cursor:pointer;">
-                <input type="radio" name="auto_donor" value="uzporno" /> <b>uzporno.website</b>
-            </label>
-        </p>
-
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-            <div style="flex: 1; min-width: 240px;">
-                <b>Qaysi bo‘limga yuklansin:</b><br />
-                <select name="category" class="injected" style="width: 100%; margin-top: 4px; padding: 7px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px;">
-                    <option value="0" style="color: #ff9900; font-weight: bold;">🎯 Avtomatik (Mavzuga qarab: Minet, Rakom, Anal, Sperma yoki O‘zbek)</option>
-                    <?php foreach ($cat_list as $c): ?>
-                        <option value="<?=$c['id']?>" <?=($c['translit'] === 'uzbek' ? 'selected style="font-weight:bold; color:#ff9900;"' : '')?>>
-                            <?=$c['name']?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div style="width: 130px;">
-                <b>Videolar soni:</b><br />
-                <select name="auto_count" class="injected" style="width: 100%; margin-top: 4px; padding: 7px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px;">
-                    <option value="5">5 ta video</option>
-                    <option value="10" selected>10 ta video</option>
-                    <option value="15">15 ta video</option>
-                    <option value="20">20 ta video</option>
-                    <option value="30">30 ta video</option>
-                </select>
-            </div>
-
-            <div style="width: 200px;">
-                <b>Saqlash rejimi:</b><br />
-                <select name="save_mode" class="injected" style="width: 100%; margin-top: 4px; padding: 7px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px;">
-                    <option value="stream" selected>Oqim / Embed (Tavsiya - tezkor)</option>
-                    <option value="server">Serverga MP4 yuklash</option>
-                </select>
-            </div>
+<!-- ========================================================================= -->
+<!-- 1. ASOSIY ASINXRON CANLI PARSER (TIMEOUTSIZ, PROGRESS BAR VA JONLI LOG)   -->
+<!-- ========================================================================= -->
+<div class="adm-card" style="background: #181b24; border: 2px solid #ff9900; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #282d3d; padding-bottom: 14px;">
+        <div>
+            <h3 style="color: #ff9900; margin: 0 0 4px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa fa-play-circle"></i> 1. Jonli Asinxron Parser (Nol Timeout Kafolati)
+            </h3>
+            <span style="color: #94a3b8; font-size: 12px;">Har bir video alohida so'rovda o'tadi — server hech qachon qotib qolmaydi va 504 Gateway Timeout bermaydi.</span>
         </div>
-
-        <p style="margin-top: 18px; margin-bottom: 0;">
-            <button type="submit" class="byecos" style="font-size:15px; padding:12px 30px; background:#ff9900; color:#000; font-weight:bold; border:none; cursor:pointer; border-radius: 4px;">
-                <i class="fa fa-cloud-download"></i> 🚀 Videolarni yuklashni boshlash
-            </button>
-        </p>
-    </form>
-</div>
-
-<!-- 2. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH -->
-<div class="functions_data" style="margin-bottom:20px; padding:16px;">
-    <h3 style="color:#ff9900; margin:0 0 8px 0;"><i class="fa fa-link"></i> 2. Yagona havola (URL) orqali bitta video qo‘shish</h3>
-    <p style="color:#888; font-size:12px; margin:0 0 12px 0;">sexlar.link, arhivporno.watch, uzbxx.ru yoki uzporno.website dagi bitta video havolasini kiriting:</p>
-    <form method="post">
-        <input type="hidden" name="action_type" value="single_url" />
-        <p style="margin-bottom: 12px;">
-            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://sexlar.link/sekis/rastyanul-chlenom-mokruyu-pisku-uzbechki/ yoki https://arhivporno.watch/video/..." required style="width:100%; font-size:14px; padding:8px;" />
-        </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-            <div style="flex: 1; min-width: 240px;">
-                <b>Qaysi bo‘limga tushsin:</b><br />
-                <select name="category" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
-                    <option value="0">🎯 Avtomatik aniqlash (Mavzuga qarab)</option>
-                    <?php foreach ($cat_list as $c): ?>
-                        <option value="<?=$c['id']?>" <?=($c['translit'] === 'uzbek' ? 'selected' : '')?>><?=$c['name']?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div style="width: 200px;">
-                <b>Saqlash rejimi:</b><br />
-                <select name="save_mode" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
-                    <option value="stream" selected>Oqim / Embed (Tezkor)</option>
-                    <option value="server">Serverga MP4 yuklash</option>
-                </select>
-            </div>
-            <div>
-                <button type="submit" class="byecos" style="font-size:14px; padding:8px 24px;">
-                    <i class="fa fa-download"></i> Yuklash
-                </button>
-            </div>
+        <div id="liveStatusBadge" style="display: none; background: #1e293b; color: #38bdf8; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #38bdf8; display: flex; align-items: center; gap: 6px;">
+            <span class="adm-pulse-dot" style="background: #38bdf8;"></span> <span id="liveStatusText">Tayyor</span>
         </div>
-    </form>
-</div>
-
-<!-- 3. BITTA SAHIFA BO'YICHA OMMAVIY PARSLASH -->
-<div class="functions_data" style="margin-bottom:20px; padding:16px;">
-    <h3 style="color:#ff9900; margin:0 0 8px 0;"><i class="fa fa-tasks"></i> 3. Bitta katalog sahifasini parslash</h3>
-    <p style="color:#888; font-size:12px; margin:0 0 12px 0;">Donor saytning istalgan sahifasidagi (2, 3, 4...) barcha videolarni birdaniga ko'chirib olish:</p>
-    <form method="post">
-        <input type="hidden" name="action_type" value="mass_parse" />
-        <p style="line-height: 2; margin-bottom: 12px;">
-            <b>Donor sayt:</b><br />
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="donor" value="sexlar" checked /> <b style="color:#28a745;">sexlar.link</b>
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="donor" value="arhivporno" /> <b>arhivporno.watch</b>
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="donor" value="uzbxx" /> <b>uzbxx.ru</b>
-            </label>
-            <label style="cursor:pointer;">
-                <input type="radio" name="donor" value="uzporno" /> <b>uzporno.website</b>
-            </label>
-        </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-            <div style="width: 110px;">
-                <b>Sahifa raqami:</b><br />
-                <input type="number" name="page_num" value="2" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;" />
-            </div>
-            <div style="width: 130px;">
-                <b>Videolar soni:</b><br />
-                <select name="count" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
-                    <option value="5">5 ta video</option>
-                    <option value="10" selected>10 ta video</option>
-                    <option value="20">20 ta video</option>
-                    <option value="30">30 ta video</option>
-                    <option value="50">50 ta video</option>
-                </select>
-            </div>
-            <div style="flex: 1; min-width: 220px;">
-                <b>Bo'lim (Kategoriya):</b><br />
-                <select name="category" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
-                    <option value="0">🎯 Avtomatik aniqlash</option>
-                    <?php foreach ($cat_list as $c): ?>
-                        <option value="<?=$c['id']?>" <?=($c['translit'] === 'uzbek' ? 'selected' : '')?>><?=$c['name']?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div style="width: 180px;">
-                <b>Rejim:</b><br />
-                <select name="save_mode" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;">
-                    <option value="stream" selected>Oqim / Embed</option>
-                    <option value="server">Serverga MP4 yuklash</option>
-                </select>
-            </div>
-            <div>
-                <button type="submit" class="byecos" style="font-size:14px; padding:8px 22px;">
-                    <i class="fa fa-play"></i> Ushbu sahifani parslash
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
-
-<!-- 4. PAGINATION: KO'P SAHIFALI OMMAVIY PARSLASH -->
-<div class="functions_data" style="background:#0d1520; border: 2px solid #17a2b8; margin-bottom:20px; padding:18px; border-radius: 4px;">
-    <h3 style="color:#17a2b8; margin:0 0 8px 0;"><i class="fa fa-list-ol"></i> 4. 🔄 Ko'p sahifali Pagination Parslash <span style="background:#ff9900; color:#000; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:bold; margin-left:8px;">YANGI</span></h3>
-    <p style="color:#bbb; font-size:13px; line-height: 1.5; margin:0 0 15px 0;">
-        Donor saytning <b>bir nechta sahifalarini ketma-ket</b> avtomatik parslaydi. Masalan, 2-sahifadan 10-sahifagacha barcha videolarni bir bosishda yuklash mumkin. (Max 10 sahifa bir yo'la)
-    </p>
-    <form method="post">
-        <input type="hidden" name="action_type" value="paginate_parse" />
-        <p style="line-height: 2; margin-bottom: 12px;">
-            <b>Donor sayt:</b><br />
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="pg_donor" value="sexlar" checked /> <b style="color:#28a745;">sexlar.link</b> (O'zbek videolari - Tavsiya)
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="pg_donor" value="arhivporno" /> <b>arhivporno.watch</b>
-            </label>
-            <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="pg_donor" value="uzbxx" /> <b>uzbxx.ru</b>
-            </label>
-            <label style="cursor:pointer;">
-                <input type="radio" name="pg_donor" value="uzporno" /> <b>uzporno.website</b>
-            </label>
-        </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-            <div style="width: 110px;">
-                <b>Boshlang'ich sahifa:</b><br />
-                <input type="number" name="page_from" value="1" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#17a2b8; font-weight:bold; border:1px solid #17a2b8; border-radius:4px; font-size:15px;" />
-            </div>
-            <div style="width: 110px;">
-                <b>Oxirgi sahifa:</b><br />
-                <input type="number" name="page_to" value="5" min="1" max="999" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#17a2b8; font-weight:bold; border:1px solid #17a2b8; border-radius:4px; font-size:15px;" />
-            </div>
-            <div style="width: 160px;">
-                <b>Har sahifadan (max):</b><br />
-                <select name="pg_per_page" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
-                    <option value="10">10 ta/sahifa</option>
-                    <option value="20" selected>20 ta/sahifa</option>
-                    <option value="30">30 ta/sahifa</option>
-                    <option value="50">50 ta/sahifa (barchasi)</option>
-                </select>
-            </div>
-            <div style="flex: 1; min-width: 220px;">
-                <b>Bo'lim (Kategoriya):</b><br />
-                <select name="category" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
-                    <option value="0">🎯 Avtomatik aniqlash (Mavzuga qarab)</option>
-                    <?php foreach ($cat_list as $c): ?>
-                        <option value="<?=$c['id']?>" <?=($c['translit'] === 'uzbek' ? 'selected style="font-weight:bold; color:#ff9900;"' : '')?>><?=$c['name']?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div style="width: 180px;">
-                <b>Saqlash rejimi:</b><br />
-                <select name="save_mode" class="injected" style="width:100%; margin-top:4px; padding:7px; background:#1a2535; color:#fff; border:1px solid #17a2b8; border-radius:4px;">
-                    <option value="stream" selected>Oqim / Embed (Tezkor)</option>
-                    <option value="server">Serverga MP4 yuklash</option>
-                </select>
-            </div>
-        </div>
-        <p style="margin-top: 18px; margin-bottom: 0; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-            <button type="submit" class="byecos" style="font-size:15px; padding:12px 32px; background:#17a2b8; color:#fff; font-weight:bold; border:none; cursor:pointer; border-radius: 4px;">
-                <i class="fa fa-list-ol"></i> 🚀 Ko'p sahifali parslashni boshlash
-            </button>
-            <span style="color:#888; font-size:12px;">⚠️ Ko'p sahifa = ko'p vaqt. Server timeout bo'lishi mumkin. Kichik sahifa oralig'idan boshlang (masalan 1–3).</span>
-        </p>
-    </form>
-</div>
-
-<!-- 5. AVTOMATIK FON PARSERI (CRON TIZIMI) -->
-<div class="functions_data" style="background:#15181a; border-left: 4px solid #17a2b8; padding:16px;">
-    <h3 style="color:#17a2b8; margin:0 0 8px 0;"><i class="fa fa-clock-o"></i> 5. Avtomatik Fon Parseri (CRON)</h3>
-    <p style="color:#bbb; font-size:13px; line-height: 1.5; margin:0 0 10px 0;">
-        Saytingizga muntazam ravishda yangi videolarni fon rejimida avtomatik yuklab borishi uchun serveringizda (FastPanel, cPanel yoki crontab) quyidagi havola bo‘yicha Cron qo‘yishingiz mumkin:
-    </p>
-    <div style="background:#0a0c0e; border:1px solid #333; padding:10px 14px; border-radius:4px; font-family:monospace; color:#28a745; font-size:13px; word-break: break-all; margin-bottom: 10px;">
-        <?=$protocol . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online')?>/autocomplete.php?key=<?=htmlspecialchars($settings['cron'] ?? '')?>
     </div>
-    <p style="color:#aaa; font-size:12px; margin:0;">
-        Har 20 daqiqada yangi videolarni tekshirib yuklash buyrug‘i:<br />
-        <code style="background:#222; padding:3px 8px; color:#ff9900; border-radius:3px; display:inline-block; margin-top:4px;">
-            */20 * * * * curl -s "<?=$protocol . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online')?>/autocomplete.php?key=<?=htmlspecialchars($settings['cron'] ?? '')?>" > /dev/null 2>&1
-        </code>
-    </p>
+
+    <!-- Sozlamalar Formasi -->
+    <div id="parserFormArea">
+        <div style="margin-bottom: 18px;">
+            <label style="color: #e2e8f0; font-weight: bold; font-size: 13px; display: block; margin-bottom: 8px;">
+                <i class="fa fa-globe" style="color: #ff9900;"></i> Donor Saytni Tanlang:
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                    <input type="radio" name="p_donor" value="sexlar" checked />
+                    <div>
+                        <b style="color: #10b981; font-size: 14px;">sexlar.link</b>
+                        <div style="color: #64748b; font-size: 11px;">Yangi o‘zbekcha videolar (MP4/Embed)</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                    <input type="radio" name="p_donor" value="arhivporno" />
+                    <div>
+                        <b style="color: #38bdf8; font-size: 14px;">arhivporno.watch</b>
+                        <div style="color: #64748b; font-size: 11px;">O‘zbek seksi va tematik arxiv</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                    <input type="radio" name="p_donor" value="uzbxx" />
+                    <div>
+                        <b style="color: #f59e0b; font-size: 14px;">uzbxx.ru</b>
+                        <div style="color: #64748b; font-size: 11px;">Katta o‘zbek bazasi</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;" class="donor-option">
+                    <input type="radio" name="p_donor" value="uzporno" />
+                    <div>
+                        <b style="color: #ec4899; font-size: 14px;">uzporno.website</b>
+                        <div style="color: #64748b; font-size: 11px;">O‘zbek va sharq videolari</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Maxsus Bo'lim / Kategoriya URLi (Ixtiyoriy) -->
+        <div style="margin-bottom: 18px;">
+            <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">
+                <i class="fa fa-link" style="color: #ff9900;"></i> Maxsus donor bo‘lim/katalog havolasi (Ixtiyoriy — masalan faqat ma'lum toifani parslash uchun):
+            </label>
+            <input type="text" id="p_custom_url" placeholder="Bo‘sh qoldiring yoki masalan: https://arhivporno.watch/cat-anal/{PAGE}/ yoki https://sexlar.link/categories/minet/{PAGE}/" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
+        </div>
+
+        <!-- Parametrlar Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-step-backward" style="color: #ff9900;"></i> Boshlang‘ich sahifa:
+                </label>
+                <input type="number" id="p_page_from" value="1" min="1" max="999" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #38bdf8; font-weight: bold; font-size: 15px; padding: 9px; border-radius: 6px;" />
+            </div>
+
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-step-forward" style="color: #ff9900;"></i> Oxirgi sahifa:
+                </label>
+                <input type="number" id="p_page_to" value="3" min="1" max="999" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #38bdf8; font-weight: bold; font-size: 15px; padding: 9px; border-radius: 6px;" />
+            </div>
+
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-filter" style="color: #ff9900;"></i> Har sahifadan (Limit):
+                </label>
+                <select id="p_limit_per_page" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+                    <option value="10">10 ta video / sahifa</option>
+                    <option value="20" selected>20 ta video / sahifa</option>
+                    <option value="35">35 ta video / sahifa</option>
+                    <option value="999">Barchasi (All)</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-folder-open" style="color: #ff9900;"></i> Bo‘lim (Toifa):
+                </label>
+                <select id="p_category" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+                    <option value="0" style="color: #10b981; font-weight: bold;">🎯 100% Intellektual Avtomatik Saralash (Tavsiya)</option>
+                    <?php foreach ($cat_list as $c): ?>
+                        <option value="<?=$c['id']?>"><?=$c['name']?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
+                    <i class="fa fa-hdd-o" style="color: #ff9900;"></i> Saqlash Rejimi:
+                </label>
+                <select id="p_save_mode" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+                    <option value="stream" selected>⚡ Oqim / Embed (Tezkor va xavfsiz)</option>
+                    <option value="server">💾 Serverga MP4 yuklab olish</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Boshqaruv Tugmalari -->
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button type="button" id="btnStartParse" style="background: linear-gradient(135deg, #ff9900 0%, #e68a00 100%); color: #000; font-weight: bold; border: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(255,153,0,0.3);">
+                <i class="fa fa-rocket"></i> 🚀 Parslashni Boshlash
+            </button>
+            <button type="button" id="btnPauseParse" style="display: none; background: #f59e0b; color: #000; font-weight: bold; border: none; padding: 12px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; align-items: center; gap: 6px;">
+                <i class="fa fa-pause"></i> ⏸️ Pauza
+            </button>
+            <button type="button" id="btnStopParse" style="display: none; background: #ef4444; color: #fff; font-weight: bold; border: none; padding: 12px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; align-items: center; gap: 6px;">
+                <i class="fa fa-stop"></i> ⏹️ To‘xtatish
+            </button>
+            <span style="color: #64748b; font-size: 12px;">
+                <i class="fa fa-shield"></i> Cloudflare / Nginx 504 Timeout xatosi mutlaqo chiqarilmaydi.
+            </span>
+        </div>
+    </div>
+
+    <!-- Jonli Natijalar va Progress Qismi -->
+    <div id="liveProgressArea" style="margin-top: 24px; display: none;">
+        <!-- Statistika Vidjeti -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">Jami Topilgan</div>
+                <div id="statTotal" style="color: #38bdf8; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">Yangi Qo‘shildi</div>
+                <div id="statAdded" style="color: #10b981; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">O‘tkazildi (Bor)</div>
+                <div id="statSkipped" style="color: #f59e0b; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">Xatolar</div>
+                <div id="statErrors" style="color: #ef4444; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">Hozirgi Sahifa</div>
+                <div id="statCurPage" style="color: #ff9900; font-size: 20px; font-weight: bold; margin-top: 4px;">-</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #cbd5e1; margin-bottom: 6px;">
+                <span id="progressLabel">Jarayon tayyorlanmoqda...</span>
+                <span id="progressPercent" style="font-weight: bold; color: #ff9900;">0%</span>
+            </div>
+            <div style="background: #0f172a; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #334155;">
+                <div id="progressBarFill" style="background: linear-gradient(90deg, #ff9900, #10b981); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+        </div>
+
+        <!-- Jonli Terminal Console -->
+        <div style="background: #090b10; border: 1px solid #1e293b; border-radius: 6px; overflow: hidden;">
+            <div style="background: #11141d; padding: 8px 14px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8; font-size: 12px; font-family: monospace;">
+                    <i class="fa fa-terminal" style="color: #10b981;"></i> Jonli Terminal Jurnali
+                </span>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="btnClearConsole" style="background: transparent; color: #64748b; border: none; font-size: 11px; cursor: pointer;">Tozalash</button>
+                    <label style="color: #64748b; font-size: 11px; cursor: pointer;">
+                        <input type="checkbox" id="chkAutoScroll" checked /> Avto-scroll
+                    </label>
+                </div>
+            </div>
+            <div id="liveConsole" style="height: 280px; overflow-y: auto; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.6; color: #cbd5e1;">
+                <div style="color: #64748b;">[Tizim] Dvigatel tayyor. Parslashni boshlash uchun tugmani bosing...</div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- ========================================================================= -->
+<!-- 2. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH                              -->
+<!-- ========================================================================= -->
+<div class="adm-card" style="background: #16181e; border: 1px solid #282d3d; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+    <h3 style="color: #ff9900; margin: 0 0 8px 0; font-size: 16px;">
+        <i class="fa fa-link"></i> 2. Yagona Havola Orqali Tezkor Qo‘shish
+    </h3>
+    <p style="color: #94a3b8; font-size: 12px; margin: 0 0 14px 0;">
+        Istalgan bitta videoni havolasini kiriting (sexlar.link, arhivporno.watch, uzbxx.ru, uzporno.website):
+    </p>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+        <input type="url" id="singleVideoUrl" placeholder="https://sexlar.link/sekis/video-nomi/ yoki https://arhivporno.watch/..." style="flex: 1; min-width: 280px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
+        
+        <select id="singleCategory" style="width: 220px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+            <option value="0">🎯 Avtomatik (Mavzuga qarab)</option>
+            <?php foreach ($cat_list as $c): ?>
+                <option value="<?=$c['id']?>"><?=$c['name']?></option>
+            <?php endforeach; ?>
+        </select>
+
+        <select id="singleSaveMode" style="width: 170px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
+            <option value="stream" selected>⚡ Oqim / Embed</option>
+            <option value="server">💾 Serverga MP4</option>
+        </select>
+
+        <button type="button" id="btnSingleParse" style="background: #2563eb; color: #fff; font-weight: bold; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa fa-download"></i> Yuklash
+        </button>
+    </div>
+    <div id="singleResultBox" style="margin-top: 12px; display: none;"></div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 3. AVTOMATIK FON PARSERI (CRON TIZIMI)                                    -->
+<!-- ========================================================================= -->
+<div class="adm-card" style="background: #111827; border-left: 4px solid #38bdf8; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+    <h3 style="color: #38bdf8; margin: 0 0 8px 0; font-size: 16px;">
+        <i class="fa fa-clock-o"></i> 3. Avtomatik Fon Parseri (CRON)
+    </h3>
+    <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0 0 10px 0;">
+        Serveringizda (FastPanel, cPanel yoki crontab) muntazam fon yuklashini yoqish uchun quyidagi buyruqdan foydalaning:
+    </p>
+    <div style="background: #030712; border: 1px solid #1f2937; padding: 10px 14px; border-radius: 6px; font-family: monospace; color: #10b981; font-size: 12px; word-break: break-all; margin-bottom: 8px;">
+        */20 * * * * curl -s "<?=$protocol . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online')?>/autocomplete.php?key=<?=htmlspecialchars($settings['cron'] ?? '')?>" > /dev/null 2>&1
+    </div>
+    <span style="color: #64748b; font-size: 12px;">Har 20 daqiqada avtomatik donorlarni aylanib yangi videolarni bazaga qo‘shib boradi.</span>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CLIENT-SIDE ASINXRON RUNNER SCRIPT                                        -->
+<!-- ========================================================================= -->
+<script>
+$(document).ready(function() {
+    let isRunning = false;
+    let isPaused = false;
+    let shouldStop = false;
+
+    let queue = [];
+    let curIndex = 0;
+    let totalAdded = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+    let startTime = null;
+
+    function getNowTime() {
+        const d = new Date();
+        return d.toTimeString().split(' ')[0];
+    }
+
+    function addLog(type, message) {
+        const timeStr = getNowTime();
+        let color = '#cbd5e1';
+        let icon = 'ℹ️';
+
+        if (type === 'success') {
+            color = '#10b981';
+            icon = '✅ [Qo‘shildi]';
+        } else if (type === 'skip') {
+            color = '#f59e0b';
+            icon = '⚠️ [O‘tkazildi]';
+        } else if (type === 'error') {
+            color = '#ef4444';
+            icon = '❌ [Xatolik]';
+        } else if (type === 'page') {
+            color = '#38bdf8';
+            icon = '📄 [Sahifa]';
+        } else if (type === 'summary') {
+            color = '#a855f7';
+            icon = '🏁 [Yakun]';
+        }
+
+        const line = $('<div style="color: ' + color + '; margin-bottom: 3px;">' +
+            '<span style="color:#64748b;">[' + timeStr + ']</span> ' + icon + ' ' + message +
+        '</div>');
+
+        $('#liveConsole').append(line);
+
+        if ($('#chkAutoScroll').is(':checked')) {
+            const el = document.getElementById('liveConsole');
+            if (el) el.scrollTop = el.scrollHeight;
+        }
+    }
+
+    $('#btnClearConsole').on('click', function() {
+        $('#liveConsole').empty();
+    });
+
+    // 1. ASOSIY PARSER BOSHLASH
+    $('#btnStartParse').on('click', async function() {
+        if (isRunning && isPaused) {
+            // Rezyume qilish
+            isPaused = false;
+            $('#liveStatusText').text('Davom etmoqda...');
+            $('#btnPauseParse').html('<i class="fa fa-pause"></i> ⏸️ Pauza');
+            addLog('info', 'Parslash davom ettirildi.');
+            processNextQueueItem();
+            return;
+        }
+
+        if (isRunning) return;
+
+        const donor = $('input[name="p_donor"]:checked').val() || 'sexlar';
+        const customUrl = $('#p_custom_url').val().trim();
+        const pageFrom = parseInt($('#p_page_from').val()) || 1;
+        const pageTo = parseInt($('#p_page_to').val()) || 1;
+        const limitPerPage = parseInt($('#p_limit_per_page').val()) || 20;
+        const category = parseInt($('#p_category').val()) || 0;
+        const saveMode = $('#p_save_mode').val() || 'stream';
+
+        if (pageTo < pageFrom) {
+            alert("Oxirgi sahifa boshlang'ich sahifadan kichik bo'lishi mumkin emas!");
+            return;
+        }
+
+        // Holatni yangilash
+        isRunning = true;
+        isPaused = false;
+        shouldStop = false;
+        queue = [];
+        curIndex = 0;
+        totalAdded = 0;
+        totalSkipped = 0;
+        totalErrors = 0;
+        startTime = new Date();
+
+        $('#statTotal').text('0');
+        $('#statAdded').text('0');
+        $('#statSkipped').text('0');
+        $('#statErrors').text('0');
+        $('#statCurPage').text(pageFrom);
+
+        $('#liveProgressArea').slideDown();
+        $('#liveStatusBadge').show();
+        $('#liveStatusText').text('Ishlamoqda...');
+        $('#btnStartParse').prop('disabled', true).css('opacity', '0.6');
+        $('#btnPauseParse').show().html('<i class="fa fa-pause"></i> ⏸️ Pauza');
+        $('#btnStopParse').show();
+
+        addLog('info', '🚀 Parslash boshlandi. Donor: <b>' + donor + '</b>, Sahifalar: ' + pageFrom + ' – ' + pageTo);
+
+        // Sahifalar bo'yicha ketma-ket yig'ish va parslash
+        for (let pg = pageFrom; pg <= pageTo; pg++) {
+            if (shouldStop) break;
+            while (isPaused) {
+                await new Promise(r => setTimeout(r, 500));
+                if (shouldStop) break;
+            }
+            if (shouldStop) break;
+
+            $('#statCurPage').text(pg + ' / ' + pageTo);
+            $('#progressLabel').text('Sahifa ' + pg + ' katalogi tekshirilmoqda (' + donor + ')...');
+            addLog('page', 'Sahifa <b>' + pg + '</b> dan havolalar olinmoqda...');
+
+            let pageItems = [];
+            try {
+                const catRes = await $.ajax({
+                    url: '/control.html?func=parsing',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        ajax_action: 'get_catalog',
+                        donor: donor,
+                        page: pg,
+                        custom_url: customUrl
+                    }
+                });
+
+                if (catRes && catRes.status === 'success' && catRes.items && catRes.items.length > 0) {
+                    pageItems = catRes.items;
+                    addLog('info', 'Sahifa ' + pg + ': <b>' + pageItems.length + '</b> ta video topildi.');
+                } else {
+                    addLog('error', 'Sahifa ' + pg + ': video havolalari topilmadi yoki oxirgi sahifaga yetildi.');
+                    break;
+                }
+            } catch (err) {
+                addLog('error', 'Sahifa ' + pg + ' yuklashda tarmoq xatosi: ' + err.statusText);
+                break;
+            }
+
+            // Ushbu sahifadagi videolarni navbatga qo'yish
+            const sliceCount = Math.min(limitPerPage, pageItems.length);
+            for (let i = 0; i < sliceCount; i++) {
+                queue.push(pageItems[i]);
+            }
+            $('#statTotal').text(queue.length);
+
+            // Shu sahifadagi videolarni birma-bir parslash
+            while (curIndex < queue.length) {
+                if (shouldStop) break;
+                while (isPaused) {
+                    await new Promise(r => setTimeout(r, 500));
+                    if (shouldStop) break;
+                }
+                if (shouldStop) break;
+
+                const item = queue[curIndex];
+                const itemNum = curIndex + 1;
+                const percent = Math.round((itemNum / queue.length) * 100);
+
+                $('#progressPercent').text(percent + '%');
+                $('#progressBarFill').css('width', percent + '%');
+                $('#progressLabel').text('Parslanmoqda: ' + itemNum + ' / ' + queue.length + ' (' + (item.title || 'Video') + ')');
+
+                try {
+                    const parseRes = await $.ajax({
+                        url: '/control.html?func=parsing',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            ajax_action: 'parse_video',
+                            donor: donor,
+                            url: item.url,
+                            poster: item.poster || '',
+                            duration: item.duration || '',
+                            title: item.title || '',
+                            category_hint: item.category_hint || '',
+                            category: category,
+                            save_mode: saveMode
+                        }
+                    });
+
+                    if (parseRes && parseRes.status === 'success') {
+                        totalAdded++;
+                        $('#statAdded').text(totalAdded);
+                        addLog('success', (parseRes.message || parseRes.title));
+                    } else if (parseRes && parseRes.status === 'skip') {
+                        totalSkipped++;
+                        $('#statSkipped').text(totalSkipped);
+                        addLog('skip', (parseRes.message || 'Allaqachon mavjud'));
+                    } else {
+                        totalErrors++;
+                        $('#statErrors').text(totalErrors);
+                        addLog('error', (parseRes.message || 'Xatolik'));
+                    }
+                } catch (parseErr) {
+                    totalErrors++;
+                    $('#statErrors').text(totalErrors);
+                    addLog('error', 'Tarmoq xatosi: ' + parseErr.statusText + ' (' + item.url + ')');
+                }
+
+                curIndex++;
+                // Micro-pauza (0.25s) server va donor yukini muvozanatlash uchun
+                await new Promise(r => setTimeout(r, 250));
+            }
+
+            // Sahifalar orasida 0.8 soniya pauza
+            await new Promise(r => setTimeout(r, 800));
+        }
+
+        // Yakunlash
+        isRunning = false;
+        isPaused = false;
+        $('#liveStatusText').text('Yakunlandi');
+        $('#btnStartParse').prop('disabled', false).css('opacity', '1');
+        $('#btnPauseParse').hide();
+        $('#btnStopParse').hide();
+        $('#progressBarFill').css('width', '100%');
+        $('#progressPercent').text('100%');
+        $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli bajarildi!');
+
+        addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
+    });
+
+    // 2. PAUZA TUGMASI
+    $('#btnPauseParse').on('click', function() {
+        if (!isRunning) return;
+        isPaused = !isPaused;
+        if (isPaused) {
+            $(this).html('<i class="fa fa-play"></i> ▶️ Davom ettirish');
+            $('#liveStatusText').text('Pauza');
+            addLog('info', '⏸️ Parslash vaqtincha to‘xtatildi (Pauza).');
+        } else {
+            $(this).html('<i class="fa fa-pause"></i> ⏸️ Pauza');
+            $('#liveStatusText').text('Ishlamoqda...');
+            addLog('info', '▶️ Parslash qayta tiklandi.');
+        }
+    });
+
+    // 3. TO'XTATISH TUGMASI
+    $('#btnStopParse').on('click', function() {
+        if (!confirm('Parslashni haqiqatan ham to‘xtatmoqchimisiz?')) return;
+        shouldStop = true;
+        isPaused = false;
+        addLog('error', '⏹️ Foydalanuvchi tomonidan to‘xtatildi.');
+    });
+
+    // 4. BITTA VIDEO HAVOLASINI YUKLASH (SINGLE URL)
+    $('#btnSingleParse').on('click', async function() {
+        const url = $('#singleVideoUrl').val().trim();
+        if (!url) {
+            alert('Iltimos, video havolasini kiriting!');
+            return;
+        }
+
+        const category = $('#singleCategory').val();
+        const saveMode = $('#singleSaveMode').val();
+        const btn = $(this);
+
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Yuklanmoqda...');
+        $('#singleResultBox').show().html('<span style="color:#38bdf8;"><i class="fa fa-spinner fa-spin"></i> Video ma’lumotlari tahlil qilinmoqda va yuklanmoqda...</span>');
+
+        try {
+            const res = await $.ajax({
+                url: '/control.html?func=parsing',
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    ajax_action: 'parse_video',
+                    url: url,
+                    category: category,
+                    save_mode: saveMode
+                }
+            });
+
+            if (res && res.status === 'success') {
+                $('#singleResultBox').html('<div style="background:#064e3b; border:1px solid #10b981; color:#34d399; padding:12px; border-radius:6px;">' +
+                    '<i class="fa fa-check-circle"></i> ' + (res.message || 'Muvaffaqiyatli qo‘shildi!') +
+                '</div>');
+                $('#singleVideoUrl').val('');
+            } else if (res && res.status === 'skip') {
+                $('#singleResultBox').html('<div style="background:#451a03; border:1px solid #f59e0b; color:#fbbf24; padding:12px; border-radius:6px;">' +
+                    '<i class="fa fa-info-circle"></i> ' + (res.message || 'Allaqachon mavjud!') +
+                '</div>');
+            } else {
+                $('#singleResultBox').html('<div style="background:#450a0a; border:1px solid #ef4444; color:#f87171; padding:12px; border-radius:6px;">' +
+                    '<i class="fa fa-times-circle"></i> ' + (res.message || 'Xatolik yuz berdi') +
+                '</div>');
+            }
+        } catch (e) {
+            $('#singleResultBox').html('<div style="background:#450a0a; border:1px solid #ef4444; color:#f87171; padding:12px; border-radius:6px;">' +
+                '<i class="fa fa-times-circle"></i> Tarmoq xatoligi: ' + e.statusText +
+            '</div>');
+        } finally {
+            btn.prop('disabled', false).html('<i class="fa fa-download"></i> Yuklash');
+        }
+    });
+
+    // 5. 404 RASMLARNI TUZATISH TUGMASI
+    $('#btnRepairScreenshots').on('click', async function() {
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Tekshirilmoqda...');
+        try {
+            const res = await $.ajax({
+                url: '/control.html?func=parsing',
+                type: 'POST',
+                dataType: 'json',
+                data: { ajax_action: 'repair_screenshots' }
+            });
+            alert(res.message || 'Tuzatildi!');
+        } catch (e) {
+            alert('Xatolik: ' + e.statusText);
+        } finally {
+            btn.prop('disabled', false).html('<i class="fa fa-wrench"></i> Singan / 404 rasmlarni tuzatish');
+        }
+    });
+});
+</script>

@@ -195,9 +195,122 @@ function parser_iso_duration($dur_raw) {
 }
 
 /**
- * Intellektual kategoriya aniqlash (sekschi.online ning 27 ta toifasi bo'yicha)
+ * Sarlavhani (Title) donor spam so'zlaridan tozalash va toza SEO formatga keltirish
  */
-function parser_smart_category($title, $tags_str, $donor, $mysqli) {
+function parser_clean_seo_title($title) {
+    if (empty($title)) return '';
+    $title = trim(html_entity_decode((string)$title, ENT_QUOTES, 'UTF-8'));
+    
+    // Donor saytlarining keraksiz reklama qo'shimchalarini tozalash
+    $spam_patterns = [
+        '/смотреть онлайн(?: бесплатно)?/iu',
+        '/в (?:отличном|хорошем|hd|full hd|высоком) качестве/iu',
+        '/порно видео(?: онлайн)?/iu',
+        '/скачать (?:бесплатно|на телефон)?/iu',
+        '/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.watch|uzporno\.ru|vaginke\.me)\b/iu',
+        '/\[.*?\]/u', // Qavs ichidagi [1080p] kabilarni olib tashlash
+        '/\(.*?(?:1080|720|4k|hd|онлайн).*?\)/iu'
+    ];
+    $title = preg_replace($spam_patterns, '', $title);
+    $title = preg_replace('/[\r\n\t]+/', ' ', $title);
+    $title = preg_replace('/\s{2,}/', ' ', $title);
+    $title = trim($title, " \t\n\r\0\x0B-_–—:;|");
+    
+    if (empty($title)) {
+        return 'O‘zbekcha yangi seks video';
+    }
+    
+    // Birinchi harfni katta qilish
+    return mb_strtoupper(mb_substr($title, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($title, 1, null, 'UTF-8');
+}
+
+/**
+ * Toza va samarali SEO tavsif (Meta Description) tayyorlash
+ */
+function parser_generate_seo_description($title, $raw_desc, $category_name = '') {
+    $desc = trim(strip_tags((string)$raw_desc));
+    $desc = preg_replace('/https?:\/\/[^\s]+/i', '', $desc);
+    $desc = preg_replace('/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.watch|uzporno\.ru|vaginke\.me|t\.me\/[^\s]+)\b/iu', '', $desc);
+    $desc = preg_replace('/\s{2,}/', ' ', $desc);
+    $desc = trim($desc);
+    
+    // Agar tavsif juda qisqa yoki bo'sh bo'lsa, avtomatik boyitilgan SEO tavsif yaratamiz
+    if (mb_strlen($desc, 'UTF-8') < 30) {
+        $cat_part = !empty($category_name) ? " Bo‘lim: {$category_name}." : "";
+        $desc = "Смотрите «{$title}» онлайн в хорошем качестве на sekschi.online. Eng sara o‘zbekcha seks va erotik videolar bepul hamda ro‘yxatdan o‘tmasdan tomosha qiling.{$cat_part}";
+    }
+    
+    return mb_substr($desc, 0, 350, 'UTF-8');
+}
+
+/**
+ * Yuqori qidiruv trafigi uchun boyitilgan SEO teglar (Keywords) tayyorlash
+ */
+function parser_generate_seo_tags($title, $donor_tags, $category_id, $desc, $mysqli) {
+    $all_tags = [];
+    
+    // 1. Donordan kelgan teglarni qo'shish
+    if (is_array($donor_tags)) {
+        foreach ($donor_tags as $t) {
+            $t = trim(strip_tags($t));
+            if (!empty($t) && mb_strlen($t, 'UTF-8') >= 2) $all_tags[] = mb_strtolower($t, 'UTF-8');
+        }
+    } elseif (is_string($donor_tags) && !empty($donor_tags)) {
+        $parts = preg_split('/[,;\s]+/u', $donor_tags);
+        foreach ($parts as $t) {
+            $t = trim($t);
+            if (!empty($t) && mb_strlen($t, 'UTF-8') >= 2) $all_tags[] = mb_strtolower($t, 'UTF-8');
+        }
+    }
+    
+    // 2. Kategoriya kalit so'zlarini qo'shish
+    if ($category_id > 0 && $mysqli instanceof mysqli) {
+        $c_res = $mysqli->query("SELECT name, keywords, translit FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+        if ($c_res && $c_row = $c_res->fetch_assoc()) {
+            $c_tags = explode(',', $c_row['keywords'] ?? '');
+            foreach ($c_tags as $ct) {
+                $ct = trim($ct);
+                if (!empty($ct)) $all_tags[] = mb_strtolower($ct, 'UTF-8');
+            }
+            $all_tags[] = mb_strtolower($c_row['translit'], 'UTF-8');
+        }
+    }
+    
+    // 3. Sarlavhadan muhim so'zlarni ajratib olish
+    $clean_title = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $title);
+    $words = explode(' ', $clean_title);
+    $stop_words = ['для', 'под', 'над', 'это', 'как', 'все', 'он', 'она', 'они', 'его', 'ее', 'их', 'при', 'после', 'или', 'что', 'года', 'video', 'watch', 'online'];
+    foreach ($words as $w) {
+        $w = mb_strtolower(trim($w), 'UTF-8');
+        if (mb_strlen($w, 'UTF-8') >= 3 && !in_array($w, $stop_words)) {
+            $all_tags[] = $w;
+        }
+    }
+    
+    // 4. Doimiy eng yuqori qidiruvdagi o'zbek adult teglari
+    $core_uzbek_tags = ['узбек секс', 'uzbekcha seks', 'uzbek sex', 'uzb porno', 'узбечка', 'секс видео', 'порно онлайн', 'hd porno'];
+    foreach ($core_uzbek_tags as $cut) {
+        $all_tags[] = $cut;
+    }
+    
+    // Takroriylarni tozalash va tartiblash
+    $unique_tags = [];
+    foreach ($all_tags as $t) {
+        $t = trim($t);
+        if (!empty($t) && !in_array($t, $unique_tags) && strlen($t) < 50) {
+            $unique_tags[] = $t;
+        }
+        if (count($unique_tags) >= 25) break;
+    }
+    
+    return implode(', ', $unique_tags);
+}
+
+/**
+ * Intellektual kategoriya aniqlash (sekschi.online ning 27 ta toifasi bo'yicha)
+ * Donor toifasi, URL, sarlavha va teglarni chuqur tahlil qiladi
+ */
+function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []) {
     static $cats = null;
     if ($cats === null) {
         $cats = [];
@@ -209,52 +322,99 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli) {
         }
     }
 
-    $text = mb_strtolower($title . ' ' . $tags_str, 'UTF-8');
+    $find_id = function($translit) use ($cats) {
+        foreach ($cats as $c) {
+            if ($c['translit'] === $translit) {
+                return intval($c['id']);
+            }
+        }
+        return null;
+    };
 
-    $rules = [
-        '/(?:раком|догги|doggy|сзади)/iu' => 'rakom',
-        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет)/iu' => 'minet',
-        '/(?:анал|anal|в жопу|в попу|в задниц|анальн)/iu' => 'anal',
-        '/(?:пьян|буха|под градусом)/iu' => 'pyanye',
-        '/(?:лишение целки|девствен|первый раз)/iu' => 'lishenie_celki',
-        '/(?:кунни|лизать пис|лижет|куннилинг)/iu' => 'kunnilingus',
-        '/(?:беремен|с пузом)/iu' => 'beremennye',
-        '/(?:хентай|аниме|hentai|anime)/iu' => 'anime-hentai',
-        '/(?:студент|общаг|сессия)/iu' => 'studenty',
-        '/(?:сперм|конча|залп)/iu' => 'sperma',
-        '/(?:домашн|частн|любительск|home)/iu' => 'domashnee',
-        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия)/iu' => 'gruppovoe',
-        '/(?:большие сиськи|сиськ|грудаст|дойки|tits|big tits|огромные сиськи)/iu' => 'siski',
-        '/(?:большие члены|большой член|огромный хуй|big cock)/iu' => 'big',
-        '/(?:бдсм|bdsm|госпож|рабын|порка|плеть)/iu' => 'bdsm',
-        '/(?:жесток|жестк|груб)/iu' => 'zhestkoe',
-        '/(?:лесби|девушки целуются|lesbian)/iu' => 'lesbiyanki',
-        '/(?:мамк|мамашк|милф|milf|зрел)/iu' => 'mamki',
-        '/(?:молод|юная|малолет|teen)/iu' => 'molodye',
-        '/(?:волосат|небрит|пушист)/iu' => 'volosatye',
-        '/(?:негр|чернокож|bbc)/iu' => 'negry',
-        '/(?:блондин|blonde)/iu' => 'blonde',
-        '/(?:брюнет|bryunet)/iu' => 'bryunetki',
-        '/(?:узбек|uzbek|узбечк|uzbechka|uzbekcha|toshkent|samarqand|andijon|fargona|namangan)/iu' => 'uzbek',
-        '/(?:азиат|asian|кореян|японк|китаянк)/iu' => 'asian',
-        '/(?:русск|отечествен)/iu' => 'russkoe',
-    ];
-
-    foreach ($rules as $pattern => $translit) {
-        if (preg_match($pattern, $text)) {
-            foreach ($cats as $c) {
-                if ($c['translit'] === $translit) {
-                    return intval($c['id']);
+    // 1. Agar contextda donor kategoriyasi yoki maxsus ko'rsatma bo'lsa
+    $hint = mb_strtolower(trim(($context['category_hint'] ?? '') . ' ' . ($context['donor_category'] ?? '') . ' ' . ($context['catalog_url'] ?? '')), 'UTF-8');
+    if (!empty($hint)) {
+        $hint_map = [
+            'minet'           => ['minet', 'cat-minet', 'oral', 'otsos', 'в рот', 'минет'],
+            'anal'            => ['anal', 'cat-anal', 'cat-v-popu', 'cat-v-zhopu', 'анал', 'анальный'],
+            'rakom'           => ['rakom', 'cat-rakom', 'cat-szadi', 'раком', 'doggy'],
+            'domashnee'       => ['domashnee', 'cat-domashnee', 'cat-lyubitelskoe', 'домашнее', 'любительское'],
+            'studenty'        => ['studenty', 'cat-studenty', 'cat-studentki', 'студенты', 'студентки'],
+            'siski'           => ['siski', 'cat-bolshie-siski', 'cat-grudastye', 'большие сиськи', 'сиськи'],
+            'big'             => ['big', 'cat-bolshie-chleny', 'большие члены', 'большой член'],
+            'mamki'           => ['mamki', 'cat-mamki', 'cat-milfy', 'мамки', 'милфы', 'мамочки'],
+            'molodye'         => ['molodye', 'cat-molodye', 'cat-yunye', 'молодые', 'юные'],
+            'sperma'          => ['sperma', 'cat-sperma', 'сперма', 'залпы'],
+            'gruppovoe'       => ['gruppovoe', 'cat-gruppovoe', 'cat-troinichok', 'групповое', 'тройничок'],
+            'kunnilingus'     => ['kunnilingus', 'cat-kunnilingus', 'куннилингус', 'кунни'],
+            'lishenie_celki'  => ['lishenie_celki', 'cat-lishenie-celki', 'лишение целки', 'целка'],
+            'pyanye'          => ['pyanye', 'cat-pyanye', 'пьяные'],
+            'beremennye'      => ['beremennye', 'cat-beremennye', 'беременные'],
+            'volosatye'       => ['volosatye', 'cat-volosatye', 'волосатые'],
+            'bdsm'            => ['bdsm', 'cat-bdsm', 'бдсм'],
+            'zhestkoe'        => ['zhestkoe', 'cat-zhestkoe', 'cat-jestokoe', 'жесткое', 'жестокое'],
+            'negry'           => ['negry', 'cat-negry', 'негры'],
+            'blonde'          => ['blonde', 'cat-blondinki', 'блондинки'],
+            'bryunetki'       => ['bryunetki', 'cat-bryunetki', 'брюнетки'],
+            'lesbiyanki'      => ['lesbiyanki', 'cat-lesbiyanki', 'лесбиянки'],
+            'asian'           => ['asian', 'cat-aziatki', 'азиатки'],
+            'russkoe'         => ['russkoe', 'cat-russkoe', 'русское'],
+            'anime-hentai'    => ['anime-hentai', 'cat-anime', 'аниме', 'хентай'],
+            'uzbek'           => ['cat-uzbekskii-seks', 'uzbek', 'uzbekskoe', 'узбекский']
+        ];
+        foreach ($hint_map as $translit => $tokens) {
+            foreach ($tokens as $tk) {
+                if (strpos($hint, $tk) !== false) {
+                    $cid = $find_id($translit);
+                    if ($cid) return $cid;
                 }
             }
         }
     }
 
-    // Default uzbek kategoriyasi (donorlar asosan o'zbek pornosi)
-    foreach ($cats as $c) {
-        if ($c['translit'] === 'uzbek') {
-            return intval($c['id']);
+    // 2. Sarlavha, teglar va tavsif bo'yicha semantik tahlil (O'ziga xos harakatlar ustuvor)
+    $text = mb_strtolower($title . ' ' . $tags_str . ' ' . ($context['description'] ?? ''), 'UTF-8');
+
+    $priority_rules = [
+        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет|членосос|oral|rotga|ogizga)/iu' => 'minet',
+        '/(?:анал|anal|в жопу|в попу|в задниц|в очко|анальн|tor amga|ketiga|anali)/iu' => 'anal',
+        '/(?:раком|догги|doggy|сзади|рачком|поза раком|rakom|orqasidan)/iu' => 'rakom',
+        '/(?:кунни|лизать пис|лижет|куннилинг|am yalash|cunnilingus)/iu' => 'kunnilingus',
+        '/(?:лишение целки|девствен|первый раз|целк|qizlik|bokiralik)/iu' => 'lishenie_celki',
+        '/(?:пьян|буха|под градусом|набухал|mast holda|alkogol)/iu' => 'pyanye',
+        '/(?:беремен|с пузом|с животом|pregnant|homilador)/iu' => 'beremennye',
+        '/(?:хентай|аниме|hentai|anime|3d hentai)/iu' => 'anime-hentai',
+        '/(?:студент|студентк|общаг|сесси|вписк|talaba)/iu' => 'studenty',
+        '/(?:сперм|конча|залп|кончил|cumshot|yuziga sperma)/iu' => 'sperma',
+        '/(?:домашн|частн|любительск|home|скрытая камера|слив|samopal|uyda)/iu' => 'domashnee',
+        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия|threesome)/iu' => 'gruppovoe',
+        '/(?:большие сиськи|сиськ|грудаст|дойки|tits|big tits|огромные сиськи|katta emchak|emish)/iu' => 'siski',
+        '/(?:большие члены|большой член|огромный хуй|big cock|толстый член|katta olat|ulkan asbob)/iu' => 'big',
+        '/(?:бдсм|bdsm|госпож|рабын|порка|плеть|подчинение)/iu' => 'bdsm',
+        '/(?:жесток|жестк|груб|hardcore|разрыв дырки)/iu' => 'zhestkoe',
+        '/(?:лесби|девушки целуются|lesbian|qizlar qizlar)/iu' => 'lesbiyanki',
+        '/(?:мамк|мамашк|милф|milf|зрел|мачех|kelin|kelinchak|xola)/iu' => 'mamki',
+        '/(?:молод|юная|малолет|teen|18 лет|yosh qiz|yoshlik)/iu' => 'molodye',
+        '/(?:волосат|небрит|пушист|мохнат|hairy|tukli)/iu' => 'volosatye',
+        '/(?:негр|чернокож|bbc|qoratanli)/iu' => 'negry',
+        '/(?:блондин|blonde|светловолосая|sariq sochli)/iu' => 'blonde',
+        '/(?:брюнет|bryunet|темноволосая|qora sochli)/iu' => 'bryunetki',
+        '/(?:азиат|asian|кореян|японк|китаянк|osiyo)/iu' => 'asian',
+        '/(?:русск|отечествен|ruscha|rossiya)/iu' => 'russkoe',
+        '/(?:узбек|uzbek|узбечк|uzbechka|uzbekcha|toshkent|samarqand|andijon|fargona|namangan|buxoro|xorazm|vodiy|uzb)/iu' => 'uzbek',
+    ];
+
+    foreach ($priority_rules as $pattern => $translit) {
+        if (preg_match($pattern, $text)) {
+            $cid = $find_id($translit);
+            if ($cid) return $cid;
         }
+    }
+
+    // 3. Default: donorlar asosan o'zbek pornosi bo'lgani sababli 'uzbek' toifasiga yo'naltirish
+    $default_uzbek = $find_id('uzbek');
+    if ($default_uzbek) {
+        return $default_uzbek;
     }
 
     return !empty($cats[0]['id']) ? intval($cats[0]['id']) : 1;
@@ -263,23 +423,23 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli) {
 /**
  * 1. uzbxx.ru dan videoni parslash
  */
-function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
+function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context = []) {
     $video_url = trim($video_url);
-    $html = parser_fetch($video_url);
+    $html = parser_fetch($video_url, 'https://uzbxx.ru/');
     if (empty($html) || strlen($html) < 200) {
         return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
     }
 
-    // Title olish (og:title eng toza)
-    $title = '';
+    // Title olish va SEO tozalash
+    $raw_title = '';
     if (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
-        $title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $raw_title = trim($m[1]);
     } elseif (preg_match('|<div class="xxxhd-title-top">.*?<h1>(.*?)</h1>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     } elseif (preg_match('|<title>(.*?)</title>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     }
-    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
+    $title = parser_clean_seo_title($raw_title);
     if (empty($title) || stripos($title, 'can’t be reached') !== false) {
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
@@ -288,7 +448,7 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     $uniqueness = md5($title);
     $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
     if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
     // Davomiylik
@@ -300,11 +460,13 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     }
 
     // Poster
-    $poster_url = '';
-    if (preg_match('|<meta property="og:image" content="(.*?)"|is', $html, $m)) {
-        $poster_url = trim($m[1]);
-    } elseif (preg_match('|poster:\s*"([^"]+)"|is', $html, $m)) {
-        $poster_url = trim($m[1]);
+    $poster_url = $cat_context['poster'] ?? '';
+    if (empty($poster_url)) {
+        if (preg_match('|<meta property="og:image" content="(.*?)"|is', $html, $m)) {
+            $poster_url = trim($m[1]);
+        } elseif (preg_match('|poster:\s*"([^"]+)"|is', $html, $m)) {
+            $poster_url = trim($m[1]);
+        }
     }
     if (!empty($poster_url) && strpos($poster_url, 'http') !== 0) {
         $poster_url = 'https://uzbxx.ru/' . ltrim($poster_url, '/');
@@ -326,9 +488,9 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     }
 
     // Tavsif
-    $desc = $title;
+    $raw_desc = '';
     if (preg_match('|<meta property="og:description" content="(.*?)"|is', $html, $m)) {
-        $desc = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $raw_desc = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
     }
 
     // Teglar
@@ -338,13 +500,33 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     } elseif (preg_match_all('|<a href="https://uzbxx\.ru/tags/[^"]+"><i class="fa fa-tags"></i>\s*(.*?)</a>|is', $html, $m)) {
         $tags_arr = array_map('trim', $m[1]);
     }
-    $tags_str = !empty($tags_arr) ? implode(' ', $tags_arr) : 'узбек секс uzbekcha';
+    // Kategoriyalardan ham teglarni olamiz
+    if (preg_match_all('|<a href="https://uzbxx\.ru/category/[^"]+">([^<]+)</a>|is', $html, $m_c)) {
+        foreach ($m_c[1] as $cname) {
+            $tags_arr[] = trim($cname);
+        }
+    }
 
-    // Kategoriya
+    // Kategoriya aniqlash
     $category_id = intval($manual_cat);
     if ($category_id === 0) {
-        $category_id = parser_smart_category($title, $tags_str, 'uzbxx.ru', $mysqli);
+        $context = array_merge($cat_context, [
+            'donor_category' => implode(' ', $tags_arr),
+            'description'    => $raw_desc
+        ]);
+        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'uzbxx.ru', $mysqli, $context);
     }
+
+    // Kategoriya nomini olish
+    $cat_name = 'Umumiy';
+    $cat_q = $mysqli->query("SELECT name FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+    if ($cat_q && $crow = $cat_q->fetch_assoc()) {
+        $cat_name = $crow['name'];
+    }
+
+    // Yakuniy SEO tavsif va teglar
+    $desc = parser_generate_seo_description($title, $raw_desc, $cat_name);
+    $tags_str = parser_generate_seo_tags($title, $tags_arr, $category_id, $desc, $mysqli);
 
     // Translitsiya va fayl nomlari
     $rand_id = rand(100, 9999);
@@ -371,8 +553,8 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     $final_address = $video_src;
     $embed_code = '';
 
-    // MP4 Yuklab olish rejimi
-    if ($save_mode === 'download') {
+    // MP4 Yuklab olish rejimi (server yoki download)
+    if (($save_mode === 'server' || $save_mode === 'download') && !empty($video_src)) {
         $local_video = '/content/video/' . $md5 . '.mp4';
         $save_video_path = $doc_root . $local_video;
         if (parser_download_file($video_src, $save_video_path, $video_url)) {
@@ -406,7 +588,16 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     )";
 
     if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
+        return [
+            'status'        => 'success',
+            'message'       => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a> <span style='color:#17a2b8; font-size:12px;'>[{$cat_name}]</span>",
+            'title'         => $title,
+            'translit'      => $translit,
+            'duration'      => $duration,
+            'category_id'   => $category_id,
+            'category_name' => $cat_name,
+            'screenshot'    => $final_screenshot
+        ];
     } else {
         return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
     }
@@ -415,46 +606,48 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
 /**
  * 2. uzporno.website dan videoni parslash
  */
-function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
+function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context = []) {
     $video_url = trim($video_url);
-    $html = parser_fetch($video_url);
+    $html = parser_fetch($video_url, 'https://uzporno.website/');
     if (empty($html) || strlen($html) < 200) {
         return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
     }
 
-    $title = '';
-    $desc = '';
-    $poster_url = '';
+    $raw_title = '';
+    $raw_desc = '';
+    $poster_url = $cat_context['poster'] ?? '';
     $embed_url = '';
-    $duration = '05:00';
-    $tags_str = 'узбек секс uzbekcha uyatli video uzporno';
+    $duration = $cat_context['duration'] ?? '05:00';
+    $tags_arr = [];
 
     // JSON-LD orqali olish
     if (preg_match('|<script type=[\"\\\x27]application/ld\+json[\"\\\x27]>(.*?)</script>|is', $html, $m_json)) {
         $json_data = json_decode($m_json[1], true);
         if ($json_data) {
-            $title = $json_data['name'] ?? '';
-            $desc = $json_data['description'] ?? '';
-            $poster_url = is_array($json_data['thumbnailUrl']) ? end($json_data['thumbnailUrl']) : ($json_data['thumbnailUrl'] ?? '');
+            $raw_title = $json_data['name'] ?? '';
+            $raw_desc = $json_data['description'] ?? '';
+            if (empty($poster_url)) {
+                $poster_url = is_array($json_data['thumbnailUrl'] ?? '') ? end($json_data['thumbnailUrl']) : ($json_data['thumbnailUrl'] ?? '');
+            }
             $embed_url = $json_data['embedUrl'] ?? '';
             if (!empty($json_data['duration'])) {
                 $duration = parser_iso_duration($json_data['duration']);
             }
             if (!empty($json_data['keywords'])) {
-                $tags_str = $json_data['keywords'];
+                $tags_arr = array_merge($tags_arr, explode(',', $json_data['keywords']));
             }
         }
     }
 
-    if (empty($title)) {
+    if (empty($raw_title)) {
         if (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
-            $title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+            $raw_title = trim($m[1]);
         } elseif (preg_match('|<div class="xxxhd-title-top">.*?<h1>(.*?)</h1>|is', $html, $m)) {
-            $title = trim(strip_tags($m[1]));
+            $raw_title = trim(strip_tags($m[1]));
         }
     }
 
-    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
+    $title = parser_clean_seo_title($raw_title);
     if (empty($title)) {
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
@@ -462,7 +655,7 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     $uniqueness = md5($title);
     $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
     if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
     if (empty($poster_url)) {
@@ -487,11 +680,32 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     }
     $play_url = !empty($slug) ? "https://uzporno.website/play/{$slug}/" : $video_url;
 
-    // Kategoriya
+    // Meta teglar
+    if (preg_match('|<meta\s+name=["\']keywords["\']\s+content=["\']([^"\']+)["\']|is', $html, $m_kw)) {
+        $tags_arr = array_merge($tags_arr, explode(',', $m_kw[1]));
+    }
+    if (empty($raw_desc) && preg_match('|<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']|is', $html, $m_d)) {
+        $raw_desc = $m_d[1];
+    }
+
+    // Kategoriya aniqlash
     $category_id = intval($manual_cat);
     if ($category_id === 0) {
-        $category_id = parser_smart_category($title, $tags_str, 'uzporno.website', $mysqli);
+        $context = array_merge($cat_context, [
+            'donor_category' => implode(' ', $tags_arr),
+            'description'    => $raw_desc
+        ]);
+        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'uzporno.website', $mysqli, $context);
     }
+
+    $cat_name = 'Umumiy';
+    $cat_q = $mysqli->query("SELECT name FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+    if ($cat_q && $crow = $cat_q->fetch_assoc()) {
+        $cat_name = $crow['name'];
+    }
+
+    $desc = parser_generate_seo_description($title, $raw_desc, $cat_name);
+    $tags_str = parser_generate_seo_tags($title, $tags_arr, $category_id, $desc, $mysqli);
 
     $rand_id = rand(100, 9999);
     $md5 = md5(microtime(true) . $rand_id);
@@ -516,8 +730,8 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
 
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
 
-    // Serverga MP4 yuklash rejimi
-    if ($save_mode === 'download' && !empty($play_url)) {
+    // Serverga MP4 yuklash rejimi (server yoki download)
+    if (($save_mode === 'server' || $save_mode === 'download') && !empty($play_url)) {
         $local_video = '/content/video/' . $md5 . '.mp4';
         $save_video_path = $doc_root . $local_video;
         if (parser_download_file($play_url, $save_video_path, $video_url)) {
@@ -552,7 +766,16 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     )";
 
     if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
+        return [
+            'status'        => 'success',
+            'message'       => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a> <span style='color:#17a2b8; font-size:12px;'>[{$cat_name}]</span>",
+            'title'         => $title,
+            'translit'      => $translit,
+            'duration'      => $duration,
+            'category_id'   => $category_id,
+            'category_name' => $cat_name,
+            'screenshot'    => $final_screenshot
+        ];
     } else {
         return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
     }
@@ -569,16 +792,15 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     }
 
     // Title
-    $title = '';
+    $raw_title = '';
     if (preg_match('|<div class="full-column">.*?<h1>(.*?)</h1>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     } elseif (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
-        $title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $raw_title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
     } elseif (preg_match('|<title>(.*?)</title>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     }
-    $title = preg_replace('/смотреть онлайн.*$/iu', '', $title);
-    $title = trim(preg_replace("/('|\"|\r?\n)/", '', $title));
+    $title = parser_clean_seo_title($raw_title);
     if (empty($title)) {
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
@@ -586,7 +808,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     $uniqueness = md5($title);
     $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
     if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
     // Embed URL
@@ -598,7 +820,6 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     // Poster
     $poster_url = $cat_context['poster'] ?? '';
     if (empty($poster_url)) {
-        // ID ni topish
         $video_id = 0;
         if (preg_match('|data-id="(\d+)"|i', $html, $m_id)) {
             $video_id = intval($m_id[1]);
@@ -622,23 +843,38 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     $duration = $cat_context['duration'] ?? '05:00';
 
     // Tavsif
-    $desc = $title;
+    $raw_desc = '';
     if (preg_match('|<p class="video-text">(.*?)</p>|is', $html, $m)) {
-        $desc = trim(strip_tags($m[1]));
+        $raw_desc = trim(strip_tags($m[1]));
     }
 
-    // Teglar
+    // Teglar va toifalar
     $tags_arr = [];
     if (preg_match_all('|<div class="full-meta cats-links">.*?<a[^>]+title="([^"]+)"|is', $html, $m)) {
-        $tags_arr = array_map('trim', $m[1]);
+        foreach ($m[1] as $c_tag) $tags_arr[] = trim($c_tag);
     }
-    $tags_str = !empty($tags_arr) ? implode(' ', $tags_arr) : 'узбек секс узбечка arhivporno';
+    if (preg_match_all('|<div class="full-meta tags-links">.*?<a[^>]+title="([^"]+)"|is', $html, $m_t)) {
+        foreach ($m_t[1] as $t_tag) $tags_arr[] = trim($t_tag);
+    }
 
     // Kategoriya
     $category_id = intval($manual_cat);
     if ($category_id === 0) {
-        $category_id = parser_smart_category($title, $tags_str, 'arhivporno.watch', $mysqli);
+        $context = array_merge($cat_context, [
+            'donor_category' => implode(' ', $tags_arr),
+            'description'    => $raw_desc
+        ]);
+        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'arhivporno.watch', $mysqli, $context);
     }
+
+    $cat_name = 'Umumiy';
+    $cat_q = $mysqli->query("SELECT name FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+    if ($cat_q && $crow = $cat_q->fetch_assoc()) {
+        $cat_name = $crow['name'];
+    }
+
+    $desc = parser_generate_seo_description($title, $raw_desc, $cat_name);
+    $tags_str = parser_generate_seo_tags($title, $tags_arr, $category_id, $desc, $mysqli);
 
     $rand_id = rand(100, 9999);
     $md5 = md5(microtime(true) . $rand_id);
@@ -689,75 +925,19 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     )";
 
     if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
+        return [
+            'status'        => 'success',
+            'message'       => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a> <span style='color:#17a2b8; font-size:12px;'>[{$cat_name}]</span>",
+            'title'         => $title,
+            'translit'      => $translit,
+            'duration'      => $duration,
+            'category_id'   => $category_id,
+            'category_name' => $cat_name,
+            'screenshot'    => $final_screenshot
+        ];
     } else {
         return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
     }
-}
-
-/**
- * Katalog havolalarini olish: uzbxx.ru
- */
-function parser_get_catalog_links_uzbxx($page = 1) {
-    $url = ($page == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/{$page}";
-    $html = parser_fetch($url);
-    if (empty($html)) return [];
-    preg_match_all('|<a href="(https://uzbxx\.ru/video/[^"]+)"|i', $html, $m);
-    return !empty($m[1]) ? array_values(array_unique($m[1])) : [];
-}
-
-/**
- * Katalog havolalarini olish: uzporno.website
- */
-function parser_get_catalog_links_uzporno($page = 1) {
-    $url = ($page == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page}";
-    $html = parser_fetch($url);
-    if (empty($html)) return [];
-    preg_match_all('|<a href="(https://uzporno\.website/video/[^"]+)"|i', $html, $m);
-    return !empty($m[1]) ? array_values(array_unique($m[1])) : [];
-}
-
-/**
- * Katalog havolalarini olish: arhivporno.watch
- * Qabul qiladi: sahifa raqami (1, 2...) yoki to'liq bo'lim URLi
- */
-function parser_get_catalog_links_arhivporno($page_or_url = 1) {
-    if (is_numeric($page_or_url)) {
-        $url = ($page_or_url == 1) ? 'https://arhivporno.watch/cat-uzbekskii-seks/' : "https://arhivporno.watch/cat-uzbekskii-seks/{$page_or_url}/";
-    } else {
-        $url = trim($page_or_url);
-    }
-
-    $html = parser_fetch($url);
-    if (empty($html)) return [];
-
-    // Video kartochkalaridan havolalar va qo'shimcha ma'lumotlarni yig'ish
-    $items = [];
-    preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff".*?<img[^>]+data-original="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>|is', $html, $m);
-
-    if (!empty($m[1])) {
-        foreach ($m[1] as $idx => $link) {
-            $items[$link] = [
-                'url' => $link,
-                'poster' => $m[2][$idx] ?? '',
-                'duration' => $m[3][$idx] ?? '05:00'
-            ];
-        }
-    } else {
-        // Oddiy href qidiruv
-        preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff"|i', $html, $m2);
-        if (!empty($m2[1])) {
-            foreach (array_unique($m2[1]) as $link) {
-                $items[$link] = [
-                    'url' => $link,
-                    'poster' => '',
-                    'duration' => '05:00'
-                ];
-            }
-        }
-    }
-
-    return array_values($items);
 }
 
 /**
@@ -775,16 +955,15 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     }
 
     // 1. Sarlavha (Title)
-    $title = '';
+    $raw_title = '';
     if (preg_match('|<div class="headline">.*?<h1>(.*?)</h1>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     } elseif (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
-        $title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $raw_title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
     } elseif (preg_match('|<title>(.*?)</title>|is', $html, $m)) {
-        $title = trim(strip_tags($m[1]));
+        $raw_title = trim(strip_tags($m[1]));
     }
-    $title = preg_replace('/смотреть онлайн.*$/iu', '', $title);
-    $title = trim(preg_replace("/('|\"|\r?\n)/", '', $title));
+    $title = parser_clean_seo_title($raw_title);
     if (empty($title)) {
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
@@ -793,7 +972,7 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     $uniqueness = md5($title);
     $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
     if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
     // 2. Video fayli va Embed URL
@@ -843,22 +1022,37 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     $duration = parser_iso_duration($duration);
 
     // 5. Tavsif va teglar
-    $desc = $title;
-    if (preg_match('|<div class="item">([^<]+(?:<a[^>]*>[^<]+</a>[^<]*)*)</div>|is', $html, $m_desc)) {
-        $desc = trim(strip_tags($m_desc[1]));
-        $desc = preg_replace('/https?:\/\/[^\s]+/i', '', $desc);
-    }
-    if (strlen($desc) < 10) {
-        $desc = $title;
+    $raw_desc = '';
+    if (preg_match('|<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']|is', $html, $m_meta_d)) {
+        $raw_desc = trim($m_meta_d[1]);
+    } elseif (preg_match('|<div class="item">([^<]+(?:<a[^>]*>[^<]+</a>[^<]*)*)</div>|is', $html, $m_desc)) {
+        $raw_desc = trim(strip_tags($m_desc[1]));
     }
 
-    $tags_str = 'узбек секс узбечка sexlar uzb seks';
+    // Teglarni yig'ish
+    $tags_arr = ['узбек секс', 'uzbekcha seks', 'узбечка'];
+    if (preg_match_all('#<a[^>]+href="(/tags/[^"]+|/categories/[^"]+)"[^>]*>(.*?)</a>#is', $html, $m_tg)) {
+        foreach ($m_tg[2] as $tname) $tags_arr[] = trim(strip_tags($tname));
+    }
 
-    // 6. Kategoriya aniqlash: Agar foydalanuvchi tanlagan bo'lsa o'shani oladi, bo'lmasa mavzuga qarab o'rnatadi
+    // 6. Kategoriya aniqlash
     $category_id = intval($manual_cat);
     if ($category_id === 0) {
-        $category_id = parser_smart_category($title, $tags_str . ' ' . $desc, 'sexlar.link', $mysqli);
+        $context = array_merge($cat_context, [
+            'donor_category' => implode(' ', $tags_arr),
+            'description'    => $raw_desc
+        ]);
+        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'sexlar.link', $mysqli, $context);
     }
+
+    $cat_name = 'Umumiy';
+    $cat_q = $mysqli->query("SELECT name FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+    if ($cat_q && $crow = $cat_q->fetch_assoc()) {
+        $cat_name = $crow['name'];
+    }
+
+    $desc = parser_generate_seo_description($title, $raw_desc, $cat_name);
+    $tags_str = parser_generate_seo_tags($title, $tags_arr, $category_id, $desc, $mysqli);
 
     // 7. Unikal identifikatorlar
     $rand_id = rand(100, 9999);
@@ -886,7 +1080,7 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     $final_address = '';
     $final_embed = $embed_url;
 
-    if ($save_mode === 'server' && !empty($video_file_url)) {
+    if (($save_mode === 'server' || $save_mode === 'download') && !empty($video_file_url)) {
         $save_vid_path = $doc_root . '/content/video/' . $md5 . '.mp4';
         $downloaded = parser_download_file($video_file_url, $save_vid_path, 'https://sexlar.link/');
         if ($downloaded && file_exists($save_vid_path) && filesize($save_vid_path) > 100000) {
@@ -925,24 +1119,196 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     )";
 
     if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
+        return [
+            'status'        => 'success',
+            'message'       => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a> <span style='color:#17a2b8; font-size:12px;'>[{$cat_name}]</span>",
+            'title'         => $title,
+            'translit'      => $translit,
+            'duration'      => $duration,
+            'category_id'   => $category_id,
+            'category_name' => $cat_name,
+            'screenshot'    => $final_screenshot
+        ];
     } else {
         return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
     }
 }
 
 /**
- * Katalog havolalarini olish: sexlar.link
- * Qabul qiladi: sahifa raqami (1, 2, 3...) yoki URL
+ * Katalog havolalarini olish: uzbxx.ru
  */
-function parser_get_catalog_links_sexlar($page = 1) {
-    if (is_numeric($page)) {
-        $url = ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
+function parser_get_catalog_links_uzbxx($page = 1, $custom_url = '') {
+    $page = max(1, abs(intval($page)));
+    if (!empty($custom_url)) {
+        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
+            $url = str_ireplace('{page}', $page, $custom_url);
+        } else {
+            $base = rtrim($custom_url, '/');
+            $url = ($page == 1) ? $base . '/' : $base . '/page=' . $page;
+        }
     } else {
-        $url = trim($page);
+        $url = ($page == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/page={$page}";
     }
 
     $html = parser_fetch($url);
+    if (empty($html)) return [];
+
+    $items = [];
+    preg_match_all('#<a[^>]+href="(https://uzbxx\.ru/video/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]*alt="([^"]*)"#is', $html, $m);
+    if (!empty($m[1])) {
+        foreach ($m[1] as $idx => $link) {
+            $items[$link] = [
+                'url'           => $link,
+                'title'         => trim(html_entity_decode($m[3][$idx] ?? '', ENT_QUOTES, 'UTF-8')),
+                'poster'        => $m[2][$idx] ?? '',
+                'duration'      => '05:00',
+                'category_hint' => $url
+            ];
+        }
+    } else {
+        preg_match_all('|<a href="(https://uzbxx\.ru/video/[^"]+)"|i', $html, $m2);
+        if (!empty($m2[1])) {
+            foreach (array_unique($m2[1]) as $link) {
+                $items[$link] = [
+                    'url'           => $link,
+                    'title'         => '',
+                    'poster'        => '',
+                    'duration'      => '05:00',
+                    'category_hint' => $url
+                ];
+            }
+        }
+    }
+    return array_values($items);
+}
+
+/**
+ * Katalog havolalarini olish: uzporno.website
+ */
+function parser_get_catalog_links_uzporno($page = 1, $custom_url = '') {
+    $page = max(1, abs(intval($page)));
+    if (!empty($custom_url)) {
+        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
+            $url = str_ireplace('{page}', $page, $custom_url);
+        } else {
+            $base = rtrim($custom_url, '/');
+            $url = ($page == 1) ? $base . '/' : $base . '/' . $page;
+        }
+    } else {
+        $url = ($page == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page}";
+    }
+
+    $html = parser_fetch($url);
+    if (empty($html)) return [];
+
+    $items = [];
+    preg_match_all('#<a[^>]+href="(https://uzporno\.website/video/[^"]+)"[^>]*>.*?<img[^>]+(?:data-original|src)="([^"]+)"[^>]*alt="([^"]*)"#is', $html, $m);
+    if (!empty($m[1])) {
+        foreach ($m[1] as $idx => $link) {
+            $items[$link] = [
+                'url'           => $link,
+                'title'         => trim(html_entity_decode($m[3][$idx] ?? '', ENT_QUOTES, 'UTF-8')),
+                'poster'        => $m[2][$idx] ?? '',
+                'duration'      => '05:00',
+                'category_hint' => $url
+            ];
+        }
+    } else {
+        preg_match_all('|<a href="(https://uzporno\.website/video/[^"]+)"|i', $html, $m2);
+        if (!empty($m2[1])) {
+            foreach (array_unique($m2[1]) as $link) {
+                $items[$link] = [
+                    'url'           => $link,
+                    'title'         => '',
+                    'poster'        => '',
+                    'duration'      => '05:00',
+                    'category_hint' => $url
+                ];
+            }
+        }
+    }
+    return array_values($items);
+}
+
+/**
+ * Katalog havolalarini olish: arhivporno.watch
+ */
+function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '') {
+    $page = 1;
+    $url = '';
+
+    if (!empty($custom_url)) {
+        $page = max(1, abs(intval($page_or_url)));
+        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
+            $url = str_ireplace('{page}', $page, $custom_url);
+        } else {
+            $base = rtrim($custom_url, '/');
+            $url = ($page == 1) ? $base . '/' : $base . '/' . $page . '/';
+        }
+    } elseif (is_numeric($page_or_url)) {
+        $page = max(1, abs(intval($page_or_url)));
+        $url = ($page == 1) ? 'https://arhivporno.watch/cat-uzbekskii-seks/' : "https://arhivporno.watch/cat-uzbekskii-seks/{$page}/";
+    } else {
+        $url = trim($page_or_url);
+    }
+
+    $html = parser_fetch($url, 'https://arhivporno.watch/cat-uzbekskii-seks/');
+    if (empty($html)) return [];
+
+    $items = [];
+    preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff".*?<img[^>]+data-original="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>|is', $html, $m);
+
+    if (!empty($m[1])) {
+        foreach ($m[1] as $idx => $link) {
+            $items[$link] = [
+                'url'           => $link,
+                'title'         => '',
+                'poster'        => $m[2][$idx] ?? '',
+                'duration'      => $m[3][$idx] ?? '05:00',
+                'category_hint' => $url
+            ];
+        }
+    } else {
+        preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff"|i', $html, $m2);
+        if (!empty($m2[1])) {
+            foreach (array_unique($m2[1]) as $link) {
+                $items[$link] = [
+                    'url'           => $link,
+                    'title'         => '',
+                    'poster'        => '',
+                    'duration'      => '05:00',
+                    'category_hint' => $url
+                ];
+            }
+        }
+    }
+
+    return array_values($items);
+}
+
+/**
+ * Katalog havolalarini olish: sexlar.link
+ */
+function parser_get_catalog_links_sexlar($page_or_url = 1, $custom_url = '') {
+    $page = 1;
+    $url = '';
+
+    if (!empty($custom_url)) {
+        $page = max(1, abs(intval($page_or_url)));
+        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
+            $url = str_ireplace('{page}', $page, $custom_url);
+        } else {
+            $base = rtrim($custom_url, '/');
+            $url = ($page == 1) ? $base . '/' : $base . '/' . $page . '/';
+        }
+    } elseif (is_numeric($page_or_url)) {
+        $page = max(1, abs(intval($page_or_url)));
+        $url = ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
+    } else {
+        $url = trim($page_or_url);
+    }
+
+    $html = parser_fetch($url, 'https://sexlar.link/');
     if (empty($html)) return [];
 
     $items = [];
@@ -956,10 +1322,11 @@ function parser_get_catalog_links_sexlar($page = 1) {
                 $img = 'https://sexlar.link' . (strpos($img, '/') === 0 ? '' : '/') . $img;
             }
             $items[$link] = [
-                'url' => $link,
-                'title' => trim(html_entity_decode($m[2][$idx] ?? '', ENT_QUOTES, 'UTF-8')),
-                'poster' => $img,
-                'duration' => trim($m[4][$idx] ?? '05:00')
+                'url'           => $link,
+                'title'         => trim(html_entity_decode($m[2][$idx] ?? '', ENT_QUOTES, 'UTF-8')),
+                'poster'        => $img,
+                'duration'      => trim($m[4][$idx] ?? '05:00'),
+                'category_hint' => $url
             ];
         }
     } else {
@@ -968,10 +1335,11 @@ function parser_get_catalog_links_sexlar($page = 1) {
             foreach (array_unique($m2[1]) as $rel_link) {
                 $link = 'https://sexlar.link' . $rel_link;
                 $items[$link] = [
-                    'url' => $link,
-                    'title' => '',
-                    'poster' => '',
-                    'duration' => '05:00'
+                    'url'           => $link,
+                    'title'         => '',
+                    'poster'        => '',
+                    'duration'      => '05:00',
+                    'category_hint' => $url
                 ];
             }
         }
