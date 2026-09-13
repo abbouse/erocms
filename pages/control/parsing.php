@@ -1,303 +1,23 @@
 <?php
 
 /*
-Автор скрипта https://3020.ru
-Скрипты, программы на заказ.
-Быстро, качественно, недорого.
-*/
+ * erocms Video Parser Moduli
+ * Qo'llab-quvvatlaydi:
+ * - uzbxx.ru
+ * - uzporno.website
+ * - arhivporno.watch (cat-uzbekskii-seks)
+ */
 
 if ($user['access'] < 1) {
     header('Location: /'); 
     exit;
 }
 
-// cURL orqali kontent olish yordamchi funksiyasi
-function parser_get_html($url) {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language: ru-RU,ru;q=0.9,uz;q=0.8,en;q=0.7'
-    ]);
-    $data = curl_exec($ch);
-    curl_close($ch);
-    return $data;
+$core_engine = dirname(__DIR__, 2) . '/core/ParserEngine.php';
+if (file_exists($core_engine)) {
+    require_once $core_engine;
 }
 
-// Rasm yuklab olish
-function parser_download_image($img_url, $save_path, $width_S = 400, $height_S = 225, $water = 0) {
-    $img_data = parser_get_html($img_url);
-    if (!empty($img_data) && strlen($img_data) > 500) {
-        file_put_contents($save_path, $img_data);
-        if (class_exists('SimpleImage') && file_exists($save_path)) {
-            try {
-                $image = new SimpleImage();
-                $image->load($save_path);
-                $image->resize($width_S, $height_S);
-                $image->save($save_path);
-            } catch (Exception $e) {}
-        }
-        if ($water == 1 && file_exists($_SERVER['DOCUMENT_ROOT'].'/designs/water.png') && function_exists('water')) {
-            water($save_path, $save_path, $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-        }
-        return true;
-    }
-    return false;
-}
-
-// uzbxx.ru dan bitta videoni parslash
-function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
-    $html = parser_get_html($video_url);
-    if (empty($html) || strlen($html) < 200) {
-        return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
-    }
-
-    // Title
-    $title = '';
-    if (preg_match("|<div class=\"xxxhd-title-top\">.*?<h1>(.*?)</h1>|is", $html, $m)) {
-        $title = trim(strip_tags($m[1]));
-    } elseif (preg_match("|<title>(.*?)</title>|is", $html, $m)) {
-        $title = trim(strip_tags($m[1]));
-    }
-    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
-    if (empty($title) || stripos($title, 'can’t be reached') !== false) {
-        return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
-    }
-
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
-    }
-
-    // Duration
-    $duration = '05:00';
-    if (preg_match("|<i class=\"fa fa-clock-o\"></i>\s*<b>(.*?)</b>|is", $html, $m)) {
-        $duration = trim($m[1]);
-    }
-
-    // Poster
-    $poster_url = '';
-    if (preg_match("|itemprop=\"thumbnailUrl\" href=\"(.*?)\"|is", $html, $m)) {
-        $poster_url = trim($m[1]);
-    } elseif (preg_match("|poster:\"(.*?)\"|is", $html, $m)) {
-        $poster_url = trim($m[1]);
-    }
-    if (!empty($poster_url) && strpos($poster_url, 'http') !== 0) {
-        $poster_url = 'https://uzbxx.ru' . ltrim($poster_url, '/');
-    }
-
-    // Stream / File URL
-    $video_src = '';
-    if (preg_match("|file:\"(.*?)\"|is", $html, $m)) {
-        $video_src = trim($m[1]);
-    } elseif (preg_match("|https://uzbxx.ru/video_online\?id=[0-9]+|is", $html, $m)) {
-        $video_src = $m[0];
-    }
-    if (empty($video_src)) {
-        $video_src = $video_url;
-    }
-
-    // Description
-    $desc = $title;
-    if (preg_match("|itemprop=\"description\" content=\"(.*?)\"|is", $html, $m)) {
-        $desc = trim($m[1]);
-    }
-
-    // Tags
-    $tags_arr = [];
-    if (preg_match_all("|<a href=\"https://uzbxx.ru/tags/[^\"]+\"><i class=\"fa fa-tags\"></i>\s*(.*?)</a>|is", $html, $m)) {
-        $tags_arr = array_map('trim', $m[1]);
-    }
-    $tags_str = !empty($tags_arr) ? implode(' ', $tags_arr) : 'узбек секс uzbekcha';
-
-    // Category
-    $category_id = $manual_cat;
-    if ($category_id == 0) {
-        $def_cat = $mysqli->query("SELECT id FROM ero_categories ORDER BY id ASC LIMIT 1")->fetch_assoc();
-        $category_id = $def_cat['id'] ?? 1;
-    }
-
-    // Fayl nomi va translit
-    $rand_id = rand(100, 9999);
-    $md5 = md5(microtime(true) . $rand_id);
-    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
-    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
-
-    // Poster saqlash
-    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
-    $save_img_path = $_SERVER['DOCUMENT_ROOT'] . $local_screenshot;
-    if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
-    }
-
-    $final_address = $video_src;
-    $embed_code = '';
-
-    // Yuklab olish rejimi bo'lsa
-    if ($save_mode == 'download') {
-        $mp4_data = parser_get_html($video_src);
-        if (!empty($mp4_data) && strlen($mp4_data) > 10000) {
-            $local_video = '/content/video/' . $md5 . '.mp4';
-            file_put_contents($_SERVER['DOCUMENT_ROOT'] . $local_video, $mp4_data);
-            $final_address = $local_video;
-        }
-    }
-
-    $now = time();
-    $sql = "INSERT INTO ero_files (
-        name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
-    ) VALUES (
-        '".mysqli_real_escape_string($mysqli, $title)."',
-        '".mysqli_real_escape_string($mysqli, $desc)."',
-        '".mysqli_real_escape_string($mysqli, $local_screenshot)."',
-        '".mysqli_real_escape_string($mysqli, $final_address)."',
-        '".mysqli_real_escape_string($mysqli, $tags_str)."',
-        '".mysqli_real_escape_string($mysqli, $translit)."',
-        '".mysqli_real_escape_string($mysqli, $duration)."',
-        '0',
-        'uzbxx.ru',
-        '".mysqli_real_escape_string($mysqli, $final_address)."',
-        '".mysqli_real_escape_string($mysqli, $uniqueness)."',
-        '$category_id',
-        '0',
-        '$now',
-        '0',
-        'parser',
-        '0',
-        '".mysqli_real_escape_string($mysqli, $embed_code)."'
-    )";
-
-    if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
-    } else {
-        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
-    }
-}
-
-// uzporno.website dan bitta videoni parslash
-function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
-    $html = parser_get_html($video_url);
-    if (empty($html) || strlen($html) < 200) {
-        return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
-    }
-
-    // JSON-LD VideoObject
-    $title = '';
-    $desc = '';
-    $poster_url = '';
-    $embed_url = '';
-    $duration = '05:00';
-
-    if (preg_match("|<script type=[\"\\\x27]application/ld\+json[\"\\\x27]>(.*?)</script>|is", $html, $m_json)) {
-        $json_data = json_decode($m_json[1], true);
-        if ($json_data) {
-            $title = $json_data['name'] ?? '';
-            $desc = $json_data['description'] ?? '';
-            $poster_url = $json_data['thumbnailUrl'][0] ?? '';
-            $embed_url = $json_data['embedUrl'] ?? '';
-            $dur_raw = $json_data['duration'] ?? '';
-            if (preg_match("|PT([0-9]+)S|i", $dur_raw, $m_sec)) {
-                $s = intval($m_sec[1]);
-                $duration = sprintf("%02d:%02d", floor($s / 60), $s % 60);
-            }
-        }
-    }
-
-    if (empty($title)) {
-        if (preg_match("|<div class=\"xxxhd-title-top\">.*?<h1>(.*?)</h1>|is", $html, $m)) {
-            $title = trim(strip_tags($m[1]));
-        } elseif (preg_match("|<title>(.*?)</title>|is", $html, $m)) {
-            $title = trim(strip_tags($m[1]));
-        }
-    }
-
-    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
-    if (empty($title)) {
-        return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
-    }
-
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
-    }
-
-    if (empty($poster_url)) {
-        if (preg_match("|data-original=\"(https://uzporno.website/files/screens/[^\"]+)\"|i", $html, $m)) {
-            $poster_url = $m[1];
-        }
-    }
-
-    if (empty($embed_url)) {
-        if (preg_match("|src=\"(https://uzporno.website/embed/[^\"]+)\"|i", $html, $m)) {
-            $embed_url = $m[1];
-        }
-    }
-
-    $tags_str = 'узбек секс uzbekcha uyatli video uzporno';
-
-    // Category
-    $category_id = $manual_cat;
-    if ($category_id == 0) {
-        $def_cat = $mysqli->query("SELECT id FROM ero_categories ORDER BY id ASC LIMIT 1")->fetch_assoc();
-        $category_id = $def_cat['id'] ?? 1;
-    }
-
-    $rand_id = rand(100, 9999);
-    $md5 = md5(microtime(true) . $rand_id);
-    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
-    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
-
-    // Poster saqlash
-    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
-    $save_img_path = $_SERVER['DOCUMENT_ROOT'] . $local_screenshot;
-    if (!empty($poster_url)) {
-        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
-    }
-
-    $final_address = !empty($embed_url) ? $embed_url : $video_url;
-    $now = time();
-
-    $sql = "INSERT INTO ero_files (
-        name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
-    ) VALUES (
-        '".mysqli_real_escape_string($mysqli, $title)."',
-        '".mysqli_real_escape_string($mysqli, $desc)."',
-        '".mysqli_real_escape_string($mysqli, $local_screenshot)."',
-        '".mysqli_real_escape_string($mysqli, $final_address)."',
-        '".mysqli_real_escape_string($mysqli, $tags_str)."',
-        '".mysqli_real_escape_string($mysqli, $translit)."',
-        '".mysqli_real_escape_string($mysqli, $duration)."',
-        '0',
-        'uzporno.website',
-        '".mysqli_real_escape_string($mysqli, $final_address)."',
-        '".mysqli_real_escape_string($mysqli, $uniqueness)."',
-        '$category_id',
-        '0',
-        '$now',
-        '0',
-        'parser',
-        '0',
-        '".mysqli_real_escape_string($mysqli, $embed_url)."'
-    )";
-
-    if ($mysqli->query($sql)) {
-        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
-    } else {
-        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
-    }
-}
-
-// POST amallarini bajarish
 $logs = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -305,59 +25,139 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category_choice = abs(intval($_POST['category'] ?? 0));
     $save_mode = filter($_POST['save_mode'] ?? 'stream');
 
-    // 1. URLSIZ AVTO-PARSER (Eng yangi videolarni avtomatik yuklash)
+    // 1. HECH QANDAY URLSIZ ENG YANGI VIDEOLARNI AVTO-YUKLASH
     if ($action_type === 'auto_all') {
         $limit_count = min(30, max(1, abs(intval($_POST['auto_count'] ?? 10))));
-        $donor_choice = filter($_POST['auto_donor'] ?? 'both');
+        $donor_choice = filter($_POST['auto_donor'] ?? 'all');
 
-        $all_links = [];
+        $all_items = [];
 
-        // uzbxx dan eng yangi havolalarni olish
-        if ($donor_choice === 'uzbxx' || $donor_choice === 'both') {
-            $cat_html1 = parser_get_html('https://uzbxx.ru/');
-            preg_match_all("|<a href=\"(https://uzbxx.ru/video/[^\"]+)\"|i", $cat_html1, $m1);
-            if (!empty($m1[1])) {
-                foreach (array_unique($m1[1]) as $link) {
-                    $all_links[] = ['donor' => 'uzbxx', 'url' => $link];
-                }
+        // uzbxx.ru
+        if ($donor_choice === 'all' || $donor_choice === 'uzbxx') {
+            $links1 = parser_get_catalog_links_uzbxx(1);
+            foreach ($links1 as $link) {
+                $all_items[] = ['donor' => 'uzbxx', 'url' => $link];
             }
         }
 
-        // uzporno dan eng yangi havolalarni olish
-        if ($donor_choice === 'uzporno' || $donor_choice === 'both') {
-            $cat_html2 = parser_get_html('https://uzporno.website/');
-            preg_match_all("|<a href=\"(https://uzporno.website/video/[^\"]+)\"|i", $cat_html2, $m2);
-            if (!empty($m2[1])) {
-                foreach (array_unique($m2[1]) as $link) {
-                    $all_links[] = ['donor' => 'uzporno', 'url' => $link];
-                }
+        // uzporno.website
+        if ($donor_choice === 'all' || $donor_choice === 'uzporno') {
+            $links2 = parser_get_catalog_links_uzporno(1);
+            foreach ($links2 as $link) {
+                $all_items[] = ['donor' => 'uzporno', 'url' => $link];
             }
         }
 
-        if (empty($all_links)) {
-            $logs[] = ['status' => 'error', 'message' => 'Donor saytlardan video havolalar topilmadi.'];
+        // arhivporno.watch
+        if ($donor_choice === 'all' || $donor_choice === 'arhivporno') {
+            $links3 = parser_get_catalog_links_arhivporno(1);
+            foreach ($links3 as $item) {
+                $all_items[] = [
+                    'donor' => 'arhivporno',
+                    'url' => $item['url'],
+                    'poster' => $item['poster'] ?? '',
+                    'duration' => $item['duration'] ?? '05:00'
+                ];
+            }
+        }
+
+        if (empty($all_items)) {
+            $logs[] = ['status' => 'error', 'message' => 'Donor saytlardan hech qanday yangi video topilmadi.'];
         } else {
+            // Agar 'all' bo'lsa har bir donor saytdan aralash olamiz
+            if ($donor_choice === 'all') {
+                shuffle($all_items);
+            }
+
             $added = 0;
-            foreach ($all_links as $item) {
+            foreach ($all_items as $item) {
                 if ($added >= $limit_count) break;
 
                 if ($item['donor'] === 'uzbxx') {
                     $res = parse_video_uzbxx($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                } else {
+                } elseif ($item['donor'] === 'uzporno') {
                     $res = parse_video_uzporno($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                } elseif ($item['donor'] === 'arhivporno') {
+                    $res = parse_video_arhivporno($item['url'], $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, $item);
                 }
 
                 $logs[] = $res;
-                if ($res['status'] === 'success') {
+                if (!empty($res['status']) && $res['status'] === 'success') {
+                    $added++;
+                }
+                usleep(250000); // 0.25 sek pauza
+            }
+
+            // Keshni tozalash
+            $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
+            @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+        }
+    }
+
+    // 2. KATALOG / BO'LIM SAHIFALARI BO'YICHA OMMAVIY PARSLASH
+    elseif ($action_type === 'mass_parse') {
+        $donor = filter($_POST['donor'] ?? 'uzbxx');
+        $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
+        $limit_count = min(30, max(1, abs(intval($_POST['count'] ?? 10))));
+        $custom_url = trim($_POST['custom_catalog_url'] ?? '');
+
+        $items_to_parse = [];
+
+        // Agar to'g'ridan-to'g'ri katalog havolasi kiritilgan bo'lsa
+        if (!empty($custom_url)) {
+            if (stripos($custom_url, 'arhivporno.watch') !== false) {
+                $donor = 'arhivporno';
+                $items_to_parse = parser_get_catalog_links_arhivporno($custom_url);
+            } elseif (stripos($custom_url, 'uzporno.website') !== false) {
+                $donor = 'uzporno';
+                $raw_links = parser_get_catalog_links_uzporno($page_num);
+                foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
+            } else {
+                $donor = 'uzbxx';
+                $raw_links = parser_get_catalog_links_uzbxx($page_num);
+                foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
+            }
+        } else {
+            if ($donor === 'uzbxx') {
+                $raw_links = parser_get_catalog_links_uzbxx($page_num);
+                foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
+            } elseif ($donor === 'uzporno') {
+                $raw_links = parser_get_catalog_links_uzporno($page_num);
+                foreach ($raw_links as $l) $items_to_parse[] = ['url' => $l];
+            } elseif ($donor === 'arhivporno') {
+                $items_to_parse = parser_get_catalog_links_arhivporno($page_num);
+            }
+        }
+
+        if (empty($items_to_parse)) {
+            $logs[] = ['status' => 'error', 'message' => "Ushbu sahifadan video havolalari topilmadi ($donor, sahifa $page_num)."];
+        } else {
+            $added = 0;
+            foreach ($items_to_parse as $item) {
+                if ($added >= $limit_count) break;
+                $v_url = is_array($item) ? $item['url'] : $item;
+
+                if ($donor === 'uzbxx') {
+                    $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                } elseif ($donor === 'uzporno') {
+                    $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                } elseif ($donor === 'arhivporno') {
+                    $res = parse_video_arhivporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S, is_array($item) ? $item : []);
+                }
+
+                $logs[] = $res;
+                if (!empty($res['status']) && $res['status'] === 'success') {
                     $added++;
                 }
                 usleep(250000);
             }
-            // Keshni tozalash
-            @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
+
+            $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
+            @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
         }
     }
-    // 2. Yagona havola orqali
+
+    // 3. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH
     elseif ($action_type === 'single_url') {
         $single_url = trim($_POST['single_url'] ?? '');
         if (empty($single_url)) {
@@ -367,190 +167,225 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logs[] = parse_video_uzbxx($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
             } elseif (stripos($single_url, 'uzporno.website') !== false) {
                 $logs[] = parse_video_uzporno($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+            } elseif (stripos($single_url, 'arhivporno.watch') !== false) {
+                $logs[] = parse_video_arhivporno($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
             } else {
-                $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola! Faqat uzbxx.ru yoki uzporno.website havolalari qo‘llab-quvvatlanadi.'];
+                $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola! Faqat uzbxx.ru, uzporno.website yoki arhivporno.watch havolalari qo‘llab-quvvatlanadi.'];
             }
-            @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
-        }
-    }
-    // 3. Sahifalar bo'yicha ommaviy parslash
-    elseif ($action_type === 'mass_parse') {
-        $donor = filter($_POST['donor'] ?? 'uzbxx');
-        $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
-        $limit_count = min(30, max(1, abs(intval($_POST['count'] ?? 10))));
 
-        if ($donor === 'uzbxx') {
-            $catalog_url = ($page_num == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/{$page_num}";
-            $cat_html = parser_get_html($catalog_url);
-            preg_match_all("|<a href=\"(https://uzbxx.ru/video/[^\"]+)\"|i", $cat_html, $matches);
-            $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
-
-            if (empty($video_links)) {
-                $logs[] = ['status' => 'error', 'message' => "uzbxx.ru katalogidan video havolalar topilmadi ($catalog_url)."];
-            } else {
-                $collected = 0;
-                foreach ($video_links as $v_url) {
-                    if ($collected >= $limit_count) break;
-                    $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    $logs[] = $res;
-                    if ($res['status'] === 'success') {
-                        $collected++;
-                    }
-                    usleep(250000);
-                }
-                @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
-            }
-        } elseif ($donor === 'uzporno') {
-            $catalog_url = ($page_num == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page_num}";
-            $cat_html = parser_get_html($catalog_url);
-            preg_match_all("|<a href=\"(https://uzporno.website/video/[^\"]+)\"|i", $cat_html, $matches);
-            $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
-
-            if (empty($video_links)) {
-                $logs[] = ['status' => 'error', 'message' => "uzporno.website katalogidan video havolalar topilmadi ($catalog_url)."];
-            } else {
-                $collected = 0;
-                foreach ($video_links as $v_url) {
-                    if ($collected >= $limit_count) break;
-                    $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
-                    $logs[] = $res;
-                    if ($res['status'] === 'success') {
-                        $collected++;
-                    }
-                    usleep(250000);
-                }
-                @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'].'/content/cache/*.html'));
-            }
+            $doc_root = $_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 2);
+            @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
         }
     }
 }
 ?>
 
-<div class="functions_data" style="border-left: 4px solid #ff9900;">
-    <h2><i class="fa fa-cloud-download" style="color:#ff9900;"></i> Yangi Video Parser (uzbxx.ru & uzporno.website)</h2>
-    <p style="color:#aaa; margin-top:4px; font-size:13px;">
-        Ushbu modul orqali hech qanday havola yozmasdan ham bir bosishda eng so‘nggi yangi videolarni saytingizga yuklab olishingiz mumkin.
+<div class="functions_data" style="border-left: 4px solid #ff9900; background: #1a1815; padding: 15px; margin-bottom: 20px;">
+    <h2 style="color:#ff9900; margin-bottom: 6px;"><i class="fa fa-cloud-download"></i> Universal Video Parser</h2>
+    <p style="color:#ccc; font-size:13px; line-height: 1.5; margin: 0;">
+        Ushbu modul orqali <b>uzbxx.ru</b>, <b>uzporno.website</b> va <b>arhivporno.watch</b> saytlaridan eng so‘nggi videolarni avtomatik yoki qo‘lda saytingizdagi istalgan bo‘limlarga yuklab olishingiz mumkin.
     </p>
 </div>
 
 <?php if (!empty($logs)): ?>
-<div class="functions_data" style="background:#111; border:1px solid #ff9900; margin-bottom:15px;">
-    <h3 style="color:#ff9900; margin-bottom:10px;"><i class="fa fa-list-alt"></i> Natijalar jurnali:</h3>
-    <div style="max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+<div class="functions_data" style="background:#111; border:1px solid #ff9900; margin-bottom:20px; padding: 15px;">
+    <h3 style="color:#ff9900; margin-bottom:12px;"><i class="fa fa-list-alt"></i> Parslash natijalari:</h3>
+    <div style="max-height: 280px; overflow-y: auto; font-family: monospace; font-size: 13px; background:#000; padding:10px; border-radius:4px;">
     <?php foreach ($logs as $log): ?>
-        <?php if ($log['status'] === 'success'): ?>
-            <div style="color: #28a745; margin-bottom: 4px;"><i class="fa fa-check-circle"></i> [Qo‘shildi] <?=$log['message']?></div>
-        <?php elseif ($log['status'] === 'skip'): ?>
-            <div style="color: #ffc107; margin-bottom: 4px;"><i class="fa fa-info-circle"></i> [O‘tkazildi] <?=$log['message']?></div>
+        <?php if (!empty($log['status']) && $log['status'] === 'success'): ?>
+            <div style="color: #28a745; margin-bottom: 6px;"><i class="fa fa-check-circle"></i> [Qo‘shildi] <?=$log['message']?></div>
+        <?php elseif (!empty($log['status']) && $log['status'] === 'skip'): ?>
+            <div style="color: #ffc107; margin-bottom: 6px;"><i class="fa fa-info-circle"></i> [O‘tkazildi] <?=$log['message']?></div>
         <?php else: ?>
-            <div style="color: #dc3545; margin-bottom: 4px;"><i class="fa fa-times-circle"></i> [Xatolik] <?=$log['message']?></div>
+            <div style="color: #dc3545; margin-bottom: 6px;"><i class="fa fa-times-circle"></i> [Xatolik] <?=($log['message'] ?? 'Nomaʼlum xatolik')?></div>
         <?php endif; ?>
     <?php endforeach; ?>
     </div>
 </div>
 <?php endif; ?>
 
-<!-- 1. ASOSIY: HECH QANDAY URLSIZ 1-BOSISHDA AVTO-PARSING -->
-<div class="functions_data" style="background:#191614; border: 2px solid #ff9900; margin-bottom:15px;">
-    <h3 style="color:#ff9900;"><i class="fa fa-bolt"></i> 1. Bir bosishda yangi videolarni avto-yuklash (URL KERAK EMAS!)</h3>
-    <p style="color:#bbb; font-size:13px; margin: 8px 0 12px;">
-        Hech qanday havola yozish shart emas! Shunchaki tugmani bosing va tizim donor saytlardan eng yangi videolarni avtomatik topib, saytingizga joylaydi:
+<!-- 1. URLSIZ BIR BOSISHDA AVTO-PARSER -->
+<div class="functions_data" style="background:#1e1a17; border: 2px solid #ff9900; margin-bottom:20px; padding:15px;">
+    <h3 style="color:#ff9900; margin-bottom: 8px;"><i class="fa fa-bolt"></i> 1. Bir bosishda yangi videolarni avto-yuklash (URL KERAK EMAS!)</h3>
+    <p style="color:#bbb; font-size:13px; margin-bottom: 15px;">
+        Hech qanday havola yozish shart emas! Donor saytni tanlang, kerakli bo'limni tanlang va tugmani bosing:
     </p>
     <form method="post">
         <input type="hidden" name="action_type" value="auto_all" />
-        <p>
-            <b>Qaysi saytlardan olinsin:</b><br />
+        <p style="line-height: 1.8;">
+            <b>Qaysi donor saytdan yuklansin:</b><br />
             <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="both" checked /> <b>Ikkalasidan ham (uzbxx.ru + uzporno.website)</b>
+                <input type="radio" name="auto_donor" value="all" checked /> <b>Barcha donorlardan (uzbxx + uzporno + arhivporno)</b>
             </label>
             <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="auto_donor" value="uzbxx" /> Faqat uzbxx.ru
+                <input type="radio" name="auto_donor" value="arhivporno" /> <b>arhivporno.watch</b> (Узбекский секс)
+            </label>
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="auto_donor" value="uzbxx" /> <b>uzbxx.ru</b>
             </label>
             <label style="cursor:pointer;">
-                <input type="radio" name="auto_donor" value="uzporno" /> Faqat uzporno.website
+                <input type="radio" name="auto_donor" value="uzporno" /> <b>uzporno.website</b>
             </label>
         </p>
         <br />
-        <p>
-            <b>Yuklanadigan yangi videolar soni:</b>
-            <select name="auto_count" class="injected" style="width:120px; display:inline-block; margin-left:10px;">
-                <option value="5">5 ta video</option>
-                <option value="10" selected>10 ta video</option>
-                <option value="15">15 ta video</option>
-                <option value="20">20 ta video</option>
-            </select>
-            &nbsp;
-            <b>Bo‘lim (Kategoriya):</b>
-            <select name="category" class="injected" style="width:220px; display:inline-block; margin-left:10px;">
-                <option value="0">-- Avtomatik --</option>
-                <?php
-                $cats_q = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
-                while ($c = $cats_q->fetch_assoc()) {
-                    echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
-                }
-                ?>
-            </select>
-            &nbsp;
-            <b>Rejim:</b>
-            <select name="save_mode" class="injected" style="width:180px; display:inline-block; margin-left:10px;">
-                <option value="stream" selected>Oqim (Stream/Embed)</option>
-                <option value="download">Serverga MP4 yuklash</option>
-            </select>
-        </p>
+        <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <div>
+                <b>Videolar soni:</b><br />
+                <select name="auto_count" class="injected" style="width:130px; margin-top:4px;">
+                    <option value="5">5 ta video</option>
+                    <option value="10" selected>10 ta video</option>
+                    <option value="15">15 ta video</option>
+                    <option value="20">20 ta video</option>
+                    <option value="30">30 ta video</option>
+                </select>
+            </div>
+            <div>
+                <b>Saytimizdagi Bo‘lim (Kategoriya):</b><br />
+                <select name="category" class="injected" style="width:260px; margin-top:4px;">
+                    <option value="0">-- Avtomatik aniqlash (Tavsiya) --</option>
+                    <?php
+                    $cats_q = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
+                    while ($c = $cats_q->fetch_assoc()) {
+                        $sel = ($c['name'] === 'Узбекский секс') ? ' style="font-weight:bold; color:#ff9900;"' : '';
+                        echo '<option value="'.$c['id'].'"'.$sel.'>'.$c['name'].'</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+            <div>
+                <b>Saqlash rejimi:</b><br />
+                <select name="save_mode" class="injected" style="width:220px; margin-top:4px;">
+                    <option value="stream" selected>Oqim / Embed (Tez, joy olmaydi)</option>
+                    <option value="download">Serverga MP4 yuklash</option>
+                </select>
+            </div>
+        </div>
         <br />
         <p>
-            <button type="submit" class="byecos" style="font-size:15px; padding:10px 24px; background:#ff9900; color:#000;">
-                <i class="fa fa-cloud-download"></i> 🚀 Yangi videolarni darhol avto-yuklash
+            <button type="submit" class="byecos" style="font-size:15px; padding:12px 28px; background:#ff9900; color:#000; font-weight:bold; border:none; cursor:pointer;">
+                <i class="fa fa-cloud-download"></i> 🚀 Yangi videolarni darhol yuklash
             </button>
         </p>
     </form>
 </div>
 
-<!-- 2. Katalog sahifalari bo'yicha chuqur parslash -->
-<div class="functions_data" style="margin-bottom:15px;">
-    <h3><i class="fa fa-tasks" style="color:#ff9900;"></i> 2. Katalog sahifalari bo‘yicha parslash (Eski/oldingi sahifalar)</h3>
-    <p style="color:#888; font-size:12px; margin-bottom:8px;">Donor saytning istalgan sahifasidan (2, 3, 4...) videolarni yuklab olish:</p>
+<!-- 2. KATALOG SAHIFALARI BO'YICHA OMMAVIY PARSLASH -->
+<div class="functions_data" style="margin-bottom:20px; padding:15px;">
+    <h3 style="color:#ff9900; margin-bottom: 8px;"><i class="fa fa-tasks"></i> 2. Katalog sahifalari bo‘yicha ommaviy parslash (Oldingi/Eski sahifalar)</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:12px;">Donor saytning istalgan sahifasidan (2, 3, 4...) yoki aniq kategoriya havolasidan videolarni ko‘chirib olish:</p>
     <form method="post">
         <input type="hidden" name="action_type" value="mass_parse" />
-        <p>
+        <p style="line-height: 1.8;">
             <b>Donor sayt:</b><br />
             <label style="margin-right:20px; cursor:pointer;">
-                <input type="radio" name="donor" value="uzbxx" checked /> <b>uzbxx.ru</b>
+                <input type="radio" name="donor" value="arhivporno" checked /> <b>arhivporno.watch</b>
+            </label>
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="donor" value="uzbxx" /> <b>uzbxx.ru</b>
             </label>
             <label style="cursor:pointer;">
                 <input type="radio" name="donor" value="uzporno" /> <b>uzporno.website</b>
             </label>
         </p>
         <br />
-        <p>
-            <b>Katalog sahifasi raqami:</b>
-            <input type="number" name="page_num" value="2" min="1" max="100" class="injected" style="width:80px; display:inline-block; margin-left:10px;" />
-            &nbsp;
-            <b>Videolar soni:</b>
-            <select name="count" class="injected" style="width:120px; display:inline-block; margin-left:10px;">
-                <option value="5">5 ta video</option>
-                <option value="10" selected>10 ta video</option>
-                <option value="20">20 ta video</option>
-            </select>
-        </p>
+        <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <div>
+                <b>Katalog sahifasi raqami:</b><br />
+                <input type="number" name="page_num" value="2" min="1" max="200" class="injected" style="width:110px; margin-top:4px;" />
+            </div>
+            <div>
+                <b>Videolar soni:</b><br />
+                <select name="count" class="injected" style="width:130px; margin-top:4px;">
+                    <option value="5">5 ta video</option>
+                    <option value="10" selected>10 ta video</option>
+                    <option value="20">20 ta video</option>
+                    <option value="30">30 ta video</option>
+                </select>
+            </div>
+            <div>
+                <b>Bo‘lim (Kategoriya):</b><br />
+                <select name="category" class="injected" style="width:240px; margin-top:4px;">
+                    <option value="0">-- Avtomatik aniqlash --</option>
+                    <?php
+                    $cats_q2 = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
+                    while ($c = $cats_q2->fetch_assoc()) {
+                        echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+            <div>
+                <b>Rejim:</b><br />
+                <select name="save_mode" class="injected" style="width:200px; margin-top:4px;">
+                    <option value="stream" selected>Oqim / Embed</option>
+                    <option value="download">Serverga MP4 yuklash</option>
+                </select>
+            </div>
+        </div>
+        <div style="margin-top:12px;">
+            <b>Yoki to‘g‘ridan-to‘g‘ri katalog/bo‘lim URL havolasi (ixtiyoriy):</b><br />
+            <input type="url" name="custom_catalog_url" class="injected" placeholder="Masalan: https://arhivporno.watch/cat-uzbekskii-seks/2/ yoki https://uzbxx.ru/3" style="width:100%; margin-top:4px;" />
+        </div>
         <br />
         <p>
-            <button type="submit" class="byecos"><i class="fa fa-play"></i> Ushbu sahifani parslash</button>
+            <button type="submit" class="byecos" style="font-size:14px; padding:10px 22px;">
+                <i class="fa fa-play"></i> Ushbu sahifani parslash
+            </button>
         </p>
     </form>
 </div>
 
-<!-- 3. Yagona havola (URL) orqali video qo‘shish -->
-<div class="functions_data">
-    <h3><i class="fa fa-link" style="color:#ff9900;"></i> 3. Yagona havola (URL) orqali bitta video qo‘shish</h3>
-    <p style="color:#888; font-size:12px; margin-bottom:8px;">Aniq bitta videoning to‘liq havolasini kiriting:</p>
+<!-- 3. YAGONA HAVOLA (URL) ORQALI VIDEO QO'SHISH -->
+<div class="functions_data" style="margin-bottom:20px; padding:15px;">
+    <h3 style="color:#ff9900; margin-bottom: 8px;"><i class="fa fa-link"></i> 3. Yagona havola (URL) orqali bitta video qo‘shish</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:12px;">Aniq bitta videoning to‘liq havolasini kiriting (uzbxx.ru, uzporno.website yoki arhivporno.watch):</p>
     <form method="post">
         <input type="hidden" name="action_type" value="single_url" />
         <p>
-            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://uzbxx.ru/video/nomi/ yoki https://uzporno.website/video/nomi/" required style="width:100%; font-size:14px;" />
+            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://arhivporno.watch/paren-iznasiloval-pyanuu-uzbechku-doma-posle-vecherinki/ yoki https://uzbxx.ru/video/... yoki https://uzporno.website/video/..." required style="width:100%; font-size:14px;" />
         </p>
-        <p style="margin-top:10px;">
-            <button type="submit" class="byecos"><i class="fa fa-download"></i> Havoladan import qilish</button>
+        <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-top: 12px;">
+            <div>
+                <b>Bo‘lim (Kategoriya):</b><br />
+                <select name="category" class="injected" style="width:240px; margin-top:4px;">
+                    <option value="0">-- Avtomatik aniqlash --</option>
+                    <?php
+                    $cats_q3 = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
+                    while ($c = $cats_q3->fetch_assoc()) {
+                        echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+            <div>
+                <b>Rejim:</b><br />
+                <select name="save_mode" class="injected" style="width:200px; margin-top:4px;">
+                    <option value="stream" selected>Oqim / Embed</option>
+                    <option value="download">Serverga MP4 yuklash</option>
+                </select>
+            </div>
+        </div>
+        <p style="margin-top:15px;">
+            <button type="submit" class="byecos" style="font-size:14px; padding:10px 22px;">
+                <i class="fa fa-download"></i> Havoladan import qilish
+            </button>
         </p>
     </form>
+</div>
+
+<!-- 4. AVTOMATIK FON PARSERI (CRON TIZIMI) -->
+<div class="functions_data" style="background:#15181a; border-left: 4px solid #17a2b8; padding:15px;">
+    <h3 style="color:#17a2b8; margin-bottom: 8px;"><i class="fa fa-clock-o"></i> 4. Avtomatik Fon Parseri (CRON)</h3>
+    <p style="color:#bbb; font-size:13px; line-height: 1.5; margin-bottom: 10px;">
+        Saytingizga har kuni eng yangi videolarni o‘zi avtomatik yuklab borishi uchun serveringizda (cPanel, FastPanel yoki crontab) quyidagi havola bo‘yicha Cron-job qo‘yishingiz mumkin:
+    </p>
+    <div style="background:#0a0c0e; border:1px solid #333; padding:10px 14px; border-radius:4px; font-family:monospace; color:#28a745; font-size:13px; word-break: break-all; margin-bottom: 10px;">
+        <?=$protocol . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online')?>/autocomplete.php?key=<?=htmlspecialchars($settings['cron'] ?? '')?>
+    </div>
+    <p style="color:#aaa; font-size:12px; margin:0;">
+        Server Crontab namunasi (har 20 daqiqada yangi videolarni tekshirish):<br />
+        <code style="background:#222; padding:3px 8px; color:#ff9900; border-radius:3px; display:inline-block; margin-top:4px;">
+            */20 * * * * curl -s "<?=$protocol . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online')?>/autocomplete.php?key=<?=htmlspecialchars($settings['cron'] ?? '')?>" > /dev/null 2>&1
+        </code>
+    </p>
 </div>

@@ -52,11 +52,11 @@
         exit;
     }
 
-    $title = $view['name'];
-    $description = mb_substr($view['description'], 0, 156, 'UTF-8').'..';
+    $title = $view['name'].' - '.filter($_SERVER['HTTP_HOST']);
+    $description = !empty($view['description']) ? mb_substr(strip_tags($view['description']), 0, 160, 'UTF-8') : $view['name'];
     $keywords = str_replace(' ', ', ', $view['tags']);
         
-    head(sec($view['duration']));
+    head(sec($view['duration']), $view['screenshot'], 'video.other');
     advertising();
     
     // Ko'rishlar sonini oshirish
@@ -75,16 +75,66 @@
     $client_ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
     $user_vote_q = $mysqli->query("SELECT type FROM ero_likes WHERE id_video = '{$view['id']}' AND ip = '$client_ip' LIMIT 1")->fetch_assoc();
     $user_vote = $user_vote_q['type'] ?? '';
+
+    $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
+    $thumb_full = (strpos($view['screenshot'], 'http') === 0) ? $view['screenshot'] : $full_host . $view['screenshot'];
+    $page_url = $full_host . '/watch/' . $view['translit'] . '.html';
 ?>
 
-<!-- Schema.org VideoObject -->
-<div itemscope itemtype="https://schema.org/VideoObject" style="display:none;">
-    <span itemprop="name"><?=htmlspecialchars($view['name'], ENT_QUOTES, 'UTF-8')?></span>
-    <span itemprop="description"><?=htmlspecialchars($view['description'], ENT_QUOTES, 'UTF-8')?></span>
-    <meta itemprop="duration" content="PT<?=sec($view['duration'])?>S" />
-    <meta itemprop="thumbnailUrl" content="<?=$protocol . filter($_SERVER['HTTP_HOST'] . $view['screenshot'])?>" />
-    <meta itemprop="uploadDate" content="<?=date('Y-m-d\TH:i:s', $view['date'])?>" />
-</div>
+<!-- Schema.org JSON-LD (BreadcrumbList & VideoObject) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Bosh sahifa",
+          "item": "<?=$full_host?>/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "<?=htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8')?>",
+          "item": "<?=$full_host?>/<?=$category['translit']?>/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "<?=htmlspecialchars($view['name'], ENT_QUOTES, 'UTF-8')?>"
+        }
+      ]
+    },
+    {
+      "@type": "VideoObject",
+      "name": "<?=htmlspecialchars($view['name'], ENT_QUOTES, 'UTF-8')?>",
+      "description": "<?=htmlspecialchars($description, ENT_QUOTES, 'UTF-8')?>",
+      "thumbnailUrl": [
+        "<?=htmlspecialchars($thumb_full, ENT_QUOTES, 'UTF-8')?>"
+      ],
+      "uploadDate": "<?=date('c', $view['date'])?>",
+      "duration": "PT<?=sec($view['duration'])?>S",
+      "contentUrl": "<?=$page_url?>",
+      "embedUrl": "<?=$page_url?>",
+      "interactionStatistic": [
+        {
+          "@type": "InteractionCounter",
+          "interactionType": { "@type": "https://schema.org/WatchAction" },
+          "userInteractionCount": <?=intval($view['view'])?>
+        },
+        {
+          "@type": "InteractionCounter",
+          "interactionType": { "@type": "https://schema.org/LikeAction" },
+          "userInteractionCount": <?=$likes_count?>
+        }
+      ]
+    }
+  ]
+}
+</script>
 
 <!-- Breadcrumb Title -->
 <div class="xxxhd-title-top">

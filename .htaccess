@@ -32,6 +32,8 @@ RewriteRule ^Success.html?$ index.php?func=advertising&Success [L,QSA]
 RewriteRule ^Error.html?$ index.php?func=advertising&Error [L,QSA]
 RewriteRule ^top.html?$ index.php?func=video_top [L,QSA]
 RewriteRule ^new.html?$ index.php?func=video_new [L,QSA]
+RewriteRule ^sitemap\.xml$ sitemap_xml.php [L,QSA]
+RewriteRule ^rss\.xml$ rss_xml.php [L,QSA]
 
 #RewriteCond %{SERVER_PORT} !^443$
 #RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]

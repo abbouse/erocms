@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Disallow: /content/cache/
+Disallow: /content/temporary/
+Disallow: /core/
+Disallow: /control.php
+Disallow: /download/
+Disallow: /search_
+Disallow: /addFiles/
+
+User-agent: Yandex
+Allow: /
+Clean-param: ref /
+Disallow: /content/cache/
+Disallow: /control.php
+
+User-agent: Googlebot
+Allow: /
+Disallow: /control.php
+
+Sitemap: https://sekschi.online/sitemap.xml
+Sitemap: https://sekschi.online/sitemap_video.xml
+Host: sekschi.online

@@ -89,7 +89,7 @@ else
 
 #Вверхняя часть сайта
 
-function head($var = null) {
+function head($var = null, $image = null, $og_type = 'website') {
 
 global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $lang;
 
@@ -103,30 +103,76 @@ else $view_control = null;
 $css_file = $_SERVER['DOCUMENT_ROOT'].'/designs/'.$settings['designs'].'.css';
 $css_v = file_exists($css_file) ? filemtime($css_file) : time();
 
-echo '
+$host = filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+$canonical = $protocol . $host . parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+
+$og_img = !empty($image) 
+    ? ((strpos($image, 'http') === 0) ? $image : $protocol . $host . $image) 
+    : $protocol . $host . '/designs/water.png';
+
+$is_home = (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/' || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/index.php');
+
+echo '<!DOCTYPE html>
 <html lang="ru">
   <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="description" content="'.$description.'" />
-<meta name="keywords" content="'.$keywords.'" />
-<meta name="robots" content="INDEX,ALL" />
+<meta name="description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
+<meta name="keywords" content="'.htmlspecialchars($keywords, ENT_QUOTES, 'UTF-8').'" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
 <meta name="theme-color" content="#21201f" />
-<meta property="og:type" content="article" />
-<meta property="og:title" content="'.$title.'" />';
-if ($var != null)
+<meta name="rating" content="RTA-5042-1996-1404-4054-RTA" />
+<meta name="RATING" content="adult" />
+
+<meta property="og:site_name" content="'.htmlspecialchars($host, ENT_QUOTES, 'UTF-8').'" />
+<meta property="og:type" content="'.$og_type.'" />
+<meta property="og:title" content="'.htmlspecialchars($title, ENT_QUOTES, 'UTF-8').'" />
+<meta property="og:description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
+<meta property="og:url" content="'.$canonical.'" />
+<meta property="og:image" content="'.htmlspecialchars($og_img, ENT_QUOTES, 'UTF-8').'" />
+<meta property="og:image:width" content="600" />
+<meta property="og:image:height" content="338" />';
+
+if ($var != null) {
 echo '
-<meta property="video:duration" content="'.$var.'"/>';
+<meta property="og:video:duration" content="'.$var.'" />
+<meta property="video:duration" content="'.$var.'" />';
+}
+
 echo '
-<meta property="og:url" content="'.$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'" />
-<meta property="og:description" content="'.$description.'" />
-<link rel="canonical" href="'.$protocol.filter($_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']).'" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="'.htmlspecialchars($title, ENT_QUOTES, 'UTF-8').'" />
+<meta name="twitter:description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
+<meta name="twitter:image" content="'.htmlspecialchars($og_img, ENT_QUOTES, 'UTF-8').'" />
+
+<link rel="canonical" href="'.$canonical.'" />
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="alternate" type="application/rss+xml" title="'.htmlspecialchars($host, ENT_QUOTES, 'UTF-8').' RSS Feed" href="/rss.xml" />
+<link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 <link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css?v='.$css_v.'" />
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-<title>'.$title.'</title>
+<title>'.htmlspecialchars($title, ENT_QUOTES, 'UTF-8').'</title>';
+
+if ($is_home) {
+echo '
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "'.htmlspecialchars($host, ENT_QUOTES, 'UTF-8').'",
+  "url": "'.$protocol.$host.'/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "'.$protocol.$host.'/search_?i={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>';
+}
+
+echo '
   </head>
   <body>
 

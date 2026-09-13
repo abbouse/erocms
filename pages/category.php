@@ -43,8 +43,29 @@
     advertising();
     
     $mysqli->query("UPDATE ero_categories SET view = view + 1 WHERE id = '{$category['id']}'");
-    $sorting = intval($_SESSION['sorting'] ?? 0);
+    $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
 ?>
+
+<!-- Schema.org BreadcrumbList -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Bosh sahifa",
+      "item": "<?=$full_host?>/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "<?=htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8')?>"
+    }
+  ]
+}
+</script>
 
     <div class="xxxhd-title-top">
         <p style="font-size:13px; color:#959595; margin-bottom: 4px;">

@@ -1,5 +1,5 @@
 /* =========================================================
-   EroCMS Modern Dark Theme (uzbxx.ru / uzporno.website style)
+   EroCMS Ultra-Modern Dark Theme (uzbxx.ru / uzporno.website)
    ========================================================= */
 
 *, *::before, *::after {
@@ -228,7 +228,6 @@ h1.mark {
 .xxxhd-thumb-wr {
     width: 25%; /* 4 columns desktop */
     padding: 4px;
-    float: left;
 }
 
 @media (max-width: 900px) {
@@ -266,6 +265,13 @@ h1.mark {
     flex: 1;
 }
 
+.xxxhd-thumb a > img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+
 .thumb-image-wrap {
     position: relative;
     width: 100%;
@@ -274,14 +280,14 @@ h1.mark {
     overflow: hidden;
 }
 
-.thumb-image-wrap img,
-.xxxhd-thumb img {
+.thumb-image-wrap img {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
     transition: transform 0.3s ease;
 }
 
@@ -329,7 +335,7 @@ h1.mark {
 .xxxhd-thumb-bottom {
     position: absolute;
     z-index: 2;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
     color: #fff;
     font-size: 11px;
     font-weight: 700;
@@ -342,7 +348,7 @@ h1.mark {
 .top-left {
     top: 4px;
     left: 4px;
-    background: rgba(255, 153, 0, 0.9);
+    background: #ff9900;
     color: #000;
     font-weight: 900;
 }
@@ -354,12 +360,12 @@ h1.mark {
 }
 
 .bottom-left {
-    bottom: 42px;
+    bottom: 44px;
     left: 4px;
 }
 
 .bottom-right {
-    bottom: 42px;
+    bottom: 44px;
     right: 4px;
 }
 
@@ -672,7 +678,7 @@ textarea.form-control-custom {
     color: #ff9900;
 }
 
-/* === UTILITIES & OLD COMPATIBILITY === */
+/* === UTILITIES & FORMS === */
 .functions_data {
     padding: 10px 15px;
     background: #1a1919;
@@ -706,4 +712,36 @@ textarea.form-control-custom {
     padding: 10px 15px;
     border-radius: 4px;
     margin: 10px 0;
+}
+
+/* === RESPONSIVE REFINEMENTS === */
+@media (max-width: 600px) {
+    .xxxhd-search {
+        width: 100%;
+        max-width: 100%;
+        min-width: 100%;
+        margin-top: 6px;
+    }
+    .xxxhd-head-menu-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .xxxhd-head-menu-buttons li a {
+        height: 30px;
+        line-height: 30px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+    .interaction-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .votes-group {
+        justify-content: space-between;
+        width: 100%;
+    }
+    .video-actions-group {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
