@@ -1,65 +1,88 @@
 <?php
+/**
+ * EroCMS Yangi Kategoriya Qo'shish (Add Category)
+ */
 
-/*
-Автор скрипта https://3020.ru
-Скрипты, программы на заказ.
-Быстро, качественно, недорого.
-*/
+if (!defined('ADMIN_LOADED') && !isset($user)) {
+    header('Location: /control.html');
+    exit;
+}
 
-    if ($user['access'] < 1) {
-        header('location: /'); 
+$msg = null;
+$error = null;
+
+if (isset($_POST['save_cat'])) {
+    $name = mysqli_real_escape_string($mysqli, filter($_POST['name'] ?? ''));
+    $translit = mysqli_real_escape_string($mysqli, filter($_POST['translit'] ?? ''));
+    $keywords = mysqli_real_escape_string($mysqli, filter($_POST['keywords'] ?? ''));
+    $description = mysqli_real_escape_string($mysqli, filter($_POST['description'] ?? ''));
+    $meta = mysqli_real_escape_string($mysqli, filter($_POST['meta'] ?? ''));
+
+    if (empty($name) || empty($translit)) {
+        $error = "Toifa nomi va translit (slug) maydonlari to‘ldirilishi shart.";
+    } else {
+        $mysqli->query("
+            INSERT INTO ero_categories (name, description, meta, keywords, translit, view) 
+            VALUES ('$name', '$description', '$meta', '$keywords', '$translit', 0)
+        ");
+        logs($user['id'], "Yangi toifa yaratildi: $name", 0);
+        
+        // Keshni tozalash
+        @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
+        
+        header('Location: /control.html?func=view_categories');
         exit;
     }
-    
-    if (isset($_POST['translit'])) {
-        
-        $translit =  mysqli_real_escape_string($mysqli, filter($_POST['translit']));
-        $name =  mysqli_real_escape_string($mysqli, filter($_POST['name']));
-        $keywords =  mysqli_real_escape_string($mysqli, filter($_POST['keywords']));
-        $description =  mysqli_real_escape_string($mysqli, filter($_POST['description']));
-        $meta =  mysqli_real_escape_string($mysqli, filter($_POST['meta']));
-	
-        if (strlen($_POST['name']) > 64 or strlen($_POST['name']) < 4) $warning = $lang['short_or_long_name'];
-        else if (strlen($_POST['translit']) > 64 or strlen($_POST['translit']) < 4) $warning = $lang['short_long_address'];
-        
-        if ($warning) error($warning);
-    
-        $mysqli -> query("INSERT INTO ero_categories set name = '$name', description = '$description', meta = '$meta', keywords = '$keywords', translit = '$translit'");
-        
-        logs($user['id'], $lang['created_a_category'].' '.$name.'.', 0);
-        
-        header('location: /'.$translit.'/'); 
-        exit;
-    }
-    
-    ?>
-    
-    <div class="functions_data">
-        
-    <form method="post">   
-    
-    <p><?=$lang['name']?></p>
-    
-    <p><input name="name" class="injected" type="text"></p>
-    
-    <p><?=$lang['url']?></p>
-    
-    <p> <big><b>/</b></big> <input name="translit" class="injected" type="text"> <big><b>/</b></big> </p>
-    
-    <p><?=$lang['tags']?></p>
-    
-    <p><textarea name="keywords" class="injected" rows="4" cols="47"></textarea></p>
-    
-    <p><?=$lang['description']?></p>
-    
-    <p><textarea name="description" class="injected" rows="8" cols="47"></textarea></p>
+}
+?>
 
-    <p><?=$lang['description']?> [meta]</p>
-    
-    <p><textarea name="meta" class="injected" rows="8" cols="47"></textarea></p>
-	
-    <input type="submit" class="byecos" value="<?=$lang['send']?>">
-    
-    </form>
-    
+<div class="adm-page-header">
+    <div>
+        <h1 class="adm-page-title"><i class="fa fa-folder-open" style="color: #ff9900;"></i> Yangi Toifa Qo‘shish</h1>
+        <p class="adm-page-subtitle">Saytga yangi bo‘lim va uning SEO ma’lumotlarini kiritish</p>
     </div>
+    <a href="/control.html?func=view_categories" class="adm-btn adm-btn-secondary adm-btn-sm">&larr; Toifalar ro‘yxati</a>
+</div>
+
+<?php if ($error): ?>
+    <div class="adm-alert adm-alert-danger"><i class="fa fa-exclamation-triangle"></i> <?=$error?></div>
+<?php endif; ?>
+
+<div class="adm-card" style="max-width:800px;">
+    <form method="post">
+        <div class="adm-form-group">
+            <label class="adm-label">Toifa Nomi:</label>
+            <input type="text" name="name" class="adm-input" placeholder="Masalan: O‘zbekcha Seks" required />
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-label">Translit / Slug (URL manzil):</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="color:#64748b; font-weight:bold;">/</span>
+                <input type="text" name="translit" class="adm-input" placeholder="uzbek" required style="font-family:monospace;" />
+                <span style="color:#64748b; font-weight:bold;">/</span>
+            </div>
+            <small style="color:#64748b; font-size:11px;">Faqat lotin harflari va defis (masalan: <code>uzbek-seks</code>)</small>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-label">SEO Kalit So‘zlar (Keywords):</label>
+            <textarea name="keywords" class="adm-textarea" rows="3" placeholder="uzbek sex, o'zbekcha porno, skachat..."></textarea>
+            <small style="color:#64748b; font-size:11px;">Vergul bilan ajratilgan kalit so‘zlar</small>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-label">Meta Tavsif (Description):</label>
+            <textarea name="meta" class="adm-textarea" rows="3" placeholder="Qidiruv tizimlari (Google, Yandex) uchun meta description..."></textarea>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-label">Toifa Sahifasi Matni (Description):</label>
+            <textarea name="description" class="adm-textarea" rows="4" placeholder="Toifa sahifasida foydalanuvchilarga ko‘rinadigan kirish matni..."></textarea>
+        </div>
+
+        <button type="submit" name="save_cat" value="1" class="adm-btn adm-btn-primary" style="padding:10px 20px;">
+            <i class="fa fa-plus"></i> Toifani Saqlash
+        </button>
+    </form>
+</div>
