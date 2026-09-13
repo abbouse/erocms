@@ -388,7 +388,7 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
         '0',
         '$now',
         '0',
-        'parser',
+        '1',
         '0',
         '".parser_escape($mysqli, $embed_code)."'
     )";
@@ -526,7 +526,7 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
         '0',
         '$now',
         '0',
-        'parser',
+        '1',
         '0',
         '".parser_escape($mysqli, $embed_url)."'
     )";
@@ -655,7 +655,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         '0',
         '$now',
         '0',
-        'parser',
+        '1',
         '0',
         '".parser_escape($mysqli, $embed_url)."'
     )";
@@ -731,3 +731,216 @@ function parser_get_catalog_links_arhivporno($page_or_url = 1) {
 
     return array_values($items);
 }
+
+/**
+ * 4. sexlar.link dan videoni parslash
+ */
+function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context = []) {
+    $video_url = trim($video_url);
+    if (strpos($video_url, 'http') !== 0) {
+        $video_url = 'https://sexlar.link' . (strpos($video_url, '/') === 0 ? '' : '/') . $video_url;
+    }
+
+    $html = parser_fetch($video_url, 'https://sexlar.link/');
+    if (empty($html) || strlen($html) < 200) {
+        return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
+    }
+
+    // 1. Sarlavha (Title)
+    $title = '';
+    if (preg_match('|<div class="headline">.*?<h1>(.*?)</h1>|is', $html, $m)) {
+        $title = trim(strip_tags($m[1]));
+    } elseif (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
+        $title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+    } elseif (preg_match('|<title>(.*?)</title>|is', $html, $m)) {
+        $title = trim(strip_tags($m[1]));
+    }
+    $title = preg_replace('/смотреть онлайн.*$/iu', '', $title);
+    $title = trim(preg_replace("/('|\"|\r?\n)/", '', $title));
+    if (empty($title)) {
+        return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
+    }
+
+    // Takroriylikni tekshirish
+    $uniqueness = md5($title);
+    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
+    if ($check_exist && $check_exist->num_rows > 0) {
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+    }
+
+    // 2. Video fayli va Embed URL
+    $video_file_url = '';
+    $embed_url = '';
+    $video_id = 0;
+
+    if (preg_match('|file:\s*[\'"](https?://[^\'"]+\.mp4[^\'"]*)[\'"]|i', $html, $m_file)) {
+        $video_file_url = trim($m_file[1]);
+        if (preg_match('|/storage/\d+/(\d+)/\1\.mp4|i', $video_file_url, $m_id)) {
+            $video_id = intval($m_id[1]);
+        } elseif (preg_match('|storage/\d+/(\d+)|i', $video_file_url, $m_id)) {
+            $video_id = intval($m_id[1]);
+        }
+    }
+
+    if ($video_id > 0) {
+        $embed_url = "https://666.watch/embed/{$video_id}";
+    } elseif (preg_match('|/embed/(\d+)|i', $html, $m_emb)) {
+        $embed_url = "https://666.watch/embed/" . intval($m_emb[1]);
+    }
+
+    if (empty($video_file_url) && empty($embed_url)) {
+        return ['status' => 'error', 'message' => "Video manbasi (MP4 yoki embed) topilmadi: $video_url"];
+    }
+
+    // 3. Poster (Skrinshot)
+    $poster_url = $cat_context['poster'] ?? '';
+    if (empty($poster_url) && preg_match('|image:\s*[\'"]([^\'"]+)[\'"]|i', $html, $m_img)) {
+        $poster_url = trim($m_img[1]);
+        if (strpos($poster_url, 'http') !== 0) {
+            $poster_url = 'https://sexlar.link' . (strpos($poster_url, '/') === 0 ? '' : '/') . $poster_url;
+        }
+    }
+    if (empty($poster_url) && preg_match('|<meta property="og:image" content="(.*?)"|is', $html, $m_og)) {
+        $poster_url = trim($m_og[1]);
+    }
+
+    // 4. Davomiylik (Duration)
+    $duration = $cat_context['duration'] ?? '';
+    if (empty($duration) && preg_match('|<span>Длительность:\s*<em>(.*?)</em></span>|is', $html, $m_dur)) {
+        $duration = trim($m_dur[1]);
+    }
+    if (empty($duration) && preg_match('|<div class="duration">(.*?)</div>|is', $html, $m_dur2)) {
+        $duration = trim($m_dur2[1]);
+    }
+    $duration = parser_iso_duration($duration);
+
+    // 5. Tavsif va teglar
+    $desc = $title;
+    if (preg_match('|<div class="item">([^<]+(?:<a[^>]*>[^<]+</a>[^<]*)*)</div>|is', $html, $m_desc)) {
+        $desc = trim(strip_tags($m_desc[1]));
+        $desc = preg_replace('/https?:\/\/[^\s]+/i', '', $desc);
+    }
+    if (strlen($desc) < 10) {
+        $desc = $title;
+    }
+
+    $tags_str = 'узбек секс узбечка sexlar uzb seks';
+
+    // 6. Kategoriya aniqlash: Agar foydalanuvchi tanlagan bo'lsa o'shani oladi, bo'lmasa mavzuga qarab o'rnatadi
+    $category_id = intval($manual_cat);
+    if ($category_id === 0) {
+        $category_id = parser_smart_category($title, $tags_str . ' ' . $desc, 'sexlar.link', $mysqli);
+    }
+
+    // 7. Unikal identifikatorlar
+    $rand_id = rand(100, 9999);
+    $md5 = md5(microtime(true) . $rand_id);
+    $doc_root = parser_doc_root();
+    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
+    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
+
+    // 8. Skrinshotni yuklash
+    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
+    $save_img_path = $doc_root . $local_screenshot;
+    if (!empty($poster_url)) {
+        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+    }
+
+    // 9. Saqlash rejimi: server (MP4) yoki stream (embed/direct)
+    $final_address = '';
+    $final_embed = $embed_url;
+
+    if ($save_mode === 'server' && !empty($video_file_url)) {
+        $save_vid_path = $doc_root . '/content/video/' . $md5 . '.mp4';
+        $downloaded = parser_download_file($video_file_url, $save_vid_path, 'https://sexlar.link/');
+        if ($downloaded && file_exists($save_vid_path) && filesize($save_vid_path) > 100000) {
+            $final_address = '/content/video/' . $md5 . '.mp4';
+            $final_embed = '';
+        } else {
+            $final_address = !empty($embed_url) ? $embed_url : $video_file_url;
+        }
+    } else {
+        $final_address = !empty($embed_url) ? $embed_url : $video_file_url;
+    }
+
+    $now = time();
+    $sql = "INSERT INTO ero_files (
+        name, description, screenshot, recoil, tags, translit, duration, downloads, 
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+    ) VALUES (
+        '".parser_escape($mysqli, $title)."',
+        '".parser_escape($mysqli, $desc)."',
+        '".parser_escape($mysqli, $local_screenshot)."',
+        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $tags_str)."',
+        '".parser_escape($mysqli, $translit)."',
+        '".parser_escape($mysqli, $duration)."',
+        '0',
+        'sexlar.link',
+        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $uniqueness)."',
+        '$category_id',
+        '0',
+        '$now',
+        '0',
+        '1',
+        '0',
+        '".parser_escape($mysqli, $final_embed)."'
+    )";
+
+    if ($mysqli->query($sql)) {
+        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
+    } else {
+        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
+    }
+}
+
+/**
+ * Katalog havolalarini olish: sexlar.link
+ * Qabul qiladi: sahifa raqami (1, 2, 3...) yoki URL
+ */
+function parser_get_catalog_links_sexlar($page = 1) {
+    if (is_numeric($page)) {
+        $url = ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
+    } else {
+        $url = trim($page);
+    }
+
+    $html = parser_fetch($url);
+    if (empty($html)) return [];
+
+    $items = [];
+    preg_match_all('#<div class="item">\s*<a href="(/sekis/[^"]+/)"\s*title="([^"]+)".*?data-src="([^"]+)".*?<div class="duration">([^<]+)</div>#is', $html, $m);
+
+    if (!empty($m[1])) {
+        foreach ($m[1] as $idx => $rel_link) {
+            $link = 'https://sexlar.link' . $rel_link;
+            $img = $m[3][$idx] ?? '';
+            if (!empty($img) && strpos($img, 'http') !== 0) {
+                $img = 'https://sexlar.link' . (strpos($img, '/') === 0 ? '' : '/') . $img;
+            }
+            $items[$link] = [
+                'url' => $link,
+                'title' => trim(html_entity_decode($m[2][$idx] ?? '', ENT_QUOTES, 'UTF-8')),
+                'poster' => $img,
+                'duration' => trim($m[4][$idx] ?? '05:00')
+            ];
+        }
+    } else {
+        preg_match_all('|<a href="(/sekis/[^"]+/)"|i', $html, $m2);
+        if (!empty($m2[1])) {
+            foreach (array_unique($m2[1]) as $rel_link) {
+                $link = 'https://sexlar.link' . $rel_link;
+                $items[$link] = [
+                    'url' => $link,
+                    'title' => '',
+                    'poster' => '',
+                    'duration' => '05:00'
+                ];
+            }
+        }
+    }
+
+    return array_values($items);
+}
+

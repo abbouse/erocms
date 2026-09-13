@@ -33,20 +33,31 @@ $max_cron_added = 6;
 $added = 0;
 $results = [];
 
-// 1. uzbxx.ru dan eng yangi videolar
-$uzbxx_links = parser_get_catalog_links_uzbxx(1);
+// 1. sexlar.link dan eng yangi videolar
+$sexlar_items = parser_get_catalog_links_sexlar(1);
 $donor_items = [];
+foreach ($sexlar_items as $item) {
+    $donor_items[] = [
+        'donor' => 'sexlar',
+        'url' => $item['url'],
+        'poster' => $item['poster'] ?? '',
+        'duration' => $item['duration'] ?? '05:00'
+    ];
+}
+
+// 2. uzbxx.ru dan eng yangi videolar
+$uzbxx_links = parser_get_catalog_links_uzbxx(1);
 foreach ($uzbxx_links as $l) {
     $donor_items[] = ['donor' => 'uzbxx', 'url' => $l];
 }
 
-// 2. uzporno.website dan eng yangi videolar
+// 3. uzporno.website dan eng yangi videolar
 $uzporno_links = parser_get_catalog_links_uzporno(1);
 foreach ($uzporno_links as $l) {
     $donor_items[] = ['donor' => 'uzporno', 'url' => $l];
 }
 
-// 3. arhivporno.watch dan eng yangi videolar
+// 4. arhivporno.watch dan eng yangi videolar
 $arhiv_items = parser_get_catalog_links_arhivporno(1);
 foreach ($arhiv_items as $item) {
     $donor_items[] = [
@@ -66,7 +77,9 @@ foreach ($donor_items as $item) {
     }
 
     $res = null;
-    if ($item['donor'] === 'uzbxx') {
+    if ($item['donor'] === 'sexlar') {
+        $res = parse_video_sexlar($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S, $item);
+    } elseif ($item['donor'] === 'uzbxx') {
         $res = parse_video_uzbxx($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S);
     } elseif ($item['donor'] === 'uzporno') {
         $res = parse_video_uzporno($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S);
