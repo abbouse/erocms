@@ -6,2632 +6,480 @@
 Быстро, качественно, недорого.
 */
 
-    if ($user['access'] < 1) {
-        header('location: /'); 
-        exit;
+if ($user['access'] < 1) {
+    header('Location: /'); 
+    exit;
+}
+
+// cURL orqali kontent olish yordamchi funksiyasi
+function parser_get_html($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language: ru-RU,ru;q=0.9,uz;q=0.8,en;q=0.7'
+    ]);
+    $data = curl_exec($ch);
+    curl_close($ch);
+    return $data;
+}
+
+// Rasm yuklab olish
+function parser_download_image($img_url, $save_path, $width_S = 400, $height_S = 225, $water = 0) {
+    $img_data = parser_get_html($img_url);
+    if (!empty($img_data) && strlen($img_data) > 500) {
+        file_put_contents($save_path, $img_data);
+        if (class_exists('SimpleImage') && file_exists($save_path)) {
+            try {
+                $image = new SimpleImage();
+                $image->load($save_path);
+                $image->resize($width_S, $height_S);
+                $image->save($save_path);
+            } catch (Exception $e) {}
+        }
+        if ($water == 1 && file_exists($_SERVER['DOCUMENT_ROOT'].'/designs/water.png') && function_exists('water')) {
+            water($save_path, $save_path, $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
+        }
+        return true;
     }
-    
-    
-    if (isset($_POST['mode']))  {
-    
-    if ($_SESSION['protective'] != $_POST['protective'])    {           
-        
-        header('location: /control.html?func=parsing'); 
-        exit;
+    return false;
+}
+
+// uzbxx.ru dan bitta videoni parslash
+function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
+    $html = parser_get_html($video_url);
+    if (empty($html) || strlen($html) < 200) {
+        return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
     }
-    
-    $publish = strtotime($_POST['publish']) + rand(300, 21600);
-    
-    if ($_POST['server'] == 0) {
-    
-    $start = rand(1, 4960);
-    $collected = 0;
-    
-    for($go = $start; $go < ($start + $_POST['results']); $go++){
 
-    $_carry = file_get_contents('http://mobolto.com/porno/video-'.$go.'/');
+    // Title
+    $title = '';
+    if (preg_match("|<div class=\"xxxhd-title-top\">.*?<h1>(.*?)</h1>|is", $html, $m)) {
+        $title = trim(strip_tags($m[1]));
+    } elseif (preg_match("|<title>(.*?)</title>|is", $html, $m)) {
+        $title = trim(strip_tags($m[1]));
+    }
+    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
+    if (empty($title) || stripos($title, 'can’t be reached') !== false) {
+        return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
+    }
 
-    if (strripos($_carry, 'file:')){
+    $uniqueness = md5($title);
+    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
+    if ($check_exist && $check_exist->num_rows > 0) {
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+    }
 
-    preg_match_all('|<h1>(.*?)</h1>|is', $_carry, $name);
-    preg_match_all('|<div class="iblock4">(.*?)</div>|is', $_carry, $description);
-    preg_match('|poster:"(.*?)"|is', $_carry, $poster);
-    preg_match('|file:"(.*?)"|is', $_carry, $file);
-    preg_match('|Длительность: <b>(.*?)</b>|is', $_carry, $duration);
+    // Duration
+    $duration = '05:00';
+    if (preg_match("|<i class=\"fa fa-clock-o\"></i>\s*<b>(.*?)</b>|is", $html, $m)) {
+        $duration = trim($m[1]);
+    }
 
-    $name[1][0] = preg_replace("/('|\"|\r?\n)/", '', $name[1][0]);
-    $description[1][1] = preg_replace("/('|\"|\r?\n)/", '', $description[1][1]);
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1][0])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1][0])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'mobolto.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
+    // Poster
+    $poster_url = '';
+    if (preg_match("|itemprop=\"thumbnailUrl\" href=\"(.*?)\"|is", $html, $m)) {
+        $poster_url = trim($m[1]);
+    } elseif (preg_match("|poster:\"(.*?)\"|is", $html, $m)) {
+        $poster_url = trim($m[1]);
+    }
+    if (!empty($poster_url) && strpos($poster_url, 'http') !== 0) {
+        $poster_url = 'https://uzbxx.ru' . ltrim($poster_url, '/');
+    }
 
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
+    // Stream / File URL
+    $video_src = '';
+    if (preg_match("|file:\"(.*?)\"|is", $html, $m)) {
+        $video_src = trim($m[1]);
+    } elseif (preg_match("|https://uzbxx.ru/video_online\?id=[0-9]+|is", $html, $m)) {
+        $video_src = $m[0];
+    }
+    if (empty($video_src)) {
+        $video_src = $video_url;
+    }
 
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
+    // Description
+    $desc = $title;
+    if (preg_match("|itemprop=\"description\" content=\"(.*?)\"|is", $html, $m)) {
+        $desc = trim($m[1]);
+    }
 
-    $yd = yd_upload_file($file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
+    // Tags
+    $tags_arr = [];
+    if (preg_match_all("|<a href=\"https://uzbxx.ru/tags/[^\"]+\"><i class=\"fa fa-tags\"></i>\s*(.*?)</a>|is", $html, $m)) {
+        $tags_arr = array_map('trim', $m[1]);
+    }
+    $tags_str = !empty($tags_arr) ? implode(' ', $tags_arr) : 'узбек секс uzbekcha';
 
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
+    // Category
+    $category_id = $manual_cat;
+    if ($category_id == 0) {
+        $def_cat = $mysqli->query("SELECT id FROM ero_categories ORDER BY id ASC LIMIT 1")->fetch_assoc();
+        $category_id = $def_cat['id'] ?? 1;
+    }
 
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
+    // Fayl nomi va translit
+    $rand_id = rand(100, 9999);
+    $md5 = md5(microtime(true) . $rand_id);
+    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
+    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
+
+    // Poster saqlash
+    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
+    $save_img_path = $_SERVER['DOCUMENT_ROOT'] . $local_screenshot;
+    if (!empty($poster_url)) {
+        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+    }
+
+    $final_address = $video_src;
+    $embed_code = '';
+
+    // Yuklab olish rejimi bo'lsa
+    if ($save_mode == 'download') {
+        $mp4_data = parser_get_html($video_src);
+        if (!empty($mp4_data) && strlen($mp4_data) > 10000) {
+            $local_video = '/content/video/' . $md5 . '.mp4';
+            file_put_contents($_SERVER['DOCUMENT_ROOT'] . $local_video, $mp4_data);
+            $final_address = $local_video;
+        }
+    }
+
+    $now = time();
+    $sql = "INSERT INTO ero_files (
+        name, description, screenshot, recoil, tags, translit, duration, downloads, 
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+    ) VALUES (
+        '".mysqli_real_escape_string($mysqli, $title)."',
+        '".mysqli_real_escape_string($mysqli, $desc)."',
+        '".mysqli_real_escape_string($mysqli, $local_screenshot)."',
+        '".mysqli_real_escape_string($mysqli, $final_address)."',
+        '".mysqli_real_escape_string($mysqli, $tags_str)."',
+        '".mysqli_real_escape_string($mysqli, $translit)."',
+        '".mysqli_real_escape_string($mysqli, $duration)."',
+        '0',
+        'uzbxx.ru',
+        '".mysqli_real_escape_string($mysqli, $final_address)."',
+        '".mysqli_real_escape_string($mysqli, $uniqueness)."',
+        '$category_id',
+        '0',
+        '$now',
+        '0',
+        'parser',
+        '0',
+        '".mysqli_real_escape_string($mysqli, $embed_code)."'
+    )";
+
+    if ($mysqli->query($sql)) {
+        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
     } else {
-    
-    $recoil = '/view_'. $translit;
-    
+        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
     }
-    
-    $sample = $description[1][1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-    
-    if ($_POST['translate'] == 2) {
-        
-        $description[1][1] = translate($description[1][1], 'ru', 'en');
-        $name[1][0] = translate($name[1][0], 'ru', 'en');
+}
+
+// uzporno.website dan bitta videoni parslash
+function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S) {
+    $html = parser_get_html($video_url);
+    if (empty($html) || strlen($html) < 200) {
+        return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
     }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'mobolto.com', tags = '".tags($description[1][1])."', name = '".$name[1][0]."', description = '".$description[1][1]."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-    
-    $collected++;
-    
+
+    // JSON-LD VideoObject
+    $title = '';
+    $desc = '';
+    $poster_url = '';
+    $embed_url = '';
+    $duration = '05:00';
+
+    if (preg_match("|<script type=[\"\\\x27]application/ld\+json[\"\\\x27]>(.*?)</script>|is", $html, $m_json)) {
+        $json_data = json_decode($m_json[1], true);
+        if ($json_data) {
+            $title = $json_data['name'] ?? '';
+            $desc = $json_data['description'] ?? '';
+            $poster_url = $json_data['thumbnailUrl'][0] ?? '';
+            $embed_url = $json_data['embedUrl'] ?? '';
+            $dur_raw = $json_data['duration'] ?? '';
+            if (preg_match("|PT([0-9]+)S|i", $dur_raw, $m_sec)) {
+                $s = intval($m_sec[1]);
+                $duration = sprintf("%02d:%02d", floor($s / 60), $s % 60);
+            }
+        }
     }
-    
-    sleep($_POST['delay']);
-    
+
+    if (empty($title)) {
+        if (preg_match("|<div class=\"xxxhd-title-top\">.*?<h1>(.*?)</h1>|is", $html, $m)) {
+            $title = trim(strip_tags($m[1]));
+        } elseif (preg_match("|<title>(.*?)</title>|is", $html, $m)) {
+            $title = trim(strip_tags($m[1]));
+        }
     }
-    
+
+    $title = preg_replace("/('|\"|\r?\n)/", '', $title);
+    if (empty($title)) {
+        return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
-    
-    } else if ($_POST['server'] == 1) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('damy', 
-    'konchil-v-pizdu', 
-    '18-let', 
-    'macheha', 
-    'zhestkoe', 
-    'domashnee', 
-    'starushki', 
-    'telki', 
-    'sborniki', 
-    'gruppovoe', 
-    'kiska', 
-    'vanal', 
-    's-chernymi',
-    'krupnym-planom', 
-    'na-ulice', 
-    'izmena-zheny', 
-    'blondinki', 
-    'ogromnye-siski', 
-    'negrityanki', 
-    'Cheshskoe-porno', 
-    'na-grud', 
-    'hd-video', 
-    'rvotnye-dvizheniya', 
-    'dildo', 
-    'negry', 
-    'Erotika', 
-    'verhovaja-ezda', 
-    'kasting'
-    );
 
-    $array = array_rand($categories, 2);
+    $uniqueness = md5($title);
+    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
+    if ($check_exist && $check_exist->num_rows > 0) {
+        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>"];
+    }
 
-    $_carry = file_get_contents('https://pornomir.tv/'.$categories[$array[0]].'/');
+    if (empty($poster_url)) {
+        if (preg_match("|data-original=\"(https://uzporno.website/files/screens/[^\"]+)\"|i", $html, $m)) {
+            $poster_url = $m[1];
+        }
+    }
 
-    preg_match('|<div class="previews-block">(.*?)<div class="text-desc-block">|is', $_carry, $previews);
-    preg_match_all('|<div class="preview-block">(.*?)<div class="preview-block">|is', $previews[1], $video);
+    if (empty($embed_url)) {
+        if (preg_match("|src=\"(https://uzporno.website/embed/[^\"]+)\"|i", $html, $m)) {
+            $embed_url = $m[1];
+        }
+    }
 
-    $array = rand(1, 40);
+    $tags_str = 'узбек секс uzbekcha uyatli video uzporno';
 
-    preg_match('|<div class="preview-name"><span>(.*?)</span></div>|is', $video[1][$array], $name);
-    preg_match('|data-original="(.*?)"|is', $video[1][$array], $poster);
-    preg_match('|<a href="(.*?)">|is', $video[1][$array], $link);
-    preg_match('|<div class="preview-dur-value">(.*?)</div>|is', $video[1][$array], $duration);
-    
-    $duration[1] = str_replace('<i class="fa fa-clock-o"></i>', '', $duration[1]);
-    $duration[1] = str_replace('<span>', '', $duration[1]);
-    $duration[1] = str_replace('</span>', '', $duration[1]);
-    $duration[1] = str_replace(' ', '', $duration[1]);
-    
-    $_carry = file_get_contents('https://pornomir.tv'.$link[1]);
+    // Category
+    $category_id = $manual_cat;
+    if ($category_id == 0) {
+        $def_cat = $mysqli->query("SELECT id FROM ero_categories ORDER BY id ASC LIMIT 1")->fetch_assoc();
+        $category_id = $def_cat['id'] ?? 1;
+    }
 
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-        
-    if (strripos($_carry, 'video/mp4') and !strripos($file[1], 'видео')){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pornomir.tv'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('https://pornomir.tv'.$poster[1]));
+    $rand_id = rand(100, 9999);
+    $md5 = md5(microtime(true) . $rand_id);
+    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
+    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
 
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
+    // Poster saqlash
+    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
+    $save_img_path = $_SERVER['DOCUMENT_ROOT'] . $local_screenshot;
+    if (!empty($poster_url)) {
+        parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+    }
 
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
+    $final_address = !empty($embed_url) ? $embed_url : $video_url;
+    $now = time();
 
-    $yd = yd_upload_file($file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
+    $sql = "INSERT INTO ero_files (
+        name, description, screenshot, recoil, tags, translit, duration, downloads, 
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+    ) VALUES (
+        '".mysqli_real_escape_string($mysqli, $title)."',
+        '".mysqli_real_escape_string($mysqli, $desc)."',
+        '".mysqli_real_escape_string($mysqli, $local_screenshot)."',
+        '".mysqli_real_escape_string($mysqli, $final_address)."',
+        '".mysqli_real_escape_string($mysqli, $tags_str)."',
+        '".mysqli_real_escape_string($mysqli, $translit)."',
+        '".mysqli_real_escape_string($mysqli, $duration)."',
+        '0',
+        'uzporno.website',
+        '".mysqli_real_escape_string($mysqli, $final_address)."',
+        '".mysqli_real_escape_string($mysqli, $uniqueness)."',
+        '$category_id',
+        '0',
+        '$now',
+        '0',
+        'parser',
+        '0',
+        '".mysqli_real_escape_string($mysqli, $embed_url)."'
+    )";
 
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
+    if ($mysqli->query($sql)) {
+        return ['status' => 'success', 'message' => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a>"];
     } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'pornomir.tv', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".$name[1]."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    } else if ($_POST['server'] == 2) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-      
-    $categories = array('Analqnyj_seks', 
-    'Blondinki', 
-    'Bolqshie_sisqki', 
-    'Bolqshim_chlenom', 
-    'Bryunetki', 
-    'Gruppovoe', 
-    'Minet_i_otsos', 
-    'Molodyee_devki', 
-    'Russkoe_porno');
-
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('http://pornoraketa.tv/category/'.$categories[$array[0]].'/page'.rand(1, 10));
-
-    preg_match("|<div class='sizepole'>(.*?)<div class='nextblock'>|is", $_carry, $category);
-    preg_match_all("|<a href='(.*?)'>|is", $category[1], $page);
-    preg_match_all("|<img src='(.*?)'|is", $category[1], $poster);
-
-    $array = rand(0, 19);
-
-    $_carry = file_get_contents('http://pornoraketa.tv'.$page[1][$array]);
-
-    if (strripos($_carry, 'likpole')){
-
-    preg_match("|<h1 class='toptx'>(.*?)</h1>|is", $_carry, $name);
-    preg_match("|a class='skachka' href='(.*?)'><img src='css/img/dwlv.png'> Скачать HD <span class='skcount'>|is", $_carry, $file);
-    preg_match("|<img src='css/img/durdl.png'>(.*?)</span>|is", $_carry, $duration);
-    
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pornoraketa.tv'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('http://pornoraketa.tv'.$poster[1][$array]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('http://pornoraketa.tv/'.$file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('http://pornoraketa.tv/'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-
-    $sample = $name[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'http://pornoraketa.tv/".$file[1]."', server = 'pornoraketa.tv', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".$name[1]."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-
-    }
-        
-    }
-    
-    } else if ($_POST['server'] == 4) {
-    
-    $start = rand(1, 900);
-    $collected = 0;
-    
-    for($go = $start; $go < ($start + $_POST['results']); $go++){
-
-    $_carry = file_get_contents('http://airporno.ru/views/'.$go.'/');
-    
-    preg_match('|<h1 class="htit">(.*?)</h1>|is', $_carry, $name);
-    
-    if (strripos($_carry, 'source') or !strripos($name[1], 'href')){
-    
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    preg_match('|poster="(.*?)"|is', $_carry, $poster);
-    preg_match('|Время:(.*?)<br />|is', $_carry, $duration);
-    
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'airporno.ru'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file($file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-    
-    $duration = trim($duration[1]);
-    
-    if (strlen($duration) == 4) $duration = '0'.$duration;
-    
-    $sample = $name[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'airporno.ru', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".$name[1]."', translit = '$translit', duration = '$duration', date = '$publish'");
-    
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);    
-    
-    }
-    
-    }
-    
-    } else if ($_POST['server'] == 5) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-
-    $categories = array(
-    'azerbaydjanskoe_porno', 
-    'arabskoe_porno', 
-    'kavkazskoe_porno', 
-    'kazahskoe_porno', 
-    'kirgizskoe_porno', 
-    'russkoe_porno', 
-    'tadjikskoe_porno', 
-    'turetskoe_porno', 
-    'uzbekskiy_seks', 
-    'chechenskoe_porno', 
-    'yakutskoe_porno'
-    );
-
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://pizdauz.ru/'.$categories[$array[0]].'/?page='.rand(1, 20));
-
-    preg_match('|<div class="etoall">(.*?)<div class="cleaning"></div>|is', $_carry, $_all);
-    preg_match_all('|<a(.*?)</a>|is', $_all[1], $_url);
-    
-    $_arr = $_url[0][rand(0, 19)];
-    
-    preg_match('|<a href="(.*?)"|is', $_arr, $_link);
-    preg_match('|title="(.*?)"|is', $_arr, $name);
-    preg_match('|<img src="(.*?)"|is', $_arr, $poster);
-    preg_match('|<div class="etodur">(.*?)</div>|is', $_arr, $duration);
-    
-    $_carry = file_get_contents($_link[1]);
-    
-    preg_match('|<div class="etoinfodate">Описание:(.*?)</div>|is', $_carry, $description);
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-
-    if (strripos($_carry, 'source')){
-
-    preg_match('|<meta property="og:image" content="(.*?)"|is', $_carry, $poster);
-    preg_match('|<meta property="og:title" content="(.*?)"|is', $_carry, $name);
-    preg_match('|<b>Длительность</b>:(.*?)<br />|is', $_carry, $duration);
-    preg_match('|<meta name="description" content="(.*?)"|is', $_carry, $description);
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pizdauz.ru'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file($file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-    
-    $sample = trim($description[1]);
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate(trim($description[1]), 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'pizdauz.ru', tags = '".tags(trim($description[1]))."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;
-
-    }
-    
-    }
-    
-    sleep($_POST['delay']);    
-    
-    }
-    
-    } else if ($_POST['server'] == 6) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-
-    $categories = array('1080p', 
-    '18yearsold', 
-    '3way', 
-    'absolutely', 
-    'american', 
-    'amateur-xxx', 
-    'anal-fuck', 
-    'asian', 
-    'babes', 
-    'bath', 
-    'best-blowjob-video', 
-    'bed', 
-    'big-black-dick', 
-    'boy', 
-    'brasil', 
-    'check', 
-    'club', 
-    'dad', 
-    'dando', 
-    'freckles', 
-    'girl-fuck', 
-    'hair', 
-    'hard-porn', 
-    'hidden', 
-    'lesbian', 
-    'mallu', 
-    '18-porn', 
-    'amatuer-videos', 
-    'anal-licking', 
-    'argentina', 
-    'all', 
-    'big',
-    'arab',
-    'bikini',
-    'russian',
-    'france',
-    'office',
-    'morrita',
-    'solo',
-    'woman-fucking', 
-    'vip',
-    'xxx',
-    'webcamchat',
-    'top',
-    'throat',
-    'student',
-    'real-sex',
-    'realsex',
-    'rabo'
-    );
-
-    $array = array_rand($categories, 2);
-    
-    $_carry = file_get_contents('https://www.xnxx.com/tags/'.$categories[$array[0]].'/'.rand(1, 30).'/');
-    
-    preg_match('|<div class="mozaique">(.*?)<div class="pagination ">|is', $_carry, $url);
-    preg_match_all('|<a href="(.*?)"|is', $url[1], $out);
-    
-    $_carry = file_get_contents('https://www.xnxx.com'.$out[1][rand(0, 70)]);
-
-    preg_match('|<title>(.*?)</title>|is', $_carry, $name);
-    preg_match('|setVideoUrlLow(.*?)html5player|is', $_carry, $file);
-    preg_match('|<span class="metadata">(.*?)</span>|is', $_carry, $duration);
-    preg_match('|<meta property="og:image" content="(.*?)"|is', $_carry, $poster);
-        
-    $file[0] = str_replace("setVideoUrlLow('", '', $file[0]);
-    $file[0] = str_replace("');", '', $file[0]);
-    $file[0] = str_replace('html5player', '', $file[0]);
-    $name[1] = str_replace(' - XNXX.COM', '', $name[1]);
-    $duration[1] = preg_replace('|min(.*?)hits|is', '', $duration[1]);
-    $duration[1] = str_replace(' ', ':'.rand(10,20), $duration[1]);
-    $duration[1] = preg_replace('|-(.*?)p|is', '', $duration[1]);
-    
-    if (strripos($_carry, '<span class="metadata">')){
-    
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'xnxx.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[0]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents(trim($file[0])));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-    
-    $sample = trim($name[1]);
-    
-    if (mb_strlen(trim($duration[1])) == 5) {
-    
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".trim($file[0])."', server = 'xnxx.com', tags = '".tags(trim($name[1]))."', name = '".$name[1]."', description = '".$name[1]."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;
-        
-    }
-
-    }
-    
-    }
-    
-    sleep($_POST['delay']);    
-    
-    }
-    
-    } else if ($_POST['server'] == 7) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-	$categories = array('porno-v-hd', 
-    'aziatki', 
-    'bolshaya-grud', 
-    'bolshie-chleny', 
-    'gey-porno', 
-    'gruppovoe-porno', 
-    'domashnee-porno', 
-    'zadnicy', 
-    'zrelye', 
-    'iznasilovanie', 
-    'lesbiyanki', 
-    'mamashi', 
-    'masturbaciya',
-    'mezhrasovoe-porno', 
-    'minet', 
-    'russkoe-porno', 
-    'skvirt', 
-    'fisting', 
-    'chernye'
-    );
-
-    $array = array_rand($categories, 2);
-    
-    $_carry = file_get_contents('http://pornolomka.mobi/'.$categories[$array[0]].'/page/'.rand(1, 30).'/');
-    
-    $_carry = iconv('windows-1251', 'UTF-8', $_carry);
-    
-    preg_match_all('|<article class="shortstory cf">(.*?)</article>|is', $_carry, $previews);
-    
-    $_article = $previews[0][rand(0, 18)];
-    
-    preg_match('|title="(.*?)"|is', $_article, $name);
-    preg_match('|<div class="video_time">(.*?)</div>|is', $_article, $duration);
-    preg_match('|<img src="(.*?)"|is', $_article, $poster);
-    preg_match('|<a href="(.*?)"|is', $_article, $link);
-    
-    $_carry = file_get_contents($link[1]);
-    
-    $_carry = iconv('windows-1251', 'UTF-8', $_carry);
-    
-    preg_match('|itemprop="description">(.*?)<br>|is', $_carry, $description);
-    preg_match('|url="(.*?)"|is', $_carry, $file);
-	
-	if (strripos($_carry, 'url=')){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pornolomka.mobi'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('http://pornolomka.mobi'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-    
-    if (strripos($description[1], 'dle')) $description[1] = $name[1];
-        
-    $sample = $description[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate($description[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'pornolomka.mobi', tags = '".tags(trim($description[1]))."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 8) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-    $categories = array(
-    'https://pornosto.com/yaponskoe/', 
-    'https://pornosto.com/v_chulkah/', 
-    'https://pornosto.com/hudye/', 
-    'https://pornosto.com/studencheskoe/', 
-    'https://pornosto.com/sekretarshi/', 
-    'https://pornosto.com/bryzgi_spermy/', 
-    'https://pornosto.com/spyaschie/', 
-    'https://pornosto.com/strapon/', 
-    'https://pornosto.com/tolstye/', 
-    'https://pornosto.com/pyanye/',
-    'https://pornosto.com/premium/',
-    'https://pornosto.com/pikap/',
-    'https://pornosto.com/orgii/',
-    'https://pornosto.com/orgazmy/',
-    'https://pornosto.com/chernokojie/',
-    'https://pornosto.com/publichnoe/',
-    'https://pornosto.com/na_prirode/',
-    'https://pornosto.com/masturbaciya/',
-    'https://pornosto.com/oralnoe/',
-    'https://pornosto.com/molodenkie/',
-    'https://pornosto.com/mulatki/',
-    'https://pornosto.com/aziatki/',
-    'https://pornosto.com/analnoe/',
-    'https://pornosto.com/bdsm/',
-    'https://pornosto.com/blondinki/',
-    'https://pornosto.com/bolshie_siski/',
-    'https://pornosto.com/bolshie_chleny/',
-    'https://pornosto.com/bryunetki/',
-    'https://pornosto.com/v_vannoi/',
-    'https://pornosto.com/gruppovoe/',
-    'https://pornosto.com/v_dva_stvola/',
-    'https://pornosto.com/domashnee/',
-    'https://pornosto.com/dominirovanie/',
-    'https://pornosto.com/drochat/'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents($categories[$array[0]].rand(1, 5));
-    
-    preg_match_all('|<div class="thumb">(.*?)</div>|is', $_carry, $_uri);
-    
-    $_go = $_uri[0][rand(0, 11)];
-    
-    preg_match('|alt="(.*?)"|is', $_go, $name);
-    preg_match('|href="(.*?)"|is', $_go, $_href); 
-    preg_match('|src="(.*?)"|is', $_go, $poster);
-    
-    $_carry = file_get_contents(trim($_href[1]));
-    
-    preg_match('|<div class="f-desc full-text clearfix" style="padding-top: 0px;">(.*?)</div>|is', $_carry, $description);
-    preg_match('|file:"(.*?)"|is', $_carry, $file);
-    preg_match('|Длительность:(.*?)Просмотров|is', $_carry, $duration);
-    
-    $duration[1] = str_replace('|', '', $duration[1]);
-    $duration[1] = str_replace(' ', '', $duration[1]);
-	
-	if (strripos($_carry, 'file:"')){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pornosto.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate($description[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'pornosto.com', tags = '".tags(trim($description[1]))."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 9) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-    $_carry = file_get_contents('http://www.russpornotube.com/'.rand(1, 1525).'/');
-
-    preg_match('|<div class="th-videos" id="list_videos_newest_videos_list">(.*?)<div id="list_videos_newest_videos_list_pagination" class="pager">|is', $_carry, $_uri);
-    preg_match_all('|<a href="(.*?)">|is', $_uri[0], $_get);
-
-    $_go = rand(0, 19);
-    $_carry = file_get_contents($_get[1][$_go]);
-
-    preg_match('|<title>(.*?)</title>|is', $_carry, $name);
-    preg_match('|<meta name="description" content="(.*?)"/>|is', $_carry, $description);
-    preg_match('|http://www.russpornotube.com/get_file/(.*?)480.mp4|is', $_carry, $file);
-    preg_match('|preview_url: \'(.*?).jpg|is', $_carry, $poster);
-    preg_match('|<span class="dur">(.*?)</span>|is', $_carry, $duration);
-
-    $duration[1] = str_replace(' м. ', ':', $duration[1]);
-    $duration[1] = str_replace('с', '', $duration[1]);
-	$duration[1] = trim($duration[1]);
-	
-	if (strripos($_carry, 'preview_url:')){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'russpornotube.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1].'.jpg'));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[0]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[0]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate($description[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[0]."', server = 'russpornotube.com', tags = '".tags(trim($description[1]))."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 10) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-    $categories = array('porno-hd-720p', 
-    'amerikan_porn', 
-    'gang-bang', 
-    'incest-amerikanskiy', 
-    'bolshie-siski', 
-    'gruppovuha', 
-    'porno_2018', 
-    'porno-4k-ultra-full-hd', 
-    'anal', 
-    'domashnee', 
-    'porno_2019', 
-    'chernye'
-    );
-    
-    $array = array_rand($categories, 2);
-    
-    $_carry = file_get_contents('http://rsuka.tv/'.$categories[$array[0]].'/page/'.rand(1, 50).'/');
-    
-    preg_match_all('|<div class="item">(.*?)<div class="item">|is', $_carry, $_uri);
-
-    $_go = $_uri[0][rand(0, 11)];
-
-    preg_match('|<div class="item-title">(.*?)</div>|is', $_go, $name);
-    preg_match('|href="(.*?)"|is', $_go, $_href); 
-    preg_match('|data-original="(.*?)"|is', $_go, $poster);
-    preg_match('|<div class="item-meta meta-time">(.*?)</div>|is', $_go, $duration);
-    
-    $_carry = file_get_contents(trim($_href[1]));
-    
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    
-	if (strripos($_carry, '<source src="') and !strripos($file[1], 'newstream') and $duration[1]){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'rsuka.tv'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'rsuka.tv', tags = '".tags(trim($name[1]))."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 11) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-    $categories = array('Domashnee-porno', 
-    'Analynyy-seks', 
-    'Arabskoe', 
-    'Aziatki', 
-    'Bolyshie-popy', 
-    'CHernokoghie', 
-    'Mulatki', 
-    'Blondinki', 
-    'Minet-i-sperma', 
-    'Bryunetki', 
-    'Bolyshie-sisyki', 
-    'V-mashine', 
-    'V-kolledghe',
-    'V-bolynice', 
-    'Tolstushki', 
-    '2-devki-i-pareny', 
-    'Trahayutsya-tolpoy', 
-    'Gruppovuha', 
-    'Volosatye', 
-    'Hardkor-seks', 
-    'Indiyskoe', 
-    'Latinskoe', 
-    'Lesbiyanki', 
-    'Belye-i-chulki', 
-    'Zrelye-ghenschiny', 
-    'Mamochki-GHeny', 
-    'V-ofise', 
-    'Starye-i-molodye',
-    'Vecherinki',
-    'Ryghie',
-    'Ot-pervogo-lica',
-    'Devushki-solo',
-    'Molodye-devushki',
-    'V-uniforme',
-    'Podglyadyvaniya',
-    'Vebkamery'
-    );
-
-    $array = array_rand($categories, 2);
-    
-    $_carry = file_get_contents('http://oxtube.tv/porno/'.$categories[$array[0]].'/'.rand(1, 13).'.html');
-    
-    preg_match_all('|<div class="video"><div>(.*?)<div class="video"><div>|is', $_carry, $_url);
-    
-    $array = rand(0, 23);
-
-    preg_match('|<span class="duration">(.*?)</span>|is', $_url[0][$array], $duration);
-    preg_match('|<a href="(.*?)"|is', $_url[1][rand(0, 9)], $_link);
-    
-    $_carry = file_get_contents(trim($_link[1].'?online=1'));
-    
-    preg_match('|<h1>(.*?)</h1>|is', $_carry, $name);
-    preg_match('|file:"(.*?)"|is', $_carry, $file);
-    preg_match('|poster:"(.*?)"|is', $_carry, $poster);
-    
-	if (strripos($_carry, 'poster:"') and $duration[1]){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'oxtube.tv'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'oxtube.tv', tags = '".tags(trim($name[1]))."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 12) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-	
-    $_carry = file_get_contents('http://hentai-x.ru/page-uncenz.php?id='.rand(1, 20));
-        
-    preg_match_all('|<table>(.*?)</table>|is', $_carry, $match);
-    
-    $i = $match[0][rand(1, 9)];
-        
-    preg_match("|src='(.*?)'|is", $i, $src);    #http://hentai-x.ru/
-    preg_match('|Описание хентая:</span></p>(.*?)</p>|is', $i, $description);
-    preg_match("|href = '(.*?)'|is", $i, $href);
-       
-    $description[1] = str_replace('<p>', '', $description[1]);
-        
-    $_carry = file_get_contents('http://hentai-x.ru/'.$href[1]);
-        
-    preg_match('|<title>(.*?)</title>|is', $_carry, $name);
-    preg_match('|"video": "(.*?)"|is', $_carry, $file);
-    preg_match('|Продолжительность:</span>(.*?)</p>|is', $_carry, $duration);
-    
-	if ($file[1] and $duration[1] and $name[1]){
-	
-	$md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'hentai-x.ru'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-	
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('http://hentai-x.ru/'.$src[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];
-    
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate($description[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'hentai-x.ru', tags = '".tags(trim($description[1]))."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-    
-    $collected++;	
-	
-	}
-	
-	}
-	
-	sleep($_POST['delay']);
-	
-	}
-	
-	} else if ($_POST['server'] == 13) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('hd', 
-    'aziatki', 
-    'analnyi_seks', 
-    'bolshie-siski/', 
-    'bolshie-chleny', 
-    'bukkake', 
-    'grybij_seks', 
-    'gruppovoj_seks', 
-    'domashnee_porno', 
-    'zrelye', 
-    'masturbaciya', 
-    'mezhrassovoe', 
-    'russkoe',
-    'sperma', 
-    'seks-igrushki', 
-    'tolstuhi'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://ebun.me/'.$categories[$array[0]].'/page/'.rand(1, 5).'/');
-    
-    preg_match_all('|<article class="shortstory cf">(.*?)</article>|is', $_carry, $article);
-    
-    $array = rand(1, 23);
-    
-    preg_match('|<div class="video_time">(.*?)</div>|is', $article[1][$array], $duration);
-    preg_match('|<img src="(.*?)"|is', $article[1][$array], $poster);
-    preg_match('|alt="(.*?)"|is', $article[1][$array], $name);
-    preg_match('|<a href="(.*?)"|is', $article[1][$array], $href);
-    
-    $_carry = file_get_contents($href[1]);
-    
-    preg_match('|file:"(.*?)"|is', $_carry, $file);
-    preg_match('|itemprop="description">(.*?)<script|is', $_carry, $description);
-    
-    if (strripos($_carry, 'file:')){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'ebun.me'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('https://ebun.me'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('https://ebun.me'.trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('https://ebun.me'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate(trim($description[1]), 'ru', 'en');
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'https://ebun.me".$file[1]."', server = 'ebun.me', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    } else if ($_POST['server'] == 14) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('pov', 
-    'anal', 
-    'blonde', 
-    'bigass', 
-    'bigtits', 
-    'big_cock', 
-    'brunette', 
-    'deep_throat', 
-    'long_hair', 
-    'zhmzh', 
-    'beauty', 
-    'cunnuslingo', 
-    'lesbians',
-    'masturbation', 
-    'interracial', 
-    'blowjob', 
-    'teen', 
-    'riding', 
-    'shavedpussy', 
-    'doggystyle', 
-    'cumshot', 
-    'creampie', 
-    'cumshots_face', 
-    'fingering', 
-    'hardkor', 
-    'skinnygirls', 
-    'kiss'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('http://vaginke.com/'.$categories[$array[0]].'/page'.rand(1, 20).'/');
-    
-    preg_match_all('|<div class="video"><div>(.*?)<div class="view">|is', $_carry, $_url);
-    
-    $_article = $_url[1][rand(1, 14)];
-    
-    preg_match('|alt="(.*?)"|is', $_article, $name);
-    preg_match('|<span class="duration">(.*?)</span>|is', $_article, $duration);
-    preg_match('|href="(.*?)"|is', $_article, $href);
-    
-    $_carry = file_get_contents('http://vaginke.com'.$href[1]);
-    
-    preg_match('|file":"(.*?)"|is', $_carry, $file);
-    preg_match('|poster":"(.*?)"|is', $_carry, $poster);
-    preg_match('|<div class="center"><div class="opisanie">(.*?)</div></div>|is', $_carry, $description);
-    
-    if (!$description[1]) $description[1] = $name[1];
-    
-    if (strripos($_carry, 'file":"')){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'vaginke.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate(trim($description[1]), 'ru', 'en');
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'vaginke.com', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    } else if ($_POST['server'] == 15) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('mom', 
-    'beautiful-girl', 
-    'mature', 
-    'teen', 
-    'japanese', 
-    'milf', 
-    'young', 
-    'russian', 
-    'beauty', 
-    'old-young', 
-    'anal-fuck', 
-    'housewife', 
-    'orgasm',
-    'amateur', 
-    'wife', 
-    'punishment', 
-    'public', 
-    'curvy', 
-    'chubby', 
-    'caught', 
-    'shemale', 
-    'asian', 
-    'compilation', 
-    'anal', 
-    'big-pussy', 
-    'big-ass', 
-    'interracial', 
-    'erotic', 
-    'whore-wives', 
-    'big-cock', 
-    'gorgeous', 
-    'gangbang', 
-    'cuckold', 
-    'tiny', 
-    'creampie', 
-    'threesome', 
-    'casting', 
-    'stockings', 
-    'lesbian', 
-    'dildo'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://xcafe.com/videos/'.$categories[$array[0]].'/'.rand(2, 20).'/');
-    
-    preg_match_all('|<li data-video(.*?)<li data-video|is', $_carry, $video);
-    
-    $array = rand(2, 48);
-    
-    preg_match('|alt="(.*?)"|is', $video[1][$array], $name);
-    preg_match('|<span class="time">(.*?)</span>|is', $video[1][$array], $duration);
-    preg_match('|<a href="(.*?)"|is', $video[1][$array], $href);
-    
-    $_carry = file_get_contents('https://xcafe.com'.$href[1]);
-    
-    preg_match('|<meta property="og:image" content="(.*?)"|is', $_carry, $poster);
-    preg_match('|<meta name="description" content="(.*?)"|is', $_carry, $description);
-    preg_match('|<source id="video_source_1" src="(.*?)"|is', $_carry, $file);
-    
-    if (strripos($_carry, 'og:image') and $poster[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'xcafe.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file(trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate(trim($description[1]), 'ru', 'en');
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'xcafe.com', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".$duration[1]."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 16) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-	$categories = array('incest', 
-    'big-tits', 
-    'pussy-licking', 
-    'teen', 
-    'big-dick', 
-    'squirting', 
-    'hardcore', 
-    'pornstars', 
-    'sex-at-work', 
-    'big-ass', 
-    'romantic', 
-    'mature', 
-    'anal',
-    'russian-porn', 
-    'groupsex', 
-    'creampie', 
-    'ebony', 
-    'cumshot', 
-    'lesbian', 
-    'blowjob', 
-    'brunette', 
-    'deep-throat', 
-    'pov', 
-    'blonde', 
-    'handjob'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://house.porn/category/'.$categories[$array[0]].'?page='.rand(2, 10));
-    
-    preg_match_all('|<div class="item">(.*?)<div class="item">|is', $_carry, $video);
-    
-    $array = rand(1, 23);
-    
-    preg_match('|alt="(.*?)"|is', $video[1][$array], $name);
-    preg_match('|<img src="/themes/web/images/timer.png" alt=""/>(.*?)</div>|is', $video[1][$array], $duration);
-    preg_match('|<a href="(.*?)"|is', $video[1][$array], $href);
-    
-    $_carry = file_get_contents('https://house.porn'.$href[1]);
-    
-    preg_match('|<meta property="og:image" content="(.*?)"|is', $_carry, $poster);
-    preg_match('|itemprop="description">(.*?)<br/><br/>|is', $_carry, $description);
-    preg_match('|<source data-fluid-hd src="(.*?)"|is', $_carry, $file);    #https://house.porn
-    
-    if (strripos($_carry, 'og:image') and $poster[1] and $name[1] and $description[1] and $file[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'house.porn'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('https://house.porn'.trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('https://house.porn'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1] = translate(trim($description[1]), 'ru', 'en');
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'https://house.porn".$file[1]."', server = 'house.porn', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 17) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('Aziatki', 
-    'Anal', 
-    'Armyanki', 
-    'BDSM', 
-    'Blondinki', 
-    'Bolqshie_sisqki', 
-    'Bolqshoj_chlen', 
-    'Bryunetki', 
-    'Veb-kamery', 
-    'Vo_vse_mesta', 
-    'Gej', 
-    'Glotaet_spermu', 
-    'Gruppovuha', 
-    'MZHM', 
-    'ZHMZH', 
-    'Dvojnoe_proniknovenie', 
-    'ZHeny', 
-    'ZHestkij_seks', 
-    'Zrelyee_zhenwincy', 
-    'Seks_igrushki', 
-    'Izmena', 
-    'Incest', 
-    'Konchayut_vnutrq', 
-    'Krasivoe', 
-    'Krupnym_planom', 
-    'Kuni', 
-    'Lesbi', 
-    'Domashnee', 
-    'Massazh_i_seks', 
-    'Minet', 
-    'Molodyee', 
-    'Na_kablukah', 
-    'Na_prirode', 
-    'POV', 
-    'Negry', 
-    'Pqyanyee', 
-    'CHulki', 
-    'Hudyee', 
-    'Seks_stoya', 
-    'Transvestity', 
-    'Tolstushki', 
-    'Sportsmenki', 
-    'Sperma_v_rot', 
-    'Skvirtuyuwie', 
-    'Ryzhenqkie', 
-    'Russkoe');
-
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('http://porno-kisa.com/category/'.$categories[$array[0]]);
-    
-    preg_match_all("|<div class='kisakshka'>(.*?)<div class='kisakshka'>|is", $_carry, $view);
-    
-    $array = rand(2, 20);
-    
-    preg_match("|<a href='(.*?)'>|is", $view[1][$array], $href);
-    
-    $_carry = file_get_contents('http://porno-kisa.com'.$href[1]);
-    
-    preg_match("|file:'(.*?)',|is", $_carry, $file);    #http://porno-kisa.com
-    preg_match("|<title>(.*?)</title>|is", $_carry, $name);
-    preg_match("|poster:'(.*?)',|is", $_carry, $poster);  #http://porno-kisa.com
-    preg_match("|<p><span>Длительность:(.*?)</span><span>|is", $_carry, $duration);
-    
-    if (strripos($_carry, 'file:') and $poster[1] and $name[1] and $duration[1] and $file[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'porno-kisa.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('http://porno-kisa.com'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('http://porno-kisa.com'.trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('http://porno-kisa.com'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'http://porno-kisa.com".$file[1]."', server = 'porno-kisa.com', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 18) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('Ferro-Network', 
-    'HD', 
-    'anal', 
-    'bdsm', 
-    'aziatki', 
-    'bolshie-zadnitsyi', 
-    'bolshie-siski', 
-    'bolshie-chlenyi', 
-    'gruppovoe', 
-    'domashnee-porno', 
-    'zrelyie', 
-    'intsest', 
-    'konchil-vnutr',
-    'lesbiyanki', 
-    'mamki', 
-    'masturbatsiya', 
-    'mejrassovoe-porno', 
-    'minet', 
-    'molodenkie-devochki', 
-    'molodyie-i-zrelyie', 
-    'nijnee-bele', 
-    'chastnoe-porno', 
-    'russkoe-porno', 
-    'porno-s-igrushkami', 
-    'russkoe-porno', 
-    'chastnoe-porno', 
-    'tolstuhi', 
-    'cheshskoe-porno'
-    );
-
-    $pages = array('0', '12', '24', '36', '48', '60', '72', '84', '96', '108', '120');
-    $array = array_rand($categories, 2);
-    $page = array_rand($pages, 2);
-    
-    $_carry = file_get_contents('https://zajka.org/cat/'.$categories[$array[0]].'/'.$pages[$page[0]]);
-    
-    preg_match_all('|<div class="tumb"><div>(.*?)<div class="views">|is', $_carry, $previews);
-    
-    $_carry = $previews[1][rand(1, 11)];
-    
-    preg_match('|<a href="(.*?)"|is', $_carry, $href);
-    preg_match('|<span>(.*?)</span>|is', $_carry, $name);
-    preg_match('|<span class="duration">(.*?)</span>|is', $_carry, $duration);
-    preg_match('|<img src="(.*?)"|is', $_carry, $poster);   #   https://zajka.org   $poster[1]
-    
-    $_carry = file_get_contents('https://zajka.org'.$href[1]);
-    
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    preg_match_all('|<div class="main">(.*?)</div>|is', $_carry, $description); #   $description[1][1]
-    
-    if (strripos($_carry, '<source') and $poster[1] and $name[1] and $duration[1] and $file[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'zajka.org'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('https://zajka.org'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('https://zajka.org'.trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('https://zajka.org'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $description[1][1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        $description[1][1] = translate($description[1][1], 'ru', 'en');
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'https://zajka.org".$file[1]."', server = 'zajka.org', tags = '".tags($description[1][1])."', name = '".$name[1]."', description = '".trim($description[1][1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 19) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('52', '62', '72', '133', '59', '129', '17', '87', '98', '28', '27', '36', '114', '109', '104', '130', '94', '74', '54', '29', '24', '9', '5', '23', '10', '15', '135', '30', '40', '50', '60', '80', '85', '90', '110', '88', '124', '51', '6', '21', '46', '42', '26', '31');
-    
-    $array = array_rand($categories, 2);
-    
-    $_carry = file_get_contents('http://gig.porn/c/'.$categories[$array[0]].'/'.rand(2, 30).'/');
-    $_carry = preg_replace('|<script(.*?)</script>|is', '', $_carry);
-    
-    preg_match_all('|<div class="v sz"(.*?)<div class="v sz"|is', $_carry, $previews);
-    
-    $_carry = $previews[0][rand(0, 11)];
-    
-    preg_match('|src="(.*?)"|is', $_carry, $poster);
-    preg_match('|href="(.*?)"|is', $_carry, $href);
-    preg_match('|</span>(.*?)</b>|is', $_carry, $duration);
-    
-    $duration[1] = str_replace('/', '', $duration[1]);
-    
-    $_carry = file_get_contents('http://gig.porn'.$href[1]);
-    $_carry = preg_replace('|<script(.*?)</script>|is', '', $_carry);
-
-    preg_match('|<h1>(.*?)</h1>|is', $_carry, $name);
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    
-    $name[1] = preg_replace('/([0-9|#][\x{20E3}])|[\x{00ae}|\x{00a9}|\x{203C}|\x{2047}|\x{2048}|\x{2049}|\x{3030}|\x{303D}|\x{2139}|\x{2122}|\x{3297}|\x{3299}][\x{FE00}-\x{FEFF}]?|[\x{2190}-\x{21FF}][\x{FE00}-\x{FEFF}]?|[\x{2300}-\x{23FF}][\x{FE00}-\x{FEFF}]?|[\x{2460}-\x{24FF}][\x{FE00}-\x{FEFF}]?|[\x{25A0}-\x{25FF}][\x{FE00}-\x{FEFF}]?|[\x{2600}-\x{27BF}][\x{FE00}-\x{FEFF}]?|[\x{2900}-\x{297F}][\x{FE00}-\x{FEFF}]?|[\x{2B00}-\x{2BF0}][\x{FE00}-\x{FEFF}]?|[\x{1F000}-\x{1F6FF}][\x{FE00}-\x{FEFF}]?/u', '', $name[1]);
-    $name[1] = str_replace('Видео: ', '', $name[1]);
-    
-    if (strripos($_carry, '<source') and $poster[1] and $name[1] and $duration[1] and $file[1] and $href[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'gig.porn'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('http://gig.porn'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('https://zajka.org'.trim($file[1]), 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'gig.porn', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 20) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('arabskoe_porno', 
-    'armyanskoe_porno', 
-    'gruzinskoe_porno', 
-    'domashnee_porno', 
-    'indiyskoe_porno', 
-    'kavkazskoe_porno', 
-    'kirgizskoe_porno', 
-    'raznoe_porno', 
-    'russkoe_porno', 
-    'tadjikskoe_porno', 
-    'turetskoe_porno', 
-    'uzbekskoe_porno', 
-    'tsyiganskoe_porno',
-    'chechenskoe_porno', 
-    'yaponskoe_porno'
-    );
-
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://uzbum.net/'.$categories[$array[0]].'/?page='.rand(1, 9));
-    
-    preg_match_all('|<div class="video"><div>(.*?)</div></div></div>|is', $_carry, $_url);
-    
-    $_carry = $_url[1][rand(0, 11)];
-    
-    preg_match('|<span>(.*?)</span>|is', $_carry, $name);
-    preg_match('|<span class="duration">(.*?)</span>|is', $_carry, $duration);
-    preg_match('|<a href="(.*?)">|is', $_carry, $href);
-    
-    $_carry = file_get_contents('https://uzbum.net'.$href[1]);
-    
-    preg_match('|<meta name="description" content="(.*?)"|is', $_carry, $description);
-    preg_match('|poster="(.*?)"|is', $_carry, $poster);
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    
-    if (strripos($_carry, '<source') and $poster[1] and $name[1] and $duration[1] and $file[1] and $href[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'uzbum.net'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file($file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $description[1] = translate($description[1], 'ru', 'en');
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1]."', server = 'uzbum.net', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 21) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('handjob', 'blonde', 'brunette', 'big-ass', 'big-tits', 'pov', 'interracial', 'deep-throat', 'sex-toys', 'students', 'tattoo', 'asian', 'redhead', 'romantic', 'outdoor', 'groupsex', 'masturbation', 'russian-porn', 'teen', 'family', 'big-dick', 'hardcore', 'cumshot', 'anal', 'pussy-licking', 'small-tits', 'blowjob', 'creampie', 'lesbian', 'mature', 'threesome', 'ebony');
-    $view_cat = $categories[rand(0, 29)];
-    $_carry = file_get_contents('https://lab.porn/category/'.$view_cat.'?page='.rand(1, 5));
-
-    preg_match_all('|<div class="item">(.*?)<div class="name">|is', $_carry, $item);
-
-    $_carry = $item[1][rand(1, 23)];
-
-    preg_match('|<a href="(.*?)"|is', $_carry, $href);
+        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
+    }
+}
+
+// POST amallarini bajarish
+$logs = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action_type = filter($_POST['action_type'] ?? '');
+    $donor = filter($_POST['donor'] ?? 'uzbxx');
+    $category_choice = abs(intval($_POST['category'] ?? 0));
+    $save_mode = filter($_POST['save_mode'] ?? 'stream');
+
+    if ($action_type === 'single_url') {
+        $single_url = trim($_POST['single_url'] ?? '');
+        if (empty($single_url)) {
+            $logs[] = ['status' => 'error', 'message' => 'Video havolasi kiritilmadi!'];
+        } else {
+            if (stripos($single_url, 'uzbxx.ru') !== false) {
+                $logs[] = parse_video_uzbxx($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+            } elseif (stripos($single_url, 'uzporno.website') !== false) {
+                $logs[] = parse_video_uzporno($single_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+            } else {
+                $logs[] = ['status' => 'error', 'message' => 'Noma‘lum havola! Faqat uzbxx.ru yoki uzporno.website havolalari qo‘llab-quvvatlanadi.'];
+            }
+        }
+    } elseif ($action_type === 'mass_parse') {
+        $page_num = max(1, abs(intval($_POST['page_num'] ?? 1)));
+        $limit_count = min(30, max(1, abs(intval($_POST['count'] ?? 10))));
+
+        if ($donor === 'uzbxx') {
+            $catalog_url = ($page_num == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/{$page_num}";
+            $cat_html = parser_get_html($catalog_url);
             
-    $_carry = file_get_contents('https://lab.porn'.$href[1]);
-            
-    preg_match('|poster="(.*?)"|is', $_carry, $poster);
-    preg_match('|<title>(.*?)</title>|is', $_carry, $name);
-    preg_match('|<div class="video_description" itemprop="description">(.*?)<br/>|is', $_carry, $description);
-    preg_match('|<source data-fluid-hd src="(.*?)"|is', $_carry, $file);
-    preg_match('|<div class="length"><img src="/themes/web/images/timer.png" alt=""/>(.*?)</div>|is', $_carry, $duration);
-            
-    $description[1]   = trim($description[1]);
-            
-    if (!$description[1]) $description[1]   = $title[1];
-    
-    if (strripos($_carry, '<source') and $poster[1] and $name[1] and $duration[1] and $file[1] and $href[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'lab.porn'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('https://lab.porn'.$poster[1]));
+            preg_match_all("|<a href=\"(https://uzbxx.ru/video/[^\"]+)\"|i", $cat_html, $matches);
+            $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
 
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
+            if (empty($video_links)) {
+                $logs[] = ['status' => 'error', 'message' => "uzbxx.ru katalogidan video havolalar topilmadi ($catalog_url)."];
+            } else {
+                $collected = 0;
+                foreach ($video_links as $v_url) {
+                    if ($collected >= $limit_count) break;
+                    $res = parse_video_uzbxx($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                    $logs[] = $res;
+                    if ($res['status'] === 'success') {
+                        $collected++;
+                    }
+                    usleep(300000); // 0.3s pauza
+                }
+            }
+        } elseif ($donor === 'uzporno') {
+            $catalog_url = ($page_num == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page_num}";
+            $cat_html = parser_get_html($catalog_url);
 
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-	if (5 > strlen($description[1])) $description[1] = $name[1];
-	
-    if ($_POST['mode'] == '2') {
+            preg_match_all("|<a href=\"(https://uzporno.website/video/[^\"]+)\"|i", $cat_html, $matches);
+            $video_links = !empty($matches[1]) ? array_unique($matches[1]) : [];
 
-    $yd = yd_upload_file('https://lab.porn'.$file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('https://lab.porn'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
+            if (empty($video_links)) {
+                $logs[] = ['status' => 'error', 'message' => "uzporno.website katalogidan video havolalar topilmadi ($catalog_url)."];
+            } else {
+                $collected = 0;
+                foreach ($video_links as $v_url) {
+                    if ($collected >= $limit_count) break;
+                    $res = parse_video_uzporno($v_url, $category_choice, $save_mode, $mysqli, $settings, $width_S, $height_S);
+                    $logs[] = $res;
+                    if ($res['status'] === 'success') {
+                        $collected++;
+                    }
+                    usleep(300000); // 0.3s pauza
+                }
+            }
+        }
     }
-        
-    $sample = $description[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
+}
+?>
 
-    if ($_POST['translate'] == 2) {
-        
-        $description[1] = translate($description[1], 'ru', 'en');
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'https://lab.porn".$file[1]."', server = 'lab.porn', tags = '".tags($description[1])."', name = '".$name[1]."', description = '".trim($description[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 22) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $_carry = file_get_contents('https://krutoeporno.com/?page='.rand(1, 13));
+<div class="functions_data">
+    <h2><i class="fa fa-cloud-download" style="color:#ff9900;"></i> Zamonaviy Video Parser (uzbxx.ru & uzporno.website)</h2>
+    <p style="color:#888; margin-top:4px;">Ushbu modul orqali uzbxx.ru va uzporno.website saytlaridan videolarni bir zumda saytingizga import qilishingiz mumkin.</p>
+</div>
 
-    preg_match_all('|<div class="item">(.*?)<div class="item">|is', $_carry, $item);
-
-    $array = rand(0, 19);
-
-    preg_match('|<div class="h2">(.*?)</div>|is', $item[1][$array], $name);
-    preg_match("|<a href='(.*?)'|is", $item[1][$array], $href);
-
-    $_carry = file_get_contents('https://krutoeporno.com'.$href[1]);
-
-    preg_match('|<source src="(.*?)"|is', $_carry, $file);
-    preg_match('|poster="(.*?)"|is', $_carry, $poster);
-    preg_match('|<img src="/style/ico/durdl.png"/>(.*?)<span|is', $_carry, $duration);
-
-    $duration[1] = trim($duration[1]);
-    
-    if (strripos($_carry, '<source') and $poster[1] and $name[1] and $duration[1] and $file[1] and $href[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'krutoeporno.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-        
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents('https://krutoeporno.com'.$poster[1]));
-
-    $image = new SimpleImage();
-    $image->load($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-    $image->resize($width_S, $height_S);
-    $image->save($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg');
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-	$yd_sql = 0;
-	
-    if ($_POST['mode'] == '2') {
-
-    $yd = yd_upload_file('https://lab.porn'.$file[1], 'mp4', $settings['OAuth']);
-    $recoil = $yd;
-    $yd_sql = 1;
-	
-    } else if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents('https://krutoeporno.com'.$file[1]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-        
-    $sample = $name[1];     
-        
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $description[1] = translate($description[1], 'ru', 'en');
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $mysqli -> query("INSERT INTO ero_files SET yd = '$yd_sql', category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = 'https://krutoeporno.com".$file[1]."', server = 'krutoeporno.com', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".trim($duration[1])."', date = '$publish'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }   else if ($_POST['server'] == 23) {
-    
-    $collected = 0;
-    
-    for($go = 0; $go < $_POST['results']; $go++){
-        
-    $categories = array('aziatki', 
-    'analnoe', 
-    'bdsm-i-fetish', 
-    'blondinki', 
-    'bolshie-siski', 
-    'bolshie-chleny', 
-    'brjynetki', 
-    'v-latekse', 
-    'v-losinah', 
-    'gruppovoj-seks', 
-    'dvojnoe-proniknovenie', 
-    'zhenskie-orgazmy', 
-    'zhestkoe-porno',
-    'zhopy', 
-    'zrelye-zhenschiny', 
-    'kastingi', 
-    'krasivoe-porno', 
-    'latinki', 
-    'lesbijanki', 
-    'ljybitelskoe', 
-    'mamochki', 
-    'massazh', 
-    'masturbacija', 
-    'minet', 
-    'molodye-devushki', 
-    'na-prirode', 
-    'na-rabote', 
-    'negry', 
-    'ot-pervogo-lica', 
-    'russkoe-porno', 
-    'ryzhye', 
-    'seks-igrushki', 
-    'sperma-kamshoty', 
-    'sportsmenki', 
-    'tolstye-devushki', 
-    'chulki'
-    );
-    
-    $array = array_rand($categories, 2);
-
-    $_carry = file_get_contents('https://pornopups.com/'.$categories[$array[0]].'/'.rand(1, 15).'/');
-    
-    preg_match_all('|<div class="thumb">(.*?)</span></span></a></div>|is', $_carry, $video);
-    
-    $array = rand(1, 10);
-    
-    preg_match('|title="(.*?)"|is', $video[1][$array], $name);
-    preg_match('|<span class="dl">(.*?)</span>|is', $video[1][$array], $duration);
-    preg_match('|href="(.*?)"|is', $video[1][$array], $href);
-    preg_match('|src="(.*?)"|is', $video[1][$array], $poster);
-    
-    $_carry = file_get_contents($href[1]);
-    
-    preg_match_all('|<a class="gbutm" href="(.*?)"|is', $_carry, $file); # $file[1][2];
-    
-    if ($poster[1]){
-        
-    $md5 = md5(rand(1, 9999).$go);
-    $translit = str_replace(' ', '_', transliterate($name[1])).'_'.rand(1, 9999);
-    $uniqueness = md5(str_replace(' ', '_', transliterate($name[1])));
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where uniqueness = '$uniqueness' and server = 'pornopups.com'") -> fetch_row();
-    
-    if ($quantity[0] == 0) {
-       
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', file_get_contents($poster[1]));
-
-    if ($settings['water'] == 1)
-	water($_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/content/screenshots/'.$md5.'.jpg', $_SERVER['DOCUMENT_ROOT'].'/designs/water.png');
-	
-    if ($_POST['mode'] == '0') {
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'].'/content/video/'.$md5.'.mp4', file_get_contents($file[1][2]));
-    
-    $recoil = '/content/video/'.$md5.'.mp4';
-    
-    } else {
-    
-    $recoil = '/view_'. $translit;
-    
-    }
-    
-	
-    $sample = $name[1];     
-
-    if ($_POST['selection'] == 0) $category = categories($sample); else $category = abs(intval($_POST['category']));
-
-    if ($_POST['translate'] == 2) {
-        
-        $name[1] = translate($name[1], 'ru', 'en');
-        
-    }
-    
-    $category = categories($sample);
-    
-    $mysqli -> query("INSERT INTO ero_files SET category = '$category', recoil = '$recoil', uniqueness = '$uniqueness', screenshot = '/content/screenshots/".$md5.".jpg', address = '".$file[1][2]."', server = 'pornopups.com', tags = '".tags($name[1])."', name = '".$name[1]."', description = '".trim($name[1])."', translit = '$translit', duration = '".$duration[1]."', date = '".time()."'");
-        
-    $collected++;
-    
-    }
-    
-    sleep($_POST['delay']);
-    
-    }
-    
-    }
-    
-    }
-    
-        $_SESSION['collected'] =   $collected;
-        
-        logs($user['id'], $lang['added'].' '.$collected.' '.$lang['video'].'.', 0);
-        
-    }
-    
-    unset($_SESSION['protective']);
-    
-    $_SESSION['protective'] = rand(10000, 999999);
-    
-    ?>
-    
-    <div class="functions_data">
-    
-    <?
-    
-    if ($_SESSION['collected']) {
-        
-    ?>
-
-        <p><span class="sample"><?=$lang['last_parsing_added']?> <?=$_SESSION['collected'];?> <?=$lang['video']?></span></p>
-        
-    <?
-    
-    }
-    
-    ?>
-    
-    <p>
-    
-    <form method="post">
-        
-	<p><b><?=$lang['number_of_files']?></b> </p>
-	
-	    <p>
-	    <input name="results" type="radio" value="1"> 1 
-	    <input name="results" type="radio" value="3"> 3 
-	    <input name="results" type="radio" value="5"> 5 
-	    <input name="results" type="radio" value="10" checked> 10 
-        <input name="results" type="radio" value="15"> 15 
-        <input name="results" type="radio" value="30"> 30 
-        </p>
-
-	<p><b><?=$lang['date_of_publication']?></b> </p>
-	
-	    <p>
-        <input class="injected" name="publish" type="date" value="<?=date('Y-m-d')?>" min="<?=date('Y-m-d', time())?>" max="2025-12-31">
-        </p>
-       
-    <p><b><?=$lang['server']?></b> </p>
-    
-        <p>
-	    <input name="server" type="radio" value="0" checked> <small>mobolto</small> 
-	    <input name="server" type="radio" value="1"> <small>pornomir</small> 
-        <input name="server" type="radio" value="2"> <small>pornoraketa</small> 
-        <input name="server" type="radio" value="4"> <small>airporno</small> 
-        <input name="server" type="radio" value="5"> <small>pizdauz</small> 
-        <input name="server" type="radio" value="6"> <small>xnxx</small> 
-        <input name="server" type="radio" value="7"> <small>pornolomka</small> 
-        <input name="server" type="radio" value="8"> <small>pornosto</small> 
-        <input name="server" type="radio" value="9"> <small>russpornotube</small> 
-        <input name="server" type="radio" value="10"> <small>rsuka</small> 
-        <input name="server" type="radio" value="11"> <small>oxtube</small> 
-        <input name="server" type="radio" value="12"> <small>hentai-x</small> 
-        <input name="server" type="radio" value="13"> <small>ebun</small> 
-        <input name="server" type="radio" value="14"> <small>vaginke</small> 
-        <input name="server" type="radio" value="15"> <small>xcafe</small> 
-        <input name="server" type="radio" value="16"> <small>house</small>
-        <input name="server" type="radio" value="17"> <small>porno-kisa</small>
-        <input name="server" type="radio" value="18"> <small>zajka</small>
-        <input name="server" type="radio" value="19"> <small>gig</small>
-        <input name="server" type="radio" value="20"> <small>uzbum</small>
-        <input name="server" type="radio" value="21"> <small>lab</small>
-        <input name="server" type="radio" value="22"> <small>krutoeporno</small>
-        <input name="server" type="radio" value="23"> <small>pornopups</small>
-        </p>
-
-    <p><b><?=$lang['category_selection']?></b> </p> 
-    
-        <p>
-	    <input name="selection" type="radio" value="0" checked> <?=$lang['automatically']?> 
-        <input name="selection" type="radio" value="1"> <?=$lang['select_manually']?>     
-        </p>
-
-	<p><b><?=$lang['category']?></b> </p>
-	
-	<p><select class="injected" name="category">
-	    
-	<?
-	
-    $query = $mysqli -> query("select id, name from ero_categories order by id asc");
-
-    while($row = $query -> fetch_assoc()){
-    
-    ?>
-        
-	<option value="<?=$row['id']?>" <?=($row['id']==$view['category']?" selected='selected'":null)?>><?=$row['name']?></option>
-
-    <?
-    
-    }
-    
-    ?>
-    
-	</select></p>
-	
-    <p><b><?=$lang['parsing']?>     </b> </p> 
-    
-        <p>
-	    <input name="mode" type="radio" value="0"> <?=$lang['download_files']?> <font color="red">*</font>
-        <input name="mode" type="radio" value="1" checked> <?=$lang['collect_links']?> 
-        <input name="mode" type="radio" value="2"> <?=$lang['upload_to_yd']?>  <font color="red">*</font>
-        </p>
-
-    <p><b><?=$lang['translate']?></b> </p> 
-    
-        <p>
-	    <input name="translate" type="radio" value="1" checked> <?=$lang['original']?>
-        <input name="translate" type="radio" value="2"> <?=$lang['translate_into_english']?>
-        </p>
-        
-    <p><b><?=$lang['delay']?></b> </p>
-    
-        <p>
-        <input name="delay" type="radio" value="3"> 3 <?=$lang['sek']?>. 
-        <input name="delay" type="radio" value="5"> 5 <?=$lang['sek']?>. 
-        <input name="delay" type="radio" value="7" checked> 7 <?=$lang['sek']?>. 
-        <input name="delay" type="radio" value="10"> 10 <?=$lang['sek']?>. 
-        <input name="delay" type="radio" value="30"> 30 <?=$lang['sek']?>.
-        </p>
-    
-    <p><b><?=$lang['code']?></b>  <small><?=abs(intval($_SESSION['protective']))?></small> </p>
-    
-	    <p><input type="number" name="protective" class="injected" /> </p>
-	
-	<input type="submit" class="byecos" value="<?=$lang['send']?>" />
-	
-	</form>
-
-    </p>
-    
-    <div align="right"><p><font color="red">* <?=$lang['excessive']?></font></p></div>
-    
+<?php if (!empty($logs)): ?>
+<div class="functions_data" style="background:#111; border:1px solid #ff9900; margin-bottom:15px;">
+    <h3 style="color:#ff9900; margin-bottom:10px;"><i class="fa fa-list-alt"></i> Natijalar jurnali:</h3>
+    <div style="max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+    <?php foreach ($logs as $log): ?>
+        <?php if ($log['status'] === 'success'): ?>
+            <div style="color: #28a745; margin-bottom: 4px;"><i class="fa fa-check-circle"></i> [Qo‘shildi] <?=$log['message']?></div>
+        <?php elseif ($log['status'] === 'skip'): ?>
+            <div style="color: #ffc107; margin-bottom: 4px;"><i class="fa fa-info-circle"></i> [O‘tkazildi] <?=$log['message']?></div>
+        <?php else: ?>
+            <div style="color: #dc3545; margin-bottom: 4px;"><i class="fa fa-times-circle"></i> [Xatolik] <?=$log['message']?></div>
+        <?php endif; ?>
+    <?php endforeach; ?>
     </div>
+</div>
+<?php endif; ?>
+
+<!-- 1. Yagona havola orqali import qilish -->
+<div class="functions_data" style="margin-bottom:15px;">
+    <h3><i class="fa fa-link" style="color:#ff9900;"></i> 1. Yagona havola (URL) orqali video qo‘shish</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:8px;">uzbxx.ru yoki uzporno.website dagi istalgan video sahifasi havolasini kiriting:</p>
+    <form method="post">
+        <input type="hidden" name="action_type" value="single_url" />
+        <p>
+            <input type="url" name="single_url" class="injected" placeholder="Masalan: https://uzbxx.ru/video/nomi/ yoki https://uzporno.website/video/nomi/" required style="width:100%; font-size:14px;" />
+        </p>
+        <p style="margin-top:8px;">
+            <b>Bo‘lim (Kategoriya):</b>
+            <select name="category" class="injected" style="width:250px; display:inline-block; margin-left:10px;">
+                <option value="0">-- Avtomatik --</option>
+                <?php
+                $cats_q = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
+                while ($c = $cats_q->fetch_assoc()) {
+                    echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
+                }
+                ?>
+            </select>
+            &nbsp;
+            <b>Rejim:</b>
+            <select name="save_mode" class="injected" style="width:200px; display:inline-block; margin-left:10px;">
+                <option value="stream" selected>Oqim (Stream / Embed)</option>
+                <option value="download">Serverga yuklash (MP4)</option>
+            </select>
+        </p>
+        <p style="margin-top:12px;">
+            <button type="submit" class="byecos"><i class="fa fa-download"></i> Videoni import qilish</button>
+        </p>
+    </form>
+</div>
+
+<!-- 2. Katalogdan ommaviy yuklash (Avto-grabber) -->
+<div class="functions_data">
+    <h3><i class="fa fa-tasks" style="color:#ff9900;"></i> 2. Katalogdan ommaviy parslash (Avto-grabber)</h3>
+    <p style="color:#888; font-size:12px; margin-bottom:8px;">Donor sayt katalogidan yangi videolarni avtomatik yig‘ib olish:</p>
+    <form method="post">
+        <input type="hidden" name="action_type" value="mass_parse" />
+        <p>
+            <b>Donor sayt:</b><br />
+            <label style="margin-right:20px; cursor:pointer;">
+                <input type="radio" name="donor" value="uzbxx" checked /> <b>uzbxx.ru</b> (UzbXX)
+            </label>
+            <label style="cursor:pointer;">
+                <input type="radio" name="donor" value="uzporno" /> <b>uzporno.website</b> (UzPorno)
+            </label>
+        </p>
+        <br />
+        <p>
+            <b>Katalog sahifasi raqami:</b>
+            <input type="number" name="page_num" value="1" min="1" max="100" class="injected" style="width:80px; display:inline-block; margin-left:10px;" />
+            <small style="color:#888;">(1 - eng yangilar, 2, 3... - oldingi sahifalar)</small>
+        </p>
+        <br />
+        <p>
+            <b>Yuklanadigan videolar soni:</b>
+            <select name="count" class="injected" style="width:120px; display:inline-block; margin-left:10px;">
+                <option value="5">5 ta video</option>
+                <option value="10" selected>10 ta video</option>
+                <option value="15">15 ta video</option>
+                <option value="20">20 ta video</option>
+            </select>
+        </p>
+        <br />
+        <p>
+            <b>Bo‘lim (Kategoriya):</b>
+            <select name="category" class="injected" style="width:250px; display:inline-block; margin-left:10px;">
+                <option value="0">-- Avtomatik --</option>
+                <?php
+                $cats_q2 = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY id ASC");
+                while ($c = $cats_q2->fetch_assoc()) {
+                    echo '<option value="'.$c['id'].'">'.$c['name'].'</option>';
+                }
+                ?>
+            </select>
+            &nbsp;
+            <b>Rejim:</b>
+            <select name="save_mode" class="injected" style="width:200px; display:inline-block; margin-left:10px;">
+                <option value="stream" selected>Oqim (Stream / Embed)</option>
+                <option value="download">Serverga yuklash (MP4)</option>
+            </select>
+        </p>
+        <br />
+        <p>
+            <button type="submit" class="byecos" onclick="return confirm('Parslash boshlansinmi? Bu bir necha soniya vaqt olishi mumkin.');">
+                <i class="fa fa-play"></i> Parslashni boshlash
+            </button>
+        </p>
+    </form>
+</div>

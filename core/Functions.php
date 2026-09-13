@@ -10,8 +10,8 @@ session_start();
 set_time_limit(0);
 ob_start();
 
-$protocol = stripos($_SERVER['SERVER_PROTOCOL'], 'https') === true ? 'https://' : 'http://';
-$version = 15.9;
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? 'https://' : 'http://';
+$version = 16.0;
 
 #Размеры скриншотов
 $width_S = 400;
@@ -25,7 +25,52 @@ if ($mysqli -> connect_error) {
     die('Error : ('. $mysqli -> connect_errno .') '. $mysqli -> connect_error);
 }
 
-mysqli_set_charset($mysqli, 'utf8');
+mysqli_set_charset($mysqli, 'utf8mb4');
+
+# Автоматическая инициализация необходимых таблиц
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_likes` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id_video` INT(11) NOT NULL,
+  `ip` VARCHAR(45) NOT NULL,
+  `type` ENUM('like','dislike') NOT NULL DEFAULT 'like',
+  `date` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `id_video` (`id_video`),
+  KEY `ip_video` (`id_video`, `ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_comments` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `id_video` INT(11) NOT NULL,
+  `author` VARCHAR(100) NOT NULL,
+  `text` TEXT NOT NULL,
+  `ip` VARCHAR(45) NOT NULL,
+  `date` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `id_video` (`id_video`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$check_cols = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'likes'");
+if ($check_cols && $check_cols->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `likes` INT(11) NOT NULL DEFAULT 0");
+}
+$check_dis = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'dislikes'");
+if ($check_dis && $check_dis->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `dislikes` INT(11) NOT NULL DEFAULT 0");
+}
+$check_embed = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'embed'");
+if ($check_embed && $check_embed->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `embed` TEXT NULL");
+}
+
+function time_ago($time) {
+    $diff = time() - $time;
+    if ($diff < 60) return 'hozirgina';
+    if ($diff < 3600) return floor($diff / 60) . ' daqiqa oldin';
+    if ($diff < 86400) return floor($diff / 3600) . ' soat oldin';
+    if ($diff < 2592000) return floor($diff / 86400) . ' kun oldin';
+    return date('d.m.Y', $time);
+}
 
 #Локализация
 
@@ -77,6 +122,7 @@ echo '
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 <link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css" />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
 <title>'.$title.'</title>
   </head>
   <body>
@@ -94,16 +140,16 @@ echo '
     </div>
     <div class="xxxhd-head-menu">
       <ul class="xxxhd-head-menu-buttons">
+        <li><a href="/"><i class="fa fa-home"></i> Bosh sahifa</a></li>
         <li><a href="/new.html"><i class="fa fa-calendar"></i> '.$lang['new'].'</a></li>
         <li><a href="/top.html"><i class="fa fa-fire"></i> '.$lang['popular'].'</a></li>
-        <li><a href="/favorites"><i class="fa fa-star"></i> '.$lang['chosen'].'('.$favorites[0].')</a></li>
-        <li><a href="/online.html"><i class="fa fa-users"></i> '.$lang['online'].' '.$visitors[0].'</a></li>
-        <li><a href="/sitemap.html"><i class="fa fa-list"></i> Barcha</a></li>
+        <li><a href="/favorites"><i class="fa fa-star"></i> '.$lang['chosen'].' ('.$favorites[0].')</a></li>
+        <li><a href="/category.html"><i class="fa fa-th-large"></i> Bo‘limlar</a></li>
         '.$view_control.'
       </ul>
       <div class="xxxhd-search">
         <form method="get" action="/search_">
-          <input type="text" name="i" placeholder="'.$lang['search'].'" />
+          <input type="text" name="i" placeholder="'.$lang['search'].'..." />
           <button type="submit"><i class="fa fa-search"></i></button>
         </form>
       </div>
@@ -125,18 +171,19 @@ echo '
 
   <div class="xxxhd-footer">
     <div class="xxxhd-foot">
-      &copy; <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'
+      <p>&copy; '.date('Y').' <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'</p>
+      <p style="margin: 8px 0; font-size: 11px; color: #707070;">Saytdagi barcha videolar ochiq manbalardan olingan bo‘lib, 18 yoshga to‘lmagan shaxslarga kirish taqiqlanadi.</p>
       <div style="margin-top:8px;">
-        <a href="/?lang=ru"><img src="/designs/icons/flags/ru.png" alt="Русский" /></a>
-        <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English" /></a>
-        <a href="/?lang=ua"><img src="/designs/icons/flags/ua.png" alt="Українська" /></a>
+        <a href="/?lang=ru"><img src="/designs/icons/flags/ru.png" alt="Русский" title="Русский" /></a>
+        <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English" title="English" /></a>
+        <a href="/?lang=ua"><img src="/designs/icons/flags/ua.png" alt="Українська" title="Українська" /></a>
       </div>
     </div>
   </div>
-  <a href="/advertising.html"><p style="text-align:right;color:#ff9900;padding:5px 10px">'.$lang['pay'].'</p></a>
+  <a href="/advertising.html"><p style="text-align:right;color:#ff9900;padding:5px 10px;font-size:12px">'.$lang['pay'].'</p></a>
   <p style="text-align:center;padding:5px">'.$settings['counter'].'</p>
   <h4 style="font-size:10px;text-align:center;color:#595a5c;padding:5px">'.$lang['h4'].'</h4>
-  <a href="/sitemap.html"><p style="text-align:center;color:#ff9900;padding:5px">'.$lang['map'].'</p></a>
+  <a href="/sitemap.html"><p style="text-align:center;color:#ff9900;padding:5px;font-size:12px">'.$lang['map'].'</p></a>
 
 </div><!-- xxxhd-wrapper -->
   </body>

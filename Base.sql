@@ -96,7 +96,10 @@ CREATE TABLE IF NOT EXISTS `ero_files` (
   `date` int(11) NOT NULL,
   `rewriting` enum('0','1') NOT NULL DEFAULT '0',
   `added` int(11) NOT NULL DEFAULT '1',
-  `yd` set('0','1') DEFAULT '0'
+  `yd` set('0','1') DEFAULT '0',
+  `likes` int(11) NOT NULL DEFAULT '0',
+  `dislikes` int(11) NOT NULL DEFAULT '0',
+  `embed` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
@@ -305,10 +308,33 @@ ALTER TABLE `ero_online`
 ALTER TABLE `ero_settings`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=2;
 --
--- AUTO_INCREMENT для таблицы `ero_users`
+-- Таблица `ero_likes`
 --
-ALTER TABLE `ero_users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=12;
+CREATE TABLE IF NOT EXISTS `ero_likes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_video` int(11) NOT NULL,
+  `ip` varchar(45) NOT NULL,
+  `type` enum('like','dislike') NOT NULL DEFAULT 'like',
+  `date` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `id_video` (`id_video`),
+  KEY `ip_video` (`id_video`, `ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Таблица `ero_comments`
+--
+CREATE TABLE IF NOT EXISTS `ero_comments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_video` int(11) NOT NULL,
+  `author` varchar(100) NOT NULL,
+  `text` text NOT NULL,
+  `ip` varchar(45) NOT NULL,
+  `date` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `id_video` (`id_video`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

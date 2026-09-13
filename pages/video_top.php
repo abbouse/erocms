@@ -6,18 +6,14 @@
 Быстро, качественно, недорого.
 */
     
-    if (!isset($_GET['page'])) $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/top.html';
-    else $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/top_'.abs(intval($_GET['page'])).'.html';
+    $cur_page = isset($_GET['page']) ? abs(intval($_GET['page'])) : 1;
+    $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/top_'.$cur_page.'.html';
     
     if (file_exists($caching)) {
-
-    if ((time() - $settings['cache']) < filemtime($caching)) {
-
-        echo file_get_contents($caching); 
-        
-        foot();
-        exit; 
-        
+        if ((time() - $settings['cache']) < filemtime($caching)) {
+            echo file_get_contents($caching); 
+            foot();
+            exit; 
         }
     }
   
@@ -29,45 +25,51 @@
     
     head();
     advertising();
-    
-    ?>
-    
-    <h2 class="view"><?=$lang['popular']?></h2>
-    
-    <?
-    
-    $quantity = $mysqli -> query("select count(*) from ero_files where date < '".time()."'") -> fetch_row();
+?>
+
+    <div class="xxxhd-title-top">
+        <h2><i class="fa fa-fire" style="color:#ff9900;"></i> <?=$lang['popular']?></h2>
+    </div>
+
+    <div class="xxxhd-thumbs-content">
+    <?php
+    $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_files WHERE date < '".time()."'")->fetch_row();
     $k_page = k_page($quantity[0], 20);
     $page = page($k_page);
-    $start = 20*$page-20;
+    $start = 20 * $page - 20;
     
-    $query = $mysqli -> query("select id, screenshot, name, translit, duration, view from ero_files where date < '".time()."' order by view desc limit $start, 20");
+    $query = $mysqli->query("SELECT id, screenshot, name, translit, duration, view, likes, dislikes FROM ero_files WHERE date < '".time()."' ORDER BY view DESC LIMIT $start, 20");
     
-    while($row = $query -> fetch_assoc()) {
+    while($row = $query->fetch_assoc()) {
+        $tot = intval($row['likes']) + intval($row['dislikes']);
+        $rate = $tot > 0 ? round((intval($row['likes']) / $tot) * 100) . '%' : '98%';
 
-    if ($user['access'] == 1) 
-    $edit = '<p align="right"><a href="/editing_'.$row['id'].'.html"><img src="/designs/icons/view/edit.png" width="16" height="16" /> '.$lang['edit'].'</a>
-    <a href="/deletion_'.$row['id'].'.html"><img src="/designs/icons/view/remove.png" width="16" height="16" /> '.$lang['remove'].'</a></p>'; else $edit = false;
-    
-    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb">
-    <a href="/watch/'.$row['translit'].'.html" title="'.$row['name'].'">
-    <img src="'.$row['screenshot'].'" alt="'.$row['name'].'" width="300" height="180" />
-    <div class="xxxhd-thumb-name" title="'.$row['name'].'">'.$row['name'].'</div>
-    </a>
-    <span class="xxxhd-thumb-top top-right"><i class="fa fa-eye"></i> '.$row['view'].'</span>
-    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
-    '.$edit.'
-    </div></div>';
-    
+        echo '<div class="xxxhd-thumb-wr">
+            <div class="xxxhd-thumb">
+                <a href="/watch/'.$row['translit'].'.html" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">
+                    <div class="thumb-image-wrap">
+                        <img src="'.$row['screenshot'].'" alt="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" />
+                    </div>
+                    <div class="xxxhd-thumb-name" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">'.$row['name'].'</div>
+                </a>
+                <span class="xxxhd-thumb-top top-left">HD</span>
+                <span class="xxxhd-thumb-top top-right"><i class="fa fa-thumbs-o-up"></i> '.$rate.'</span>
+                <span class="xxxhd-thumb-bottom bottom-left"><i class="fa fa-eye"></i> '.intval($row['view']).'</span>
+                <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
+            </div>
+        </div>';
     }
-    
-    if ($k_page > 1) str('/top.html?', $k_page, $page);
+    ?>
+    </div>
+
+    <?php
+    if ($k_page > 1) str('/top?', $k_page, $page);
 
     $handle = fopen($caching, 'w'); 
-	
-    fwrite($handle, ob_get_contents()); 
-    fclose($handle); 
+    if ($handle) {
+        fwrite($handle, ob_get_contents()); 
+        fclose($handle); 
+    }
     
     ob_end_flush();
-    
-    $query -> free();
+    $query->free();

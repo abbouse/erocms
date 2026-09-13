@@ -6,7 +6,7 @@
 Быстро, качественно, недорого.
 */
 
-    $search =  mysqli_real_escape_string($mysqli, filter($_GET['i']));     
+    $search = mysqli_real_escape_string($mysqli, filter($_GET['i'] ?? ''));     
         
     $title = $lang['searching_results'].' "'.$search.'"';
     $description = $settings['description'];
@@ -15,40 +15,49 @@
     head();
     advertising();
     
-    $quantity = $mysqli -> query("select count(*) from ero_files where description like '%".$search."%' or name like '%".$search."%' and date < '".time()."'") -> fetch_row();
-    
-    ?>
-    
-    <p class="view"><?=$lang['found']?> <b><?=$quantity[0];?></b> <?=$lang['video']?></p>
-    
-    <?
-    
-    $k_page = k_page($quantity[0], 12);
+    $where_sql = "WHERE (description LIKE '%$search%' OR name LIKE '%$search%') AND date < '".time()."'";
+    $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_files $where_sql")->fetch_row();
+?>
+
+    <div class="xxxhd-title-top">
+        <h2><i class="fa fa-search" style="color:#ff9900;"></i> Qidiruv natijalari: "<?=htmlspecialchars($search, ENT_QUOTES, 'UTF-8')?>" (<?=$quantity[0]?> ta video)</h2>
+    </div>
+
+    <div class="xxxhd-thumbs-content">
+    <?php
+    $k_page = k_page($quantity[0], 20);
     $page = page($k_page);
-    $start = 12*$page-12;
+    $start = 20 * $page - 20;
     
-    if ($quantity[0] == 0) echo '<div class="err">'.$lang['no_files_found'].'</div>';
-    
-    $query = $mysqli -> query("select id, screenshot, name, translit, duration, view from ero_files where description like '%".$search."%' or name like '%".$search."%' and date < '".time()."' order by date desc limit $start, 12");
-    
-    while($row = $query -> fetch_assoc()) {
+    if ($quantity[0] == 0) {
+        echo '<div style="padding: 25px 15px; color: #777; width: 100%; text-align: center;">Hech qanday video topilmadi. Boshqa so‘z bilan qidirib ko‘ring.</div>';
+    } else {
+        $query = $mysqli->query("SELECT id, screenshot, name, translit, duration, view, likes, dislikes FROM ero_files $where_sql ORDER BY date DESC LIMIT $start, 20");
         
-    if ($user['access'] == 1) 
-    $edit = '<p align="right"><a href="/editing_'.$row['id'].'.html"><img src="/designs/icons/view/edit.png" width="16" height="16" /> '.$lang['edit'].'.</a>
-    <a href="/deletion_'.$row['id'].'.html"><img src="/designs/icons/view/remove.png" width="16" height="16" /> '.$lang['remove'].'.</a></p>'; else $edit = false;
-    
-    echo '<div class="xxxhd-thumb-wr"><div class="xxxhd-thumb">
-    <a href="/watch/'.$row['translit'].'.html" title="'.$row['name'].'">
-    <img src="'.$row['screenshot'].'" alt="'.$row['name'].'" width="300" height="180" />
-    <div class="xxxhd-thumb-name" title="'.$row['name'].'">'.$row['name'].'</div>
-    </a>
-    <span class="xxxhd-thumb-top top-right"><i class="fa fa-eye"></i> '.$row['view'].'</span>
-    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
-    '.$edit.'
-    </div></div>';
-    
+        while($row = $query->fetch_assoc()) {
+            $tot = intval($row['likes']) + intval($row['dislikes']);
+            $rate = $tot > 0 ? round((intval($row['likes']) / $tot) * 100) . '%' : '98%';
+
+            echo '<div class="xxxhd-thumb-wr">
+                <div class="xxxhd-thumb">
+                    <a href="/watch/'.$row['translit'].'.html" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">
+                        <div class="thumb-image-wrap">
+                            <img src="'.$row['screenshot'].'" alt="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'" loading="lazy" />
+                        </div>
+                        <div class="xxxhd-thumb-name" title="'.htmlspecialchars($row['name'], ENT_QUOTES, 'UTF-8').'">'.$row['name'].'</div>
+                    </a>
+                    <span class="xxxhd-thumb-top top-left">HD</span>
+                    <span class="xxxhd-thumb-top top-right"><i class="fa fa-thumbs-o-up"></i> '.$rate.'</span>
+                    <span class="xxxhd-thumb-bottom bottom-left"><i class="fa fa-eye"></i> '.intval($row['view']).'</span>
+                    <span class="xxxhd-thumb-bottom bottom-right"><i class="fa fa-clock-o"></i> '.$row['duration'].'</span>
+                </div>
+            </div>';
+        }
+        $query->free();
     }
-    
-    if ($k_page > 1) str('/tag/'.$search.'&', $k_page, $page);
-    
-    $query -> free();
+    ?>
+    </div>
+
+    <?php
+    if ($k_page > 1) str('/search_?i='.urlencode($search).'&', $k_page, $page);
+    foot();
