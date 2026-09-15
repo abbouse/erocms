@@ -29,7 +29,8 @@ function ads_get_config() {
         'native_grid_code' => '',
         'vast_preroll_enabled' => 0,
         'vast_preroll_url' => '',
-        'text_ads_enabled' => 1
+        'text_ads_enabled' => 1,
+        'hide_ads_for_members' => 0
     ];
 
     if (file_exists(ADS_CONFIG_FILE)) {
@@ -55,13 +56,16 @@ function is_mobile_visitor() {
 }
 
 function ads_render_popunder() {
-    global $user;
+    global $user, $member;
     // Admin yoki boshqaruv panelida reklama chiqarilmaydi
     if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
         return;
     }
 
     $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
     if (empty($cfg['ads_enabled']) || empty($cfg['popunder_enabled'])) {
         return;
     }
@@ -79,12 +83,15 @@ function ads_render_popunder() {
 }
 
 function ads_render_banner($position = 'top') {
-    global $user;
+    global $user, $member;
     if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
         return;
     }
 
     $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
     if (empty($cfg['ads_enabled'])) {
         return;
     }
@@ -131,12 +138,15 @@ function ads_render_banner($position = 'top') {
  * 1. Ekran pastida yopishib turuvchi Sticky Footer Banner
  */
 function ads_render_sticky_footer() {
-    global $user;
+    global $user, $member;
     if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
         return;
     }
 
     $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
     if (empty($cfg['ads_enabled']) || empty($cfg['sticky_footer_enabled'])) {
         return;
     }
@@ -181,12 +191,15 @@ function ads_render_sticky_footer() {
  * 2. Video Player Ustiga "Click-Overlay" (Play bosganda yangi oynada ochiluvchi reklama)
  */
 function ads_render_player_overlay() {
-    global $user;
+    global $user, $member;
     if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
         return;
     }
 
     $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
     if (empty($cfg['ads_enabled']) || empty($cfg['player_overlay_enabled']) || empty($cfg['player_overlay_url'])) {
         return;
     }
@@ -220,12 +233,15 @@ function ads_render_player_overlay() {
  * 3. Videolar orasidagi Native Reklama vidjeti (Native Recommendation Grid)
  */
 function ads_render_native_grid() {
-    global $user;
+    global $user, $member;
     if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
         return;
     }
 
     $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
     if (empty($cfg['ads_enabled']) || empty($cfg['native_grid_enabled']) || empty($cfg['native_grid_code'])) {
         return;
     }

@@ -13,7 +13,7 @@
         exit;
     }
     
-    $mysqli -> query("update ero_files set downloads = downloads + '1' where id = '$view[id]'");
+    $mysqli->query("UPDATE ero_files SET downloads = downloads + 1, score = score + 15 WHERE id = '{$view['id']}'");
     track_activity('download', $view['id']);
     
     if ($settings['recoil'] == 1)   {

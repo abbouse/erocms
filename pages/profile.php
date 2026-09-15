@@ -501,6 +501,3 @@ head();
     <?php endif; ?>
 
 </div>
-
-<?php
-foot();

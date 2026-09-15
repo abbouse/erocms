@@ -10,7 +10,7 @@ SET NAMES utf8mb4;
 CREATE TABLE IF NOT EXISTS `ero_members` (
   `id`           INT(11) NOT NULL AUTO_INCREMENT,
   `username`     VARCHAR(50) NOT NULL,
-  `email`        VARCHAR(150) NOT NULL,
+  `email`        VARCHAR(150) NULL DEFAULT NULL,
   `password`     VARCHAR(255) NOT NULL,
   `avatar`       VARCHAR(255) NOT NULL DEFAULT '',
   `bio`          TEXT,
@@ -22,10 +22,13 @@ CREATE TABLE IF NOT EXISTS `ero_members` (
   `last_seen`    INT(11) NOT NULL DEFAULT 0,
   `ip`           VARCHAR(45) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`),
   UNIQUE KEY `username` (`username`),
+  KEY `email` (`email`),
   KEY `token` (`token`(32))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Mavjud jadval bo'lsa emailni nullable qilish
+ALTER TABLE `ero_members` MODIFY `email` VARCHAR(150) NULL DEFAULT NULL;
 
 -- 2. Foydalanuvchilar yuklagan videolar (moderatsiya kutmoqda)
 CREATE TABLE IF NOT EXISTS `ero_user_videos` (

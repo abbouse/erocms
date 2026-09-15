@@ -77,24 +77,18 @@ head();
 ?>
 
 <div class="auth-page-container">
-    <div class="auth-card">
-        <div class="auth-card-header">
-            <div class="auth-icon-circle">
-                <i class="fa fa-user-circle"></i>
-            </div>
-            <h2>Profilga Kirish</h2>
-            <p>Hisobingizga kiring va videolarni boshqaring</p>
-        </div>
+    <div class="auth-card auth-minimal">
+        <h2 class="auth-minimal-title">Kirish</h2>
 
         <?php if (!empty($login_error)): ?>
             <div class="auth-alert auth-alert-danger">
-                <i class="fa fa-exclamation-circle"></i> <?=htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8')?>
+                <?=htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8')?>
             </div>
         <?php endif; ?>
 
         <?php if (!empty($login_success)): ?>
             <div class="auth-alert auth-alert-success">
-                <i class="fa fa-check-circle"></i> <?=htmlspecialchars($login_success, ENT_QUOTES, 'UTF-8')?>
+                <?=htmlspecialchars($login_success, ENT_QUOTES, 'UTF-8')?>
             </div>
         <?php endif; ?>
 
@@ -102,36 +96,33 @@ head();
             <input type="hidden" name="act" value="login" />
 
             <div class="form-group-custom">
-                <label for="login_input"><i class="fa fa-user"></i> Foydalanuvchi nomi yoki Email:</label>
-                <input type="text" id="login_input" name="login" class="form-control-auth" placeholder="Masalan: alisher yoki user@mail.uz" required autofocus />
+                <label for="login_input">Foydalanuvchi nomi:</label>
+                <input type="text" id="login_input" name="login" class="form-control-auth" placeholder="Login" required autofocus />
             </div>
 
             <div class="form-group-custom">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label for="pass_input"><i class="fa fa-lock"></i> Parol:</label>
-                    <a href="/forgot-password.html" class="auth-link-sm">Parolni unutdingizmi?</a>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label for="pass_input" style="margin:0;">Parol:</label>
+                    <a href="/forgot-password.html" class="auth-link-sm">Unutdingizmi?</a>
                 </div>
-                <input type="password" id="pass_input" name="password" class="form-control-auth" placeholder="Parolingizni kiriting" required />
+                <input type="password" id="pass_input" name="password" class="form-control-auth" placeholder="Parol" required />
             </div>
 
-            <div class="form-check-custom">
-                <label>
-                    <input type="checkbox" name="remember" value="1" checked />
-                    <span>Meni eslab qol (30 kun)</span>
+            <div class="form-check-custom" style="margin: 12px 0 16px;">
+                <label style="cursor:pointer; font-size:13px; color:#aaa; display:inline-flex; align-items:center; gap:6px;">
+                    <input type="checkbox" name="remember" value="1" checked style="accent-color:var(--primary-accent, #ff9900);" />
+                    <span>Eslab qolish</span>
                 </label>
             </div>
 
             <button type="submit" class="btn-auth-submit">
-                <i class="fa fa-sign-in"></i> Profilga kirish
+                Kirish
             </button>
         </form>
 
-        <div class="auth-card-footer">
-            <span>Hali hisobingiz yo‘qmi?</span>
-            <a href="/register.html" class="auth-register-link"><i class="fa fa-user-plus"></i> Ro‘yxatdan o‘tish</a>
+        <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
+            <span style="color:#888;">Hisobingiz yo‘qmi?</span>
+            <a href="/register.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;">Ro‘yxatdan o‘tish</a>
         </div>
     </div>
 </div>
-
-<?php
-foot();

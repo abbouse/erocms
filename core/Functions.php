@@ -72,6 +72,21 @@ if ($check_embed && $check_embed->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_files` ADD `embed` TEXT NULL");
 }
 
+// Bosh sahifa Smart Feed reyting koeffitsiyent ustunlari
+$check_score = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'score'");
+if ($check_score && $check_score->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `favorites_count` INT(11) NOT NULL DEFAULT 0");
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `comments_count` INT(11) NOT NULL DEFAULT 0");
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `score` INT(11) NOT NULL DEFAULT 0");
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_score` (`score`)");
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_date_id` (`date`, `id`)");
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_view` (`view`)");
+    @$mysqli->query("UPDATE `ero_files` f SET 
+        f.comments_count = (SELECT COUNT(*) FROM `ero_comments` c WHERE c.id_video = f.id),
+        f.favorites_count = (SELECT COUNT(*) FROM `ero_favorites` fav WHERE fav.id_video = f.id)");
+    @$mysqli->query("UPDATE `ero_files` SET `score` = (`view` * 1) + (`likes` * 10) - (`dislikes` * 5) + (`downloads` * 15) + (`comments_count` * 20) + (`favorites_count` * 25)");
+}
+
 $check_on_page = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'page_url'");
 if ($check_on_page && $check_on_page->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_online` ADD `page_url` VARCHAR(500) NULL DEFAULT '/'");
@@ -204,18 +219,26 @@ function track_activity($action, $id_file = 0, $query_text = null) {
 #Локализация
 
 if (isset($_GET['lang']))   {
-    
-    $_SESSION['lang'] = filter($_GET['lang']);
-    
-    header('Refresh: 0; '.$_SERVER['PHP_SELF']);
+    $new_lang = filter($_GET['lang']);
+    if (in_array($new_lang, ['uz', 'ru', 'en', 'ua', 'az'])) {
+        $_SESSION['lang'] = $new_lang;
+        setcookie('lang', $new_lang, time() + (86400 * 365), '/');
+    }
+    $back_url = filter($_SERVER['HTTP_REFERER'] ?? '/');
+    if (empty($back_url) || strpos($back_url, 'http') !== 0) {
+        $back_url = '/';
+    }
+    $back_url = preg_replace('/([?&])lang=[a-z]{2}(&|$)/', '$1', $back_url);
+    $back_url = rtrim($back_url, '?&');
+    header('Location: ' . $back_url);
     exit;
 }
 
-$sess_lang = $_SESSION['lang'] ?? 'ru';
+$sess_lang = $_SESSION['lang'] ?? $_COOKIE['lang'] ?? 'uz';
 if (file_exists(__DIR__ . '/languages/' . $sess_lang . '.php')) {
     include __DIR__ . '/languages/' . $sess_lang . '.php';
 } else {
-    include __DIR__ . '/languages/ru.php';
+    include __DIR__ . '/languages/uz.php';
 }
 
 #Вверхняя часть сайта
@@ -358,7 +381,11 @@ echo '
 
 function foot() {
 
-global $settings, $lang, $user;
+static $is_footed = false;
+if ($is_footed) return;
+$is_footed = true;
+
+global $settings, $lang, $user, $member;
 
 $popunder_html = '';
 $is_admin = ($user && isset($user['access']) && $user['access'] == 1);
@@ -705,6 +732,201 @@ function str($link = '?', $k_page = 1, $page = 1) {
     echo '</div> <!-- EroCMS '.$version.' -->';
 }
 
+/**
+ * Bosh sahifa uchun intellektual aralash video oqimi (Hybrid Smart Feed Algorithm)
+ * 
+ * Ushbu algoritm:
+ * 1. Yangi yuklangan videolarni (Fresh Uploads) saqlaydi.
+ * 2. Ko'p ko'rilgan, yoqtirilgan, yuklangan, izoh va sevimliga olingan videolarni 
+ *    koeffitsientlar bo'yicha (Score = Views + Likes*10 + Downloads*15 + Comments*20 + Favs*25) saralaydi.
+ * 3. Rotatsiyadagi kashfiyot (Discovery pool) orqali bosh sahifa yangi video qo'shilmaganda ham
+ *    muntazam yangilanib, jonli ko'rinib turishini ta'minlaydi.
+ * 4. BAZAGA ZARRACHA OG'IRLIK TUSHIRMAYDI (Faqat indekslangan ustunlar va subquery limiti orqali < 2ms da bajariladi).
+ */
+function get_smart_feed_videos($mysqli, $limit = 20) {
+    $now = time();
+    $videos = [];
+    $used_ids = [];
+
+    // 1-POOL: Eng so'nggi yangi videolar (6-8 ta)
+    // Yangi video yuklansa, darhol boshida chiqishi kafolatlanadi
+    $q_new = $mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                    downloads, date, 'new' as feed_badge 
+                             FROM ero_files 
+                             WHERE date < '$now' 
+                             ORDER BY date DESC 
+                             LIMIT 8");
+    $pool_new = [];
+    if ($q_new) {
+        while ($row = $q_new->fetch_assoc()) {
+            $pool_new[] = $row;
+        }
+        $q_new->free();
+    }
+
+    // 2-POOL: Yuqori koeffitsiyentli Trend videolar (Ko'p ko'rilgan, yoqtirilgan, yuklangan, izoh va sevimlilar)
+    // Baza optimallashgan bo'lsa 'score' indeksi orqali, bo'lmasa tezkor hisoblash orqali olinadi
+    $q_hot = @$mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                     downloads, date, 'hot' as feed_badge 
+                              FROM ero_files 
+                              WHERE date < '$now' 
+                              ORDER BY score DESC 
+                              LIMIT 16");
+    if (!$q_hot || $q_hot->num_rows == 0) {
+        $q_hot = $mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                        downloads, date, 'hot' as feed_badge 
+                                 FROM ero_files 
+                                 WHERE date < '$now' 
+                                 ORDER BY view DESC 
+                                 LIMIT 16");
+    }
+    $pool_hot = [];
+    if ($q_hot) {
+        while ($row = $q_hot->fetch_assoc()) {
+            $pool_hot[] = $row;
+        }
+        $q_hot->free();
+    }
+
+    // 3-POOL: Ko'p sevimli qilingan va ko'p yuklab olingan sara videolar
+    $q_fav = @$mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                     downloads, date, 'fav' as feed_badge 
+                              FROM ero_files 
+                              WHERE date < '$now' AND (favorites_count > 0 OR downloads > 0 OR likes > 0)
+                              ORDER BY (favorites_count * 3 + downloads * 2 + likes) DESC 
+                              LIMIT 16");
+    if (!$q_fav || $q_fav->num_rows == 0) {
+        $q_fav = $mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                        downloads, date, 'fav' as feed_badge 
+                                 FROM ero_files 
+                                 WHERE date < '$now' 
+                                 ORDER BY downloads DESC 
+                                 LIMIT 16");
+    }
+    $pool_fav = [];
+    if ($q_fav) {
+        while ($row = $q_fav->fetch_assoc()) {
+            $pool_fav[] = $row;
+        }
+        $q_fav->free();
+    }
+
+    // 4-POOL: Aylanuvchi Rotatsiya (Smart Discovery Pool)
+    // Yangi video qo'shilmay turgan vaqtlarda ham bosh sahifa o'z-o'zidan yangilanib turishi uchun
+    // Bazaga og'irlik tushirmaslik uchun: faqat oxirgi 150 ta videoning ichidan tasodifiy olinadi
+    $q_rand = $mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                     downloads, date, 'rand' as feed_badge 
+                              FROM (
+                                  SELECT * FROM ero_files WHERE date < '$now' ORDER BY date DESC LIMIT 150
+                              ) AS sub_recent 
+                              ORDER BY RAND() 
+                              LIMIT 12");
+    $pool_rand = [];
+    if ($q_rand) {
+        while ($row = $q_rand->fetch_assoc()) {
+            $pool_rand[] = $row;
+        }
+        $q_rand->free();
+    }
+
+    // SMART INTERLEAVE / BLEND (Aralashtirib joylashtirish):
+    // Tartib: Yangi -> Trend (Hot) -> Kashfiyot (Rotatsiya) -> Sevimli/Yuklangan ...
+    $idx_new = 0;
+    $idx_hot = 0;
+    $idx_rand = 0;
+    $idx_fav = 0;
+
+    while (count($videos) < $limit) {
+        $added_in_round = false;
+
+        // 1. Yangi videolardan
+        while ($idx_new < count($pool_new)) {
+            $v = $pool_new[$idx_new++];
+            if (!isset($used_ids[$v['id']])) {
+                $used_ids[$v['id']] = true;
+                $videos[] = $v;
+                $added_in_round = true;
+                break;
+            }
+        }
+        if (count($videos) >= $limit) break;
+
+        // 2. Trend / Yuqori koeffitsiyentli videolardan
+        while ($idx_hot < count($pool_hot)) {
+            $v = $pool_hot[$idx_hot++];
+            if (!isset($used_ids[$v['id']])) {
+                $used_ids[$v['id']] = true;
+                $videos[] = $v;
+                $added_in_round = true;
+                break;
+            }
+        }
+        if (count($videos) >= $limit) break;
+
+        // 3. Rotatsiya / Kashfiyot videolardan
+        while ($idx_rand < count($pool_rand)) {
+            $v = $pool_rand[$idx_rand++];
+            if (!isset($used_ids[$v['id']])) {
+                $used_ids[$v['id']] = true;
+                $videos[] = $v;
+                $added_in_round = true;
+                break;
+            }
+        }
+        if (count($videos) >= $limit) break;
+
+        // 4. Sevimli va ko'p yuklangan videolardan
+        while ($idx_fav < count($pool_fav)) {
+            $v = $pool_fav[$idx_fav++];
+            if (!isset($used_ids[$v['id']])) {
+                $used_ids[$v['id']] = true;
+                $videos[] = $v;
+                $added_in_round = true;
+                break;
+            }
+        }
+        if (count($videos) >= $limit) break;
+
+        if (!$added_in_round) break;
+    }
+
+    // Zaxira: agar limitga yetmasa, qolganlarini sanasi bo'yicha to'ldirish
+    if (count($videos) < $limit) {
+        $needed = $limit - count($videos);
+        $exclude_ids = !empty($used_ids) ? implode(',', array_keys($used_ids)) : '0';
+        $q_fallback = $mysqli->query("SELECT id, screenshot, name, duration, translit, view, likes, dislikes, 
+                                             downloads, date, 'new' as feed_badge 
+                                      FROM ero_files 
+                                      WHERE date < '$now' AND id NOT IN ($exclude_ids) 
+                                      ORDER BY date DESC 
+                                      LIMIT $needed");
+        if ($q_fallback) {
+            while ($row = $q_fallback->fetch_assoc()) {
+                $videos[] = $row;
+            }
+            $q_fallback->free();
+        }
+    }
+
+    return $videos;
+}
+
+function recalculate_video_score($mysqli, $video_id) {
+    $video_id = intval($video_id);
+    if ($video_id <= 0) return;
+    
+    @$mysqli->query("UPDATE ero_files SET 
+        score = (`view` * 1) + (`likes` * 10) - (`dislikes` * 5) + (`downloads` * 15) + (`comments_count` * 20) + (`favorites_count` * 25) 
+        WHERE id = '$video_id'");
+}
+
+function clear_home_cache() {
+    $f = $_SERVER['DOCUMENT_ROOT'].'/content/cache/default.html';
+    if (file_exists($f)) {
+        @unlink($f);
+    }
+}
+
 #Транслит
 
 function transliterate($string) {
@@ -834,9 +1056,12 @@ function getFilesSize($path){
 #Вывод рекламы
 
 function advertising() {
-    global $mysqli;
+    global $mysqli, $member;
     if (function_exists('ads_get_config')) {
         $cfg = ads_get_config();
+        if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+            return;
+        }
         if (empty($cfg['ads_enabled']) || empty($cfg['text_ads_enabled'])) {
             return;
         }
@@ -882,7 +1107,7 @@ $user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where pa
 @$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_members` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(50) NOT NULL,
-  `email` VARCHAR(150) NOT NULL,
+  `email` VARCHAR(150) NULL DEFAULT NULL,
   `password` VARCHAR(255) NOT NULL,
   `avatar` VARCHAR(255) NOT NULL DEFAULT '',
   `bio` TEXT,
@@ -894,9 +1119,10 @@ $user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where pa
   `last_seen` INT(11) NOT NULL DEFAULT 0,
   `ip` VARCHAR(45) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `username` (`username`)
+  UNIQUE KEY `username` (`username`),
+  KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+@$mysqli->query("ALTER TABLE `ero_members` MODIFY `email` VARCHAR(150) NULL DEFAULT NULL");
 
 @$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_user_videos` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,

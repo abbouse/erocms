@@ -43,6 +43,7 @@ $insert = $mysqli->query("INSERT INTO ero_comments (id_video, author, text, ip, 
 
 if ($insert) {
     $new_comm_id = $mysqli->insert_id;
+    @$mysqli->query("UPDATE ero_files SET comments_count = comments_count + 1, score = score + 20 WHERE id = '$id'");
 
     // Javob (Reply / Mention) berilgan foydalanuvchini aniqlash
     // Masalan: "@jasur_77," yoki "jasur_77," yoki "@jasur_77"

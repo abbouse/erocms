@@ -42,7 +42,7 @@ $total_dislikes = intval($dislikes_q[0]);
 $total = $total_likes + $total_dislikes;
 $percent = $total > 0 ? round(($total_likes / $total) * 100) : 100;
 
-$mysqli->query("UPDATE ero_files SET likes = '$total_likes', dislikes = '$total_dislikes' WHERE id = '$id'");
+$mysqli->query("UPDATE ero_files SET likes = '$total_likes', dislikes = '$total_dislikes', score = (view * 1) + ('$total_likes' * 10) - ('$total_dislikes' * 5) + (downloads * 15) + (comments_count * 20) + (favorites_count * 25) WHERE id = '$id'");
 
 echo json_encode([
     'status' => 'success',

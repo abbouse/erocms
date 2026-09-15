@@ -65,7 +65,8 @@ if (isset($_POST['save_ad_settings'])) {
         'native_grid_code' => $native_grid_code,
         'vast_preroll_enabled' => $vast_preroll_enabled,
         'vast_preroll_url' => $vast_preroll_url,
-        'text_ads_enabled' => $text_ads_enabled
+        'text_ads_enabled' => $text_ads_enabled,
+        'hide_ads_for_members' => isset($_POST['hide_ads_for_members']) ? 1 : 0
     ];
 
     if (ads_save_config($new_config)) {
@@ -235,6 +236,15 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                     <div>
                         <strong style="color: #fff; font-size: 13px; display: block;">Homiy havolalari</strong>
                         <small style="color: #94a3b8; font-size: 11px;">Sayt tepasidagi qisqa reklama tugmalari</small>
+                    </div>
+                </label>
+
+                <!-- Sayt a'zolariga reklama ko'rsatmaslik Switch (VIP / Ad-Free) -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #172133; border-radius: 6px; border: 1px solid rgba(59,130,246,0.4);">
+                    <input type="checkbox" name="hide_ads_for_members" value="1" <?=(!empty($cfg['hide_ads_for_members']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#3b82f6;" />
+                    <div>
+                        <strong style="color: #60a5fa; font-size: 13px; display: block;"><i class="fa fa-user-circle"></i> A'zolarga reklama yo‘q (VIP)</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Tizimga kirgan a'zolarga reklama ko‘rsatilmaydi</small>
                     </div>
                 </label>
             </div>

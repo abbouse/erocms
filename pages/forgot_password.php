@@ -83,24 +83,18 @@ head();
 ?>
 
 <div class="auth-page-container">
-    <div class="auth-card">
-        <div class="auth-card-header">
-            <div class="auth-icon-circle">
-                <i class="fa fa-key"></i>
-            </div>
-            <h2>Parolni Tiklash</h2>
-            <p>Profilingiz parolini yangilang</p>
-        </div>
+    <div class="auth-card auth-minimal">
+        <h2 class="auth-minimal-title">Parolni Tiklash</h2>
 
         <?php if (!empty($forgot_error)): ?>
             <div class="auth-alert auth-alert-danger">
-                <i class="fa fa-exclamation-circle"></i> <?=$forgot_error?>
+                <?=$forgot_error?>
             </div>
         <?php endif; ?>
 
         <?php if (!empty($forgot_success)): ?>
             <div class="auth-alert auth-alert-success">
-                <i class="fa fa-check-circle"></i> <?=$forgot_success?>
+                <?=$forgot_success?>
             </div>
         <?php endif; ?>
 
@@ -110,12 +104,12 @@ head();
                 <input type="hidden" name="act" value="request_reset" />
 
                 <div class="form-group-custom">
-                    <label for="identity_input"><i class="fa fa-user"></i> Login yoki Email manzilingiz:</label>
-                    <input type="text" id="identity_input" name="identity" class="form-control-auth" placeholder="Username yoki email" required autofocus />
+                    <label for="identity_input">Login yoki Email:</label>
+                    <input type="text" id="identity_input" name="identity" class="form-control-auth" placeholder="Login" required autofocus />
                 </div>
 
-                <button type="submit" class="btn-auth-submit">
-                    <i class="fa fa-arrow-right"></i> Davom etish
+                <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
+                    Davom etish
                 </button>
             </form>
         <?php else: ?>
@@ -125,37 +119,34 @@ head();
                 <input type="hidden" name="user_id" value="<?=$reset_user_id?>" />
 
                 <?php if (!empty($reset_code)): ?>
-                    <div style="background:#2c1b16; border:1px solid #ff9900; padding:10px 14px; border-radius:6px; margin-bottom:15px; font-size:13px; color:#f0c080;">
-                        <i class="fa fa-info-circle" style="color:#ff9900;"></i> Sizning xavfsizlik kodingiz: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
+                    <div style="background:#231713; border:1px solid #ff9900; padding:10px 12px; border-radius:6px; margin-bottom:14px; font-size:13px; color:#f0c080;">
+                        Tasdiqlash kodingiz: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
                     </div>
                 <?php endif; ?>
 
                 <div class="form-group-custom">
-                    <label for="code_input"><i class="fa fa-shield"></i> Xavfsizlik kodi:</label>
+                    <label for="code_input">Tasdiqlash kodi:</label>
                     <input type="text" id="code_input" name="code" class="form-control-auth" placeholder="6 xonali kod" value="<?=$reset_code?>" required />
                 </div>
 
                 <div class="form-group-custom">
-                    <label for="new_pass"><i class="fa fa-lock"></i> Yangi parol:</label>
+                    <label for="new_pass">Yangi parol:</label>
                     <input type="password" id="new_pass" name="new_password" class="form-control-auth" placeholder="Kamida 6 ta belgi" required />
                 </div>
 
                 <div class="form-group-custom">
-                    <label for="new_pass_c"><i class="fa fa-lock"></i> Yangi parolni takrorlang:</label>
+                    <label for="new_pass_c">Yangi parolni takrorlang:</label>
                     <input type="password" id="new_pass_c" name="new_password_confirm" class="form-control-auth" placeholder="Parolni takrorlang" required />
                 </div>
 
-                <button type="submit" class="btn-auth-submit">
-                    <i class="fa fa-save"></i> Yangi parolni saqlash
+                <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
+                    Parolni saqlash
                 </button>
             </form>
         <?php endif; ?>
 
-        <div class="auth-card-footer">
-            <a href="/login.html" class="auth-register-link"><i class="fa fa-arrow-left"></i> Kirish sahifasiga qaytish</a>
+        <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
+            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;">&larr; Kirish sahifasiga qaytish</a>
         </div>
     </div>
 </div>
-
-<?php
-foot();

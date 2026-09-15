@@ -45,9 +45,11 @@
         
         if ($fav_my[0] == 0) {
             $mysqli->query("INSERT INTO ero_favorites (id_video, data) VALUES ('{$view['id']}', '$user_ip')");
+            @$mysqli->query("UPDATE ero_files SET favorites_count = favorites_count + 1, score = score + 25 WHERE id = '{$view['id']}'");
             track_activity('favorite', $view['id']);
         } else {
             $mysqli->query("DELETE FROM ero_favorites WHERE id_video = '{$view['id']}' AND data = '$user_ip'");
+            @$mysqli->query("UPDATE ero_files SET favorites_count = GREATEST(0, favorites_count - 1), score = GREATEST(0, score - 25) WHERE id = '{$view['id']}'");
             track_activity('unfavorite', $view['id']);
         }
         header('Location: /watch/'.$view['translit'].'.html');     
@@ -70,7 +72,7 @@
         if (!$already_viewed) {
             $_SESSION['viewed_videos'][$video_id] = time();
             @setcookie($cookie_name, '1', time() + 86400, '/');
-            $mysqli->query("UPDATE ero_files SET view = view + 1 WHERE id = '{$video_id}'");
+            $mysqli->query("UPDATE ero_files SET view = view + 1, score = score + 1 WHERE id = '{$video_id}'");
             $view['view'] = intval($view['view']) + 1;
             track_activity('view', $video_id);
         }

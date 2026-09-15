@@ -26,73 +26,87 @@ if ($action === 'approve' && $id > 0) {
     $uv = $uv_q ? $uv_q->fetch_assoc() : null;
 
     if ($uv) {
-        $raw_translit = transliterate($uv['name']);
-        $clean_translit = preg_replace('/[^a-zA-Z0-9_\-]/', '-', trim($raw_translit));
-        $clean_translit = preg_replace('/-+/', '-', $clean_translit);
-        $clean_translit = trim($clean_translit, '-');
-        if (empty($clean_translit)) {
-            $clean_translit = 'video-' . time();
-        }
+        $app_name = trim(filter($_POST['name'] ?? $uv['name']));
+        $cat_id = intval($_POST['category'] ?? $uv['category']);
+        $app_desc = trim(filter($_POST['description'] ?? $uv['description']));
+        $app_tags = trim(filter($_POST['tags'] ?? ''));
 
-        // Translit takrorlanmasligini tekshirish
-        $chk_t = $mysqli->query("SELECT id FROM ero_files WHERE translit = '$clean_translit' LIMIT 1");
-        if ($chk_t && $chk_t->num_rows > 0) {
-            $clean_translit .= '-' . rand(100, 999);
-        }
-
-        $safe_translit = mysqli_real_escape_string($mysqli, $clean_translit);
-        $safe_name = mysqli_real_escape_string($mysqli, $uv['name']);
-        $safe_desc = mysqli_real_escape_string($mysqli, $uv['description']);
-        $cat_id = intval($uv['category']);
-        $now = time();
-        $member_id = intval($uv['member_id']);
-
-        $final_address = !empty($uv['file_path']) ? $uv['file_path'] : $uv['video_url'];
-        $final_recoil = $final_address;
-        $final_screen = !empty($uv['screenshot']) ? $uv['screenshot'] : '/designs/no_poster.jpg';
-        $server_host = filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
-
-        $tags_raw = tags($uv['name'] . ' ' . $uv['description']);
-        $tags_str = !empty($tags_raw) ? str_replace(' ', ', ', trim($tags_raw)) : $uv['name'];
-        $safe_tags = mysqli_real_escape_string($mysqli, $tags_str);
-
-        $embed_code = '';
-        if (strpos($final_address, '<iframe') !== false || (strpos($final_address, 'http') === 0 && (strpos($final_address, 'embed') !== false || strpos($final_address, 'player') !== false))) {
-            $embed_code = $final_address;
-        }
-
-        $ins = $mysqli->query("
-            INSERT INTO ero_files (
-                name, description, screenshot, recoil, tags, translit, duration, downloads, 
-                server, address, uniqueness, category, view, date, added, member_id, embed
-            ) VALUES (
-                '$safe_name',
-                '$safe_desc',
-                '".mysqli_real_escape_string($mysqli, $final_screen)."',
-                '".mysqli_real_escape_string($mysqli, $final_recoil)."',
-                '$safe_tags',
-                '$safe_translit',
-                '07:30',
-                0,
-                '$server_host',
-                '".mysqli_real_escape_string($mysqli, $final_address)."',
-                '".md5($safe_name . $now)."',
-                '$cat_id',
-                0,
-                '$now',
-                '{$user['id']}',
-                '$member_id',
-                '".mysqli_real_escape_string($mysqli, $embed_code)."'
-            )
-        ");
-
-        if ($ins) {
-            $new_file_id = $mysqli->insert_id;
-            $mysqli->query("UPDATE ero_user_videos SET status = 'approved', reject_reason = '' WHERE id = '$id'");
-            logs($user['id'], "Foydalanuvchi videosi tasdiqlandi: " . $uv['name'], $new_file_id);
-            $notice = "Video muvaffaqiyatli tasdiqlandi va saytda e'lon qilindi! <a href='/watch/{$safe_translit}.html' target='_blank' style='color:#ff9900; font-weight:bold;'>Videoni ko‘rish &rarr;</a>";
+        if (empty($app_name)) {
+            $error = "Video nomini kiritish shart!";
+        } elseif ($cat_id <= 0) {
+            $error = "Iltimos, video uchun bo‘limni (kategoriyani) tanlang!";
         } else {
-            $error = "Bazaga qo‘shishda xatolik yuz berdi: " . $mysqli->error;
+            $raw_translit = transliterate($app_name);
+            $clean_translit = preg_replace('/[^a-zA-Z0-9_\-]/', '-', trim($raw_translit));
+            $clean_translit = preg_replace('/-+/', '-', $clean_translit);
+            $clean_translit = trim($clean_translit, '-');
+            if (empty($clean_translit)) {
+                $clean_translit = 'video-' . time();
+            }
+
+            // Translit takrorlanmasligini tekshirish
+            $chk_t = $mysqli->query("SELECT id FROM ero_files WHERE translit = '$clean_translit' LIMIT 1");
+            if ($chk_t && $chk_t->num_rows > 0) {
+                $clean_translit .= '-' . rand(100, 999);
+            }
+
+            $safe_translit = mysqli_real_escape_string($mysqli, $clean_translit);
+            $safe_name = mysqli_real_escape_string($mysqli, $app_name);
+            $safe_desc = mysqli_real_escape_string($mysqli, $app_desc);
+            $now = time();
+            $member_id = intval($uv['member_id']);
+
+            $final_address = !empty($uv['file_path']) ? $uv['file_path'] : $uv['video_url'];
+            $final_recoil = $final_address;
+            $final_screen = !empty($uv['screenshot']) ? $uv['screenshot'] : '/designs/no_poster.jpg';
+            $server_host = filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+
+            if (empty($app_tags)) {
+                $tags_raw = tags($app_name . ' ' . $app_desc);
+                $tags_str = !empty($tags_raw) ? str_replace(' ', ', ', trim($tags_raw)) : $app_name;
+            } else {
+                $tags_str = $app_tags;
+            }
+            $safe_tags = mysqli_real_escape_string($mysqli, $tags_str);
+
+            $embed_code = '';
+            if (strpos($final_address, '<iframe') !== false || (strpos($final_address, 'http') === 0 && (strpos($final_address, 'embed') !== false || strpos($final_address, 'player') !== false))) {
+                $embed_code = $final_address;
+            }
+
+            $ins = $mysqli->query("
+                INSERT INTO ero_files (
+                    name, description, screenshot, recoil, tags, translit, duration, downloads, 
+                    server, address, uniqueness, category, view, date, added, member_id, embed
+                ) VALUES (
+                    '$safe_name',
+                    '$safe_desc',
+                    '".mysqli_real_escape_string($mysqli, $final_screen)."',
+                    '".mysqli_real_escape_string($mysqli, $final_recoil)."',
+                    '$safe_tags',
+                    '$safe_translit',
+                    '07:30',
+                    0,
+                    '$server_host',
+                    '".mysqli_real_escape_string($mysqli, $final_address)."',
+                    '".md5($safe_name . $now)."',
+                    '$cat_id',
+                    0,
+                    '$now',
+                    '{$user['id']}',
+                    '$member_id',
+                    '".mysqli_real_escape_string($mysqli, $embed_code)."'
+                )
+            ");
+
+            if ($ins) {
+                $new_file_id = $mysqli->insert_id;
+                $mysqli->query("UPDATE ero_user_videos SET status = 'approved', category = '$cat_id', name = '$safe_name', description = '$safe_desc', reject_reason = '' WHERE id = '$id'");
+                logs($user['id'], "Foydalanuvchi videosi tasdiqlandi: " . $app_name, $new_file_id);
+                $notice = "Video muvaffaqiyatli tasdiqlandi va saytda e'lon qilindi! <a href='/watch/{$safe_translit}.html' target='_blank' style='color:#ff9900; font-weight:bold;'>Videoni ko‘rish &rarr;</a>";
+            } else {
+                $error = "Bazaga qo‘shishda xatolik yuz berdi: " . $mysqli->error;
+            }
         }
     } else {
         $error = "Video topilmadi!";
@@ -143,6 +157,14 @@ if ($filter_status === 'pending') {
 $pending_total = $mysqli->query("SELECT COUNT(*) FROM ero_user_videos WHERE status = 'pending'")->fetch_row()[0] ?? 0;
 $approved_total = $mysqli->query("SELECT COUNT(*) FROM ero_user_videos WHERE status = 'approved'")->fetch_row()[0] ?? 0;
 $rejected_total = $mysqli->query("SELECT COUNT(*) FROM ero_user_videos WHERE status = 'rejected'")->fetch_row()[0] ?? 0;
+
+$categories_list = [];
+$cats_q = $mysqli->query("SELECT id, name FROM ero_categories ORDER BY name ASC");
+if ($cats_q) {
+    while ($cr = $cats_q->fetch_assoc()) {
+        $categories_list[] = $cr;
+    }
+}
 
 $videos_q = $mysqli->query("
     SELECT uv.*, m.username, m.email, c.name as cat_name 
@@ -257,9 +279,9 @@ admin_head('Foydalanuvchi Videolari Moderatsiyasi', 'user_videos');
                         <!-- Action Buttons -->
                         <div style="border-top:1px solid #282c37; padding-top:12px; display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between; align-items:center;">
                             <?php if ($v['status'] !== 'approved'): ?>
-                                <a href="/control.html?func=user_videos&action=approve&id=<?=$v['id']?>" class="adm-btn adm-btn-success adm-btn-sm" onclick="return confirm('Ushbu videoni tasdiqlab, asosiy saytga chiqarmoqchimisiz?');">
-                                    <i class="fa fa-check"></i> Tasdiqlash
-                                </a>
+                                <button type="button" class="adm-btn adm-btn-success adm-btn-sm" onclick="showApproveModal(<?=$v['id']?>, <?=htmlspecialchars(json_encode($v['name']), ENT_QUOTES, 'UTF-8')?>, <?=intval($v['category'])?>, <?=htmlspecialchars(json_encode($v['description']), ENT_QUOTES, 'UTF-8')?>)">
+                                    <i class="fa fa-check"></i> Tasdiqlash & Bo‘lim tanlash
+                                </button>
                             <?php endif; ?>
 
                             <?php if ($v['status'] === 'pending'): ?>
@@ -284,6 +306,45 @@ admin_head('Foydalanuvchi Videolari Moderatsiyasi', 'user_videos');
     <?php endif; ?>
 </div>
 
+<!-- Tasdiqlash modali (Admin kategoriya, tavsif, SEO to'ldiradi) -->
+<div id="approve-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:99999; align-items:center; justify-content:center; overflow-y:auto; padding:20px 10px;">
+    <div style="background:#1a1e29; border:1px solid #282c37; border-radius:12px; padding:24px; max-width:550px; width:100%; box-sizing:border-box;">
+        <h3 style="color:#f8fafc; margin-top:0; font-size:18px;"><i class="fa fa-check-circle" style="color:#10b981;"></i> Videoni Tasdiqlash va E'lon Qilish</h3>
+        <p style="color:#94a3b8; font-size:13px; margin-bottom:16px;">Saytda to‘g‘ri chiqishi uchun video bo‘limini tanlang va kerak bo‘lsa tavsif / SEO ma'lumotlarini kiriting:</p>
+        <form id="approve-form" method="post" action="">
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#cbd5e1; font-size:13px; font-weight:600; margin-bottom:6px;">Video nomi (Title):</label>
+                <input type="text" name="name" id="approve_name" required style="width:100%; box-sizing:border-box; background:#12141a; color:#f8fafc; border:1px solid #282c37; border-radius:6px; padding:10px;" />
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#cbd5e1; font-size:13px; font-weight:600; margin-bottom:6px;">Bo‘lim (Kategoriya): <span style="color:#ef4444;">*</span></label>
+                <select name="category" id="approve_cat" required style="width:100%; box-sizing:border-box; background:#12141a; color:#f8fafc; border:1px solid #282c37; border-radius:6px; padding:10px;">
+                    <option value="">-- Bo‘limni tanlang --</option>
+                    <?php foreach ($categories_list as $cat): ?>
+                        <option value="<?=$cat['id']?>"><?=htmlspecialchars($cat['name'])?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="display:block; color:#cbd5e1; font-size:13px; font-weight:600; margin-bottom:6px;">Video tavsifi (Description - ixtiyoriy):</label>
+                <textarea name="description" id="approve_desc" rows="3" placeholder="Video haqida qisqacha tavsif..." style="width:100%; box-sizing:border-box; background:#12141a; color:#f8fafc; border:1px solid #282c37; border-radius:6px; padding:10px;"></textarea>
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; color:#cbd5e1; font-size:13px; font-weight:600; margin-bottom:6px;">SEO Kalit so‘zlar / Teglar (ixtiyoriy):</label>
+                <input type="text" name="tags" id="approve_tags" placeholder="Bo‘sh qoldirilsa, avtomatik yaratiladi" style="width:100%; box-sizing:border-box; background:#12141a; color:#f8fafc; border:1px solid #282c37; border-radius:6px; padding:10px;" />
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="adm-btn adm-btn-secondary" onclick="hideApproveModal()">Bekor qilish</button>
+                <button type="submit" class="adm-btn adm-btn-success"><i class="fa fa-upload"></i> Tasdiqlash va Chiqarish</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Rad etish modali -->
 <div id="reject-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:99999; align-items:center; justify-content:center;">
     <div style="background:#1a1e29; border:1px solid #282c37; border-radius:12px; padding:24px; max-width:450px; width:90%;">
@@ -300,6 +361,20 @@ admin_head('Foydalanuvchi Videolari Moderatsiyasi', 'user_videos');
 </div>
 
 <script>
+function showApproveModal(id, name, catId, desc) {
+    var modal = document.getElementById('approve-modal');
+    var form = document.getElementById('approve-form');
+    form.action = '/control.html?func=user_videos&action=approve&id=' + id;
+    document.getElementById('approve_name').value = name;
+    document.getElementById('approve_cat').value = (catId > 0 ? catId : '');
+    document.getElementById('approve_desc').value = desc || '';
+    document.getElementById('approve_tags').value = '';
+    modal.style.display = 'flex';
+}
+function hideApproveModal() {
+    document.getElementById('approve-modal').style.display = 'none';
+}
+
 function showRejectModal(id) {
     var modal = document.getElementById('reject-modal');
     var form = document.getElementById('reject-form');

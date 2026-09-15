@@ -55,6 +55,12 @@ if (isset($_POST['save_settings'])) {
             WHERE id = '1'
         ");
 
+        if (function_exists('ads_get_config')) {
+            $ads_cfg = ads_get_config();
+            $ads_cfg['hide_ads_for_members'] = isset($_POST['hide_ads_for_members']) ? 1 : 0;
+            @file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/content/cache/ads_config.json', json_encode($ads_cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        }
+
         @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
 
         logs($user['id'], 'Sayt sozlamalari yangilandi', 0);
@@ -65,6 +71,8 @@ if (isset($_POST['save_settings'])) {
         $user = $mysqli->query("SELECT * FROM ero_users WHERE id = '{$user['id']}'")->fetch_assoc();
     }
 }
+
+$ads_cfg = function_exists('ads_get_config') ? ads_get_config() : [];
 ?>
 
 <div class="adm-page-header">
@@ -152,6 +160,17 @@ if (isset($_POST['save_settings'])) {
                 <label class="adm-label">HTML Kesh Vaqti (soniyalarda):</label>
                 <input type="number" name="cache" class="adm-input" value="<?=htmlspecialchars($settings['cache'])?>" />
                 <small style="color:#64748b; font-size:11px;">0 = kesh o‘chirilgan, 300 = 5 daqiqa</small>
+            </div>
+
+            <div class="adm-form-group" style="background:rgba(255,153,0,0.06); padding:12px; border-radius:6px; border:1px solid rgba(255,153,0,0.2); margin-top:10px;">
+                <label class="adm-label" style="margin-bottom:6px; color:#ff9900;"><i class="fa fa-ban"></i> A’zolarga Reklama Ko‘rsatish:</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" name="hide_ads_for_members" id="hide_ads_for_members" value="1" <?=!empty($ads_cfg['hide_ads_for_members']) ? 'checked' : ''?> style="width:18px; height:18px; accent-color:#ff9900; cursor:pointer;" />
+                    <label for="hide_ads_for_members" style="color:#e2e8f0; cursor:pointer; font-size:13px; font-weight:normal; margin:0;">
+                        Profiliga kirgan (avtorizatsiyadan o‘tgan) a’zolarga reklamalarni yashirish (Ad-Free)
+                    </label>
+                </div>
+                <small style="color:#94a3b8; font-size:11px; display:block; margin-top:5px;">Yoqilsa, login qilgan a’zolarga popunder, bannerlar va boshqa reklamalar ko‘rsatilmaydi. (Batafsil: <a href="/control.html?func=advertising" style="color:#ff9900;">Reklama Boshqaruvi</a>)</small>
             </div>
         </div>
 
