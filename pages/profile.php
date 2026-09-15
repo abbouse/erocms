@@ -174,10 +174,10 @@ head();
 
         <div class="profile-hero-actions">
             <a href="/upload.html" class="btn-profile-upload">
-                <i class="fa fa-upload"></i> Video yuklash
+                <i class="fa fa-upload"></i> <?=$lang['upload'] ?? 'Video yuklash'?>
             </a>
-            <a href="/logout.html" class="btn-profile-logout" onclick="return confirm('Hisobingizdan chiqmoqchimisiz?');">
-                <i class="fa fa-sign-out"></i> Chiqish
+            <a href="/logout.html" class="btn-profile-logout" onclick="return confirm('<?=addslashes($lang['exit'] ?? 'Chiqish')?>?');">
+                <i class="fa fa-sign-out"></i> <?=$lang['exit'] ?? 'Chiqish'?>
             </a>
         </div>
     </div>
@@ -186,45 +186,45 @@ head();
     <div class="profile-stat-strip">
         <div class="profile-stat-item">
             <span class="stat-number"><?=$total_uploaded?></span>
-            <span class="stat-label"><i class="fa fa-film"></i> Yuklagan videolarim</span>
+            <span class="stat-label"><i class="fa fa-film"></i> <?=$lang['my_uploaded_videos'] ?? 'Yuklangan videolar'?></span>
         </div>
         <div class="profile-stat-item">
             <span class="stat-number" style="color:#28a745;"><?=$approved_count?></span>
-            <span class="stat-label"><i class="fa fa-check-circle"></i> Tasdiqlangan</span>
+            <span class="stat-label"><i class="fa fa-check-circle"></i> <?=$lang['approved'] ?? 'Tasdiqlangan'?></span>
         </div>
         <div class="profile-stat-item">
             <span class="stat-number" style="color:#ff9900;"><?=$pending_count?></span>
-            <span class="stat-label"><i class="fa fa-clock-o"></i> Kutilmoqda</span>
+            <span class="stat-label"><i class="fa fa-clock-o"></i> <?=$lang['pending'] ?? 'Kutilmoqda'?></span>
         </div>
         <div class="profile-stat-item">
             <span class="stat-number"><?=$total_comments?></span>
-            <span class="stat-label"><i class="fa fa-comment-o"></i> Izohlarim</span>
+            <span class="stat-label"><i class="fa fa-comment-o"></i> <?=$lang['my_comments'] ?? 'Izohlarim'?></span>
         </div>
         <div class="profile-stat-item">
             <span class="stat-number"><?=$total_replies?></span>
-            <span class="stat-label"><i class="fa fa-bell-o"></i> Menga javoblar</span>
+            <span class="stat-label"><i class="fa fa-bell-o"></i> <?=$lang['replies_to_me'] ?? 'Menga javoblar'?></span>
         </div>
     </div>
 
     <!-- Profil Bo'limlari Tablari -->
     <div class="profile-tabs-nav">
         <a href="/profile.html?tab=videos" class="profile-tab-btn <?=$tab === 'videos' ? 'active' : ''?>">
-            <i class="fa fa-video-camera"></i> Men yuklagan videolar (<?=$total_uploaded?>)
+            <i class="fa fa-video-camera"></i> <?=$lang['my_videos'] ?? 'Men yuklagan videolar'?> (<?=$total_uploaded?>)
         </a>
         <a href="/profile.html?tab=favorites" class="profile-tab-btn <?=$tab === 'favorites' ? 'active' : ''?>">
-            <i class="fa fa-star"></i> Sevimlilarim
+            <i class="fa fa-star"></i> <?=$lang['my_favorites'] ?? 'Sevimlilarim'?>
         </a>
         <a href="/profile.html?tab=comments" class="profile-tab-btn <?=$tab === 'comments' ? 'active' : ''?>">
-            <i class="fa fa-comments"></i> Mening izohlarim (<?=$total_comments?>)
+            <i class="fa fa-comments"></i> <?=$lang['my_comments'] ?? 'Mening izohlarim'?> (<?=$total_comments?>)
         </a>
         <a href="/profile.html?tab=replies" class="profile-tab-btn <?=$tab === 'replies' ? 'active' : ''?>">
-            <i class="fa fa-reply"></i> Menga yozilgan javoblar 
+            <i class="fa fa-reply"></i> <?=$lang['replies_to_me'] ?? 'Menga yozilgan javoblar'?> 
             <?php if (!empty($unread_notifications) && $unread_notifications > 0): ?>
                 <span class="tab-badge">+<?=$unread_notifications?></span>
             <?php endif; ?>
         </a>
         <a href="/profile.html?tab=edit" class="profile-tab-btn <?=$tab === 'edit' ? 'active' : ''?>">
-            <i class="fa fa-cog"></i> Profilni tahrirlash
+            <i class="fa fa-cog"></i> <?=$lang['edit_profile'] ?? 'Profilni tahrirlash'?>
         </a>
     </div>
 

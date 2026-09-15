@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 if (!isset($_POST['id']) || empty($_POST['text'])) {
-    echo json_encode(['status' => 'error', 'message' => 'Izoh matni bo‘sh bo‘lishi mumkin emas!']);
+    echo json_encode(['status' => 'error', 'message' => ($lang['comment_empty'] ?? 'Izoh matni bo‘sh bo‘lishi mumkin emas!')]);
     exit;
 }
 
@@ -14,14 +14,14 @@ if ($member) {
 } else {
     $author = trim(filter($_POST['author'] ?? ''));
     if (empty($author)) {
-        $author = 'Anonim';
+        $author = $lang['anonymous'] ?? 'Anonim';
     }
 }
 $author = mb_substr($author, 0, 50, 'UTF-8');
 
 $text = trim(filter($_POST['text'] ?? ''));
 if (mb_strlen($text, 'UTF-8') < 2) {
-    echo json_encode(['status' => 'error', 'message' => 'Izoh matni juda qisqa!']);
+    echo json_encode(['status' => 'error', 'message' => ($lang['comment_too_short'] ?? 'Izoh matni juda qisqa!')]);
     exit;
 }
 $text = mb_substr($text, 0, 1000, 'UTF-8');
@@ -31,7 +31,7 @@ $ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR'] ?? '127.
 // Anti-spam cooldown (10 soniya)
 $last_comm = $mysqli->query("SELECT date FROM ero_comments WHERE ip = '$ip' ORDER BY id DESC LIMIT 1")->fetch_assoc();
 if ($last_comm && (time() - intval($last_comm['date'])) < 10) {
-    echo json_encode(['status' => 'error', 'message' => 'Iltimos, keyingi izohni 10 soniyadan so‘ng qoldiring!']);
+    echo json_encode(['status' => 'error', 'message' => ($lang['comment_flood_wait'] ?? 'Iltimos, keyingi izohni 10 soniyadan so‘ng qoldiring!')]);
     exit;
 }
 

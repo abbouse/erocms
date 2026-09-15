@@ -78,13 +78,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     }
 }
 
-$title = 'Parolni Tiklash - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+$title = ($lang['reset_password_title'] ?? 'Parolni Tiklash') . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
 head();
 ?>
 
 <div class="auth-page-container">
     <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title">Parolni Tiklash</h2>
+        <h2 class="auth-minimal-title"><?=$lang['reset_password_title'] ?? 'Parolni Tiklash'?></h2>
 
         <?php if (!empty($forgot_error)): ?>
             <div class="auth-alert auth-alert-danger">
@@ -104,12 +104,12 @@ head();
                 <input type="hidden" name="act" value="request_reset" />
 
                 <div class="form-group-custom">
-                    <label for="identity_input">Login yoki Email:</label>
-                    <input type="text" id="identity_input" name="identity" class="form-control-auth" placeholder="Login" required autofocus />
+                    <label for="identity_input"><?=($lang['username_field'] ?? 'Login')?> / <?=($lang['email'] ?? 'Email')?>:</label>
+                    <input type="text" id="identity_input" name="identity" class="form-control-auth" placeholder="<?=($lang['username_field'] ?? 'Login')?>" required autofocus />
                 </div>
 
                 <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                    Davom etish
+                    <?=$lang['send'] ?? 'Davom etish'?>
                 </button>
             </form>
         <?php else: ?>
@@ -120,33 +120,33 @@ head();
 
                 <?php if (!empty($reset_code)): ?>
                     <div style="background:#231713; border:1px solid #ff9900; padding:10px 12px; border-radius:6px; margin-bottom:14px; font-size:13px; color:#f0c080;">
-                        Tasdiqlash kodingiz: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
+                        <?=($lang['code'] ?? 'Kodingiz')?>: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
                     </div>
                 <?php endif; ?>
 
                 <div class="form-group-custom">
-                    <label for="code_input">Tasdiqlash kodi:</label>
+                    <label for="code_input"><?=($lang['code'] ?? 'Tasdiqlash kodi')?>:</label>
                     <input type="text" id="code_input" name="code" class="form-control-auth" placeholder="6 xonali kod" value="<?=$reset_code?>" required />
                 </div>
 
                 <div class="form-group-custom">
-                    <label for="new_pass">Yangi parol:</label>
+                    <label for="new_pass"><?=($lang['new_password'] ?? 'Yangi parol')?>:</label>
                     <input type="password" id="new_pass" name="new_password" class="form-control-auth" placeholder="Kamida 6 ta belgi" required />
                 </div>
 
                 <div class="form-group-custom">
-                    <label for="new_pass_c">Yangi parolni takrorlang:</label>
+                    <label for="new_pass_c"><?=($lang['repeat_new_password'] ?? 'Yangi parolni takrorlang')?>:</label>
                     <input type="password" id="new_pass_c" name="new_password_confirm" class="form-control-auth" placeholder="Parolni takrorlang" required />
                 </div>
 
                 <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                    Parolni saqlash
+                    <?=$lang['pass'] ?? 'Parolni saqlash'?>
                 </button>
             </form>
         <?php endif; ?>
 
         <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;">&larr; Kirish sahifasiga qaytish</a>
+            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;">&larr; <?=$lang['back_to_login'] ?? 'Kirish sahifasiga qaytish'?></a>
         </div>
     </div>
 </div>

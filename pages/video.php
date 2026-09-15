@@ -283,16 +283,16 @@ if (!empty($view['member_id']) && intval($view['member_id']) > 0) {
     $auth_q = $mysqli->query("SELECT id, username FROM ero_members WHERE id = '$author_id' AND status = 1 LIMIT 1");
     if ($auth_q && $auth_q->num_rows > 0) {
         $u_info = $auth_q->fetch_assoc();
-        $video_author_html = '<span><i class="fa fa-user"></i> Yukladi: <b style="color:var(--primary-accent, #ff9900);">' . htmlspecialchars($u_info['username']) . '</b></span>';
+        $video_author_html = '<span><i class="fa fa-user"></i> '.($lang['uploaded_by'] ?? 'Yukladi').': <b style="color:var(--primary-accent, #ff9900);">' . htmlspecialchars($u_info['username']) . '</b></span>';
     }
 }
 ?>
 <!-- Video Metadata & Statistics -->
 <div class="video-meta-info">
-    <span><i class="fa fa-calendar"></i> Sana: <b><?=date('d.m.Y', $view['date'])?></b></span>
-    <span><i class="fa fa-eye"></i> Ko‘rishlar: <b><?=$view['view']?></b></span>
-    <span><i class="fa fa-clock-o"></i> Davomiyligi: <b><?=$view['duration']?></b></span>
-    <span><i class="fa fa-folder-open"></i> Bo‘lim: <a href="/<?=$category['translit']?>/" style="color:var(--primary-accent, #ff9900);"><b><?=$category['name']?></b></a></span>
+    <span><i class="fa fa-calendar"></i> <?=($lang['date'] ?? 'Sana')?>: <b><?=date('d.m.Y', $view['date'])?></b></span>
+    <span><i class="fa fa-eye"></i> <?=($lang['views'] ?? 'Ko‘rishlar')?>: <b><?=$view['view']?></b></span>
+    <span><i class="fa fa-clock-o"></i> <?=($lang['duration'] ?? 'Davomiyligi')?>: <b><?=$view['duration']?></b></span>
+    <span><i class="fa fa-folder-open"></i> <?=($lang['category'] ?? 'Bo‘lim')?>: <a href="/<?=$category['translit']?>/" style="color:var(--primary-accent, #ff9900);"><b><?=$category['name']?></b></a></span>
     <?=$video_author_html?>
 </div>
 
@@ -304,7 +304,7 @@ if (!empty($view['member_id']) && intval($view['member_id']) > 0) {
 
 <?php if (!empty($tags)): ?>
 <div class="tags-cloud">
-    <i class="fa fa-tags" style="color:var(--primary-accent, #ff9900); margin-right: 6px;"></i> Teglar: 
+    <i class="fa fa-tags" style="color:var(--primary-accent, #ff9900); margin-right: 6px;"></i> <?=($lang['tags'] ?? 'Teglar')?>: 
     <?php
     foreach ($tags as $t) {
         $t = trim($t);
@@ -318,7 +318,7 @@ if (!empty($view['member_id']) && intval($view['member_id']) > 0) {
 
 <?php if ($user && $user['access'] == 1): ?>
 <div class="functions_data" style="margin-top:10px;">
-    <b>Admin boshqaruvi:</b> 
+    <b><?=($lang['admin_control'] ?? 'Admin boshqaruvi')?>:</b> 
     <a href="/editing_<?=$view['id']?>.html" style="color:#28a745; margin-right:15px;"><i class="fa fa-edit"></i> <?=$lang['edit']?></a>
     <a href="/deletion_<?=$view['id']?>.html" style="color:#dc3545;" onclick="return confirm('Haqiqatdan ham o‘chirmoqchimisiz?');"><i class="fa fa-trash"></i> <?=$lang['remove']?></a>
 </div>
@@ -332,7 +332,7 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
 <div class="comments-section">
     <div class="comments-header">
         <i class="fa fa-comments-o" style="color:var(--primary-accent, #ff9900); font-size: 20px;"></i> 
-        Izohlar va Fikrlar <span id="comments-count">(<?=$comments_count?>)</span>
+        <?=($lang['comments_title'] ?? 'Izohlar va Fikrlar')?> <span id="comments-count">(<?=$comments_count?>)</span>
     </div>
 
     <!-- Add Comment Form -->
@@ -341,16 +341,16 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
             <input type="hidden" name="id" value="<?=$view['id']?>" />
             <div class="form-group">
                 <?php if ($member): ?>
-                    <input type="text" name="author" class="form-control-custom" value="<?=htmlspecialchars($member['username'])?>" readonly style="background:#190c08; color:#ff9900; font-weight:bold; border-color:#372722;" title="Siz ro‘yxatdan o‘tgansiz" />
+                    <input type="text" name="author" class="form-control-custom" value="<?=htmlspecialchars($member['username'])?>" readonly style="background:#190c08; color:#ff9900; font-weight:bold; border-color:#372722;" />
                 <?php else: ?>
-                    <input type="text" name="author" class="form-control-custom" placeholder="Ismingiz (ixtiyoriy, standart: Anonim)" maxlength="50" />
+                    <input type="text" name="author" class="form-control-custom" placeholder="<?=($lang['name'] ?? 'Ismingiz')?> (<?=($lang['anonymous'] ?? 'Anonim')?>)" maxlength="50" />
                 <?php endif; ?>
             </div>
             <div class="form-group">
-                <textarea name="text" id="comment-text" class="form-control-custom" placeholder="Video haqida fikringizni yozing..." required maxlength="1000"></textarea>
+                <textarea name="text" id="comment-text" class="form-control-custom" placeholder="<?=($lang['leave_comment'] ?? 'Fikringizni yozing...')?>" required maxlength="1000"></textarea>
             </div>
             <button type="submit" class="btn-submit-comment" id="btn-submit-comm">
-                <i class="fa fa-paper-plane"></i> Izoh qoldirish
+                <i class="fa fa-paper-plane"></i> <?=($lang['send'] ?? 'Yuborish')?>
             </button>
             <span id="comment-status" style="margin-left: 10px; font-size: 13px;"></span>
         </form>
@@ -369,13 +369,13 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
                     <div class="comment-text">'.nl2br(htmlspecialchars($comm['text'], ENT_QUOTES, 'UTF-8')).'</div>
                     <div class="comment-actions">
                         <button type="button" class="btn-comment-reply" onclick="replyComment(\''.htmlspecialchars($comm['author'], ENT_QUOTES, 'UTF-8').'\')">
-                            <i class="fa fa-reply"></i> Javob berish
+                            <i class="fa fa-reply"></i> '.($lang['reply'] ?? 'Javob berish').'
                         </button>
                     </div>
                 </div>';
             }
         } else {
-            echo '<div id="no-comments-msg" style="color: #666; font-style: italic; padding: 10px 0;">Hozircha izohlar yo‘q. Birinchi bo‘lib fikringizni bildiring!</div>';
+            echo '<div id="no-comments-msg" style="color: #666; font-style: italic; padding: 10px 0;">'.($lang['data_not_found'] ?? 'Hozircha izohlar yo‘q.').'</div>';
         }
         ?>
     </div>
@@ -383,7 +383,7 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
 
 <!-- Similar Videos Grid (O'xshash videolar) -->
 <div class="xxxhd-title-top" style="margin-top: 20px;">
-    <h2><i class="fa fa-random"></i> O‘xshash videolar</h2>
+    <h2><i class="fa fa-random"></i> <?=($lang['similar_videos'] ?? 'O‘xshash videolar')?></h2>
 </div>
 
 <div class="xxxhd-thumbs-content">

@@ -72,13 +72,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     }
 }
 
-$title = 'Profilga Kirish - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+$title = $lang['login_title'] . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
 head();
 ?>
 
 <div class="auth-page-container">
     <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title">Kirish</h2>
+        <h2 class="auth-minimal-title"><?=$lang['login_title']?></h2>
 
         <?php if (!empty($login_error)): ?>
             <div class="auth-alert auth-alert-danger">
@@ -96,33 +96,33 @@ head();
             <input type="hidden" name="act" value="login" />
 
             <div class="form-group-custom">
-                <label for="login_input">Foydalanuvchi nomi:</label>
-                <input type="text" id="login_input" name="login" class="form-control-auth" placeholder="Login" required autofocus />
+                <label for="login_input"><?=$lang['username_field']?>:</label>
+                <input type="text" id="login_input" name="login" class="form-control-auth" placeholder="<?=$lang['username_field']?>" required autofocus />
             </div>
 
             <div class="form-group-custom">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <label for="pass_input" style="margin:0;">Parol:</label>
-                    <a href="/forgot-password.html" class="auth-link-sm">Unutdingizmi?</a>
+                    <label for="pass_input" style="margin:0;"><?=$lang['password_field']?>:</label>
+                    <a href="/forgot-password.html" class="auth-link-sm"><?=$lang['forgot_password_link']?></a>
                 </div>
-                <input type="password" id="pass_input" name="password" class="form-control-auth" placeholder="Parol" required />
+                <input type="password" id="pass_input" name="password" class="form-control-auth" placeholder="<?=$lang['password_field']?>" required />
             </div>
 
             <div class="form-check-custom" style="margin: 12px 0 16px;">
                 <label style="cursor:pointer; font-size:13px; color:#aaa; display:inline-flex; align-items:center; gap:6px;">
                     <input type="checkbox" name="remember" value="1" checked style="accent-color:var(--primary-accent, #ff9900);" />
-                    <span>Eslab qolish</span>
+                    <span><?=$lang['remember_me']?></span>
                 </label>
             </div>
 
             <button type="submit" class="btn-auth-submit">
-                Kirish
+                <?=$lang['btn_login']?>
             </button>
         </form>
 
         <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <span style="color:#888;">Hisobingiz yo‘qmi?</span>
-            <a href="/register.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;">Ro‘yxatdan o‘tish</a>
+            <span style="color:#888;"><?=$lang['no_account_yet']?></span>
+            <a href="/register.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;"><?=$lang['btn_register']?></a>
         </div>
     </div>
 </div>

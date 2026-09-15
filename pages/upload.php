@@ -76,26 +76,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     }
 }
 
-$title = 'Video Yuklash - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+$title = ($lang['upload_video_title'] ?? 'Video Yuklash') . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
 head();
 ?>
 
 <div class="auth-page-container" style="max-width: 520px;">
     <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title">Video Yuklash</h2>
+        <h2 class="auth-minimal-title"><?=$lang['upload_video_title'] ?? 'Video Yuklash'?></h2>
 
         <?php if ($upload_success): ?>
             <div class="auth-alert auth-alert-success" style="display:block; text-align:left; font-size:14px; line-height:1.6;">
                 <div style="font-size: 15px; font-weight:bold; margin-bottom: 6px;">
-                    <i class="fa fa-check-circle"></i> Videongiz qabul qilindi!
+                    <i class="fa fa-check-circle"></i> <?=$lang['video_uploaded_success'] ?? 'Videongiz qabul qilindi!'?>
                 </div>
-                Moderator (admin) tekshirib, tavsif va bo‘limni biriktirgach, saytda e'lon qilinadi.
+                <?=$lang['video_moderation_note'] ?? 'Moderator (admin) tekshirib, tavsif va bo‘limni biriktirgach, saytda e\'lon qilinadi.'?>
                 <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
                     <a href="/profile.html?tab=videos" class="btn-auth-submit" style="display:inline-block; padding:7px 14px; text-decoration:none; font-size:12px; width:auto;">
-                        Yuklagan videolarim
+                        <?=$lang['my_uploaded_videos'] ?? 'Yuklagan videolarim'?>
                     </a>
                     <a href="/upload.html" class="auth-register-link" style="padding:7px 14px; text-decoration:none; font-size:12px; border:1px solid #372722; border-radius:4px;">
-                        Yana yuklash
+                        <?=$lang['upload_another'] ?? 'Yana yuklash'?>
                     </a>
                 </div>
             </div>
@@ -112,35 +112,35 @@ head();
 
                 <!-- 1. Video Nomi -->
                 <div class="form-group-custom">
-                    <label for="vid_name">Video nomi:</label>
-                    <input type="text" id="vid_name" name="name" class="form-control-auth" placeholder="Masalan: Ajoyib video..." value="<?=htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
+                    <label for="vid_name"><?=$lang['video_title_field'] ?? 'Video nomi'?>:</label>
+                    <input type="text" id="vid_name" name="name" class="form-control-auth" placeholder="<?=$lang['video_title_field'] ?? 'Video nomi'?>" value="<?=htmlspecialchars($_POST['name'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
                 </div>
 
                 <!-- 2. Video Fayli -->
                 <div class="form-group-custom">
-                    <label for="vid_file">Video fayli (.mp4, .webm):</label>
+                    <label for="vid_file"><?=$lang['video_file_field'] ?? 'Video fayli (.mp4, .webm)'?>:</label>
                     <input type="file" id="vid_file" name="video_file" accept="video/mp4,video/webm,video/quicktime" class="form-control-auth" style="padding:7px;" />
                 </div>
 
                 <!-- YOKI Video havolasi -->
                 <div class="form-group-custom" style="margin-top: -6px;">
-                    <div style="text-align:center; color:#666; margin:6px 0; font-size:12px; text-transform:uppercase;">yoki video havolasi (link)</div>
+                    <div style="text-align:center; color:#666; margin:6px 0; font-size:12px; text-transform:uppercase;"><?=$lang['or_video_url'] ?? 'yoki video havolasi'?></div>
                     <input type="text" id="vid_url" name="video_url" class="form-control-auth" placeholder="https://sayt.com/video.mp4" value="<?=htmlspecialchars($_POST['video_url'] ?? '', ENT_QUOTES, 'UTF-8')?>" />
                 </div>
 
                 <div style="font-size:12px; color:#777; margin: 12px 0 16px; line-height:1.4;">
-                    <i class="fa fa-info-circle"></i> Tavsif, bo‘lim va SEO ma'lumotlarini moderator (admin) o‘zi to‘ldiradi.
+                    <i class="fa fa-info-circle"></i> <?=$lang['upload_hint'] ?? 'Tavsif, bo‘lim va SEO ma\'lumotlarini moderator (admin) o‘zi to‘ldiradi.'?>
                 </div>
 
                 <button type="submit" class="btn-auth-submit">
-                    Videoni yuborish
+                    <?=$lang['btn_submit_video'] ?? 'Videoni yuborish'?>
                 </button>
             </form>
 
         <?php endif; ?>
 
         <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <a href="/profile.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;">Profilga qaytish</a>
+            <a href="/profile.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;"><?=$lang['profile'] ?? 'Profil'?> &rarr;</a>
         </div>
     </div>
 </div>

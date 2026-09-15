@@ -268,9 +268,9 @@ $req_path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $is_home = ($req_path === '/' || $req_path === '/index.php') && (empty($_GET['func']) || $_GET['func'] === 'default');
 
 // Dinamik html lang atributi (til sessiyasiga qarab)
-$sess_lang_for_html = $_SESSION['lang'] ?? 'ru';
-$html_lang_map = ['ru' => 'ru', 'uz' => 'uz', 'ua' => 'uk', 'en' => 'en'];
-$html_lang = $html_lang_map[$sess_lang_for_html] ?? 'ru';
+$sess_lang_for_html = $_SESSION['lang'] ?? $_COOKIE['lang'] ?? 'uz';
+$html_lang_map = ['uz' => 'uz', 'ru' => 'ru', 'ua' => 'uk', 'en' => 'en', 'az' => 'az'];
+$html_lang = $html_lang_map[$sess_lang_for_html] ?? 'uz';
 
 // Robots meta: noindex kerak bo'lgan sahifalar uchun
 $robots_content = (!empty($seo_noindex)) ? 'noindex, follow' : 'index, follow, max-image-preview:large';
@@ -357,11 +357,11 @@ echo '
     </div>
     <div class="xxxhd-head-menu">
       <ul class="xxxhd-head-menu-buttons">
-        '.(!$is_home ? '<li><a href="/"><i class="fa fa-home"></i> Bosh sahifa</a></li>' : '').'
+        '.(!$is_home ? '<li><a href="/"><i class="fa fa-home"></i> '.$lang['home'].'</a></li>' : '').'
         <li><a href="/new.html"><i class="fa fa-calendar"></i> '.$lang['new'].'</a></li>
         <li><a href="/top.html"><i class="fa fa-fire"></i> '.$lang['popular'].'</a></li>
-        <li><a href="/upload.html"><i class="fa fa-upload"></i> Yuklash</a></li>
-        <li><a href="/profile.html"><i class="fa fa-user-circle"></i> '.($member ? '<span class="member-nav-name">'.htmlspecialchars($member['username']).'</span>'.(!empty($unread_notifications) && $unread_notifications > 0 ? ' <span class="nav-notify-badge">+'.$unread_notifications.'</span>' : '') : 'Profil').'</a></li>
+        <li><a href="/upload.html"><i class="fa fa-upload"></i> '.$lang['upload'].'</a></li>
+        <li><a href="/profile.html"><i class="fa fa-user-circle"></i> '.($member ? '<span class="member-nav-name">'.htmlspecialchars($member['username']).'</span>'.(!empty($unread_notifications) && $unread_notifications > 0 ? ' <span class="nav-notify-badge">+'.$unread_notifications.'</span>' : '') : $lang['profile']).'</a></li>
         '.$view_control.'
       </ul>
       <div class="xxxhd-search">
@@ -406,15 +406,17 @@ echo '
   <div class="xxxhd-footer">
     <div class="xxxhd-foot">
       <p>&copy; '.date('Y').' <b>'.filter($_SERVER['SERVER_NAME']).'</b> '.$lang['rights'].'</p>
-      <p style="margin: 8px 0; font-size: 11px; color: #707070;">Saytdagi barcha videolar ochiq manbalardan olingan bo‘lib, 18 yoshga to‘lmagan shaxslarga kirish taqiqlanadi.</p>
+      <p style="margin: 8px 0; font-size: 11px; color: #707070;">'.$lang['adult_warning'].'</p>
       <div style="margin: 10px 0; display: flex; justify-content: center; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <a href="/dmca.html" style="color: var(--primary-accent, #ff9900); font-size: 12px; text-decoration: none; font-weight: bold;"><i class="fa fa-shield"></i> DMCA / Mualliflik huquqi</a>
+        <a href="/dmca.html" style="color: var(--primary-accent, #ff9900); font-size: 12px; text-decoration: none; font-weight: bold;"><i class="fa fa-shield"></i> '.$lang['dmca_copyright'].'</a>
         <a href="/sitemap.html" style="color: #999; font-size: 12px; text-decoration: none;"><i class="fa fa-sitemap"></i> '.$lang['map'].'</a>
       </div>
-      <div style="margin-top:8px;">
-        <a href="/?lang=ru"><img src="/designs/icons/flags/ru.png" alt="Русский" title="Русский" /></a>
-        <a href="/?lang=en"><img src="/designs/icons/flags/en.png" alt="English" title="English" /></a>
-        <a href="/?lang=ua"><img src="/designs/icons/flags/ua.png" alt="Українська" title="Українська" /></a>
+      <div style="margin-top:8px; display:flex; justify-content:center; gap:8px; align-items:center;">
+        <a href="/?lang=uz" title="O‘zbekcha"><img src="/designs/icons/flags/uz.png" alt="O‘zbekcha" title="O‘zbekcha" style="vertical-align:middle; border-radius:2px;" /></a>
+        <a href="/?lang=ru" title="Русский"><img src="/designs/icons/flags/ru.png" alt="Русский" title="Русский" style="vertical-align:middle; border-radius:2px;" /></a>
+        <a href="/?lang=en" title="English"><img src="/designs/icons/flags/en.png" alt="English" title="English" style="vertical-align:middle; border-radius:2px;" /></a>
+        <a href="/?lang=ua" title="Українська"><img src="/designs/icons/flags/ua.png" alt="Українська" title="Українська" style="vertical-align:middle; border-radius:2px;" /></a>
+        <a href="/?lang=az" title="Azərbaycan"><img src="/designs/icons/flags/az.png" alt="Azərbaycan" title="Azərbaycan" style="vertical-align:middle; border-radius:2px;" /></a>
       </div>
     </div>
   </div>

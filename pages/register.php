@@ -52,13 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     }
 }
 
-$title = 'Ro‘yxatdan O‘tish - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
+$title = $lang['register_title'] . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
 head();
 ?>
 
 <div class="auth-page-container">
     <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title">Ro‘yxatdan O‘tish</h2>
+        <h2 class="auth-minimal-title"><?=$lang['register_title']?></h2>
 
         <?php if (!empty($reg_error)): ?>
             <div class="auth-alert auth-alert-danger">
@@ -70,28 +70,28 @@ head();
             <input type="hidden" name="act" value="register" />
 
             <div class="form-group-custom">
-                <label for="reg_username">Login (foydalanuvchi nomi):</label>
-                <input type="text" id="reg_username" name="username" class="form-control-auth" placeholder="Masalan: jasur" value="<?=htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
+                <label for="reg_username"><?=$lang['username_field']?>:</label>
+                <input type="text" id="reg_username" name="username" class="form-control-auth" placeholder="<?=$lang['username_field']?>" value="<?=htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
             </div>
 
             <div class="form-group-custom">
-                <label for="reg_password">Parol:</label>
-                <input type="password" id="reg_password" name="password" class="form-control-auth" placeholder="Kamida 6 ta belgi" required />
+                <label for="reg_password"><?=$lang['password_field']?>:</label>
+                <input type="password" id="reg_password" name="password" class="form-control-auth" placeholder="<?=$lang['password_field']?>" required />
             </div>
 
             <div class="form-group-custom">
-                <label for="reg_password_confirm">Parolni tasdiqlang:</label>
-                <input type="password" id="reg_password_confirm" name="password_confirm" class="form-control-auth" placeholder="Parolni takrorlang" required />
+                <label for="reg_password_confirm"><?=$lang['confirm_password']?>:</label>
+                <input type="password" id="reg_password_confirm" name="password_confirm" class="form-control-auth" placeholder="<?=$lang['confirm_password']?>" required />
             </div>
 
             <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                Ro‘yxatdan o‘tish
+                <?=$lang['btn_register']?>
             </button>
         </form>
 
         <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <span style="color:#888;">Hisobingiz bormi?</span>
-            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;">Kirish</a>
+            <span style="color:#888;"><?=$lang['already_have_account']?></span>
+            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;"><?=$lang['btn_login']?></a>
         </div>
     </div>
 </div>
