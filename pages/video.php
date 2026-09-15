@@ -200,9 +200,13 @@
 
 <!-- Responsive Player Container -->
 <?php if (function_exists('ads_render_banner')) ads_render_banner('top'); ?>
-<div class="video-player-container">
+<div class="video-player-container" style="position:relative;">
+    <?php if (function_exists('ads_render_player_overlay')) ads_render_player_overlay(); ?>
     <div class="video-wrapper-responsive">
     <?php
+    $cfg_ads = function_exists('ads_get_config') ? ads_get_config() : [];
+    $vast_url = (!empty($cfg_ads['ads_enabled']) && !empty($cfg_ads['vast_preroll_enabled']) && !empty($cfg_ads['vast_preroll_url'])) ? $cfg_ads['vast_preroll_url'] : '';
+
     if (!empty($view['embed']) || strpos($view['address'], '<iframe') !== false) {
         // Iframe embed
         if (strpos($view['address'], '<iframe') !== false) {
@@ -215,6 +219,7 @@
         echo '<iframe src="'.$view['address'].'" frameborder="0" allowfullscreen></iframe>';
     } else {
         // Native HTML5 or Playerjs
+        $preroll_js = !empty($vast_url) ? ', preroll: "'.$vast_url.'"' : '';
         if ($settings['player'] == 2) {
             echo '<script src="/core/javascript/playerjs.js" type="text/javascript"></script>
             <div id="player"></div>
@@ -223,7 +228,7 @@
                 id: "player",
                 file: "/view_'.$view['translit'].'",
                 poster: "'.$video_poster.'",
-                title: "'.filter($_SERVER['HTTP_HOST']).'"
+                title: "'.filter($_SERVER['HTTP_HOST']).'"' . $preroll_js . '
             });
             </script>';
         } else {
@@ -385,6 +390,7 @@ while ($sim = $similar_q->fetch_assoc()) {
 }
 ?>
 </div>
+<?php if (function_exists('ads_render_native_grid')) ads_render_native_grid(); ?>
 
 <!-- AJAX Scripts for Likes & Comments -->
 <script>

@@ -28,6 +28,19 @@ if (isset($_POST['save_ad_settings'])) {
     $banner_bottom_desktop = trim($_POST['banner_bottom_desktop'] ?? '');
     $banner_bottom_mobile = trim($_POST['banner_bottom_mobile'] ?? '');
     
+    $sticky_footer_enabled = isset($_POST['sticky_footer_enabled']) ? 1 : 0;
+    $sticky_footer_desktop = trim($_POST['sticky_footer_desktop'] ?? '');
+    $sticky_footer_mobile = trim($_POST['sticky_footer_mobile'] ?? '');
+
+    $player_overlay_enabled = isset($_POST['player_overlay_enabled']) ? 1 : 0;
+    $player_overlay_url = trim($_POST['player_overlay_url'] ?? '');
+
+    $native_grid_enabled = isset($_POST['native_grid_enabled']) ? 1 : 0;
+    $native_grid_code = trim($_POST['native_grid_code'] ?? '');
+
+    $vast_preroll_enabled = isset($_POST['vast_preroll_enabled']) ? 1 : 0;
+    $vast_preroll_url = trim($_POST['vast_preroll_url'] ?? '');
+
     $text_ads_enabled = isset($_POST['text_ads_enabled']) ? 1 : 0;
 
     $new_config = [
@@ -43,6 +56,15 @@ if (isset($_POST['save_ad_settings'])) {
         'banner_bottom_desktop' => $banner_bottom_desktop,
         'banner_bottom_mobile' => $banner_bottom_mobile,
         'banner_bottom' => $banner_bottom_desktop ?: $banner_bottom_mobile,
+        'sticky_footer_enabled' => $sticky_footer_enabled,
+        'sticky_footer_desktop' => $sticky_footer_desktop,
+        'sticky_footer_mobile' => $sticky_footer_mobile,
+        'player_overlay_enabled' => $player_overlay_enabled,
+        'player_overlay_url' => $player_overlay_url,
+        'native_grid_enabled' => $native_grid_enabled,
+        'native_grid_code' => $native_grid_code,
+        'vast_preroll_enabled' => $vast_preroll_enabled,
+        'vast_preroll_url' => $vast_preroll_url,
         'text_ads_enabled' => $text_ads_enabled
     ];
 
@@ -171,6 +193,42 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                     </div>
                 </label>
 
+                <!-- Sticky Footer Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="sticky_footer_enabled" value="1" <?=(!empty($cfg['sticky_footer_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-anchor" style="color:#38bdf8;"></i> Sticky Footer Banner</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Ekran pastida yopishib turuvchi reklama</small>
+                    </div>
+                </label>
+
+                <!-- In-Player Click Overlay Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="player_overlay_enabled" value="1" <?=(!empty($cfg['player_overlay_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-play-circle" style="color:#ef4444;"></i> In-Player Click Overlay</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Play bosganda yangi oynada ochilish</small>
+                    </div>
+                </label>
+
+                <!-- Native Grid Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="native_grid_enabled" value="1" <?=(!empty($cfg['native_grid_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-th" style="color:#a855f7;"></i> Native Video Grid</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Videolar orasidagi tavsiya reklamasi</small>
+                    </div>
+                </label>
+
+                <!-- VAST Pre-Roll Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="vast_preroll_enabled" value="1" <?=(!empty($cfg['vast_preroll_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-film" style="color:#ec4899;"></i> VAST Video Pre-Roll</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Video oldidan 5s video reklama</small>
+                    </div>
+                </label>
+
                 <!-- Matnli homiy havolalari Switch -->
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
                     <input type="checkbox" name="text_ads_enabled" value="1" <?=($cfg['text_ads_enabled'] ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
@@ -234,6 +292,64 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                     <textarea name="banner_bottom_mobile" class="adm-input" style="height: 100px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <iframe> mobil banner kodi"><?=htmlspecialchars($cfg['banner_bottom_mobile'] ?? '')?></textarea>
                     <small style="color: #64748b; font-size: 11px;">Mobil telefonlarda video ostida chiqadigan reklama.</small>
                 </div>
+            </div>
+        </div>
+
+        <!-- 3. Ekran Pastidagi Sticky Footer Banner (Kompyuter va Mobil) -->
+        <div style="background: rgba(56,189,248,0.05); border: 1px solid rgba(56,189,248,0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #38bdf8; font-size: 13px; margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-anchor"></i> Ekran Pastidagi Yopishqoq Banner (Sticky Footer - Eng Yuqori CTR & Daromad):
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-desktop" style="color:#60a5fa;"></i> Kompyuter (Desktop) uchun (728x90 yoki 900x90):</label>
+                    <textarea name="sticky_footer_desktop" class="adm-input" style="height: 90px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> ExoClick 728x90 banner kodi"><?=htmlspecialchars($cfg['sticky_footer_desktop'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Monitor ekrani pastida doim ko‘rinib turadi.</small>
+                </div>
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label"><i class="fa fa-mobile" style="color:#ff9900; font-size:15px;"></i> Mobil (Telefon) uchun (300x50 yoki 300x100):</label>
+                    <textarea name="sticky_footer_mobile" class="adm-input" style="height: 90px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> ExoClick 300x50 yoki 300x100 banner kodi"><?=htmlspecialchars($cfg['sticky_footer_mobile'] ?? '')?></textarea>
+                    <small style="color: #64748b; font-size: 11px;">Smartfon ekrani tagida yopishib turadi ("Yopish" tugmasi mavjud).</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Video Player Ustiga Click-Overlay & VAST Video Pre-Roll -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <!-- Player Overlay Direct Link -->
+            <div style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 15px;">
+                <div style="font-weight: 700; color: #ef4444; font-size: 13px; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+                    <i class="fa fa-play-circle"></i> In-Player Click Overlay (Direct Link):
+                </div>
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label">ExoClick Direct Link (To‘g‘ridan-to‘g‘ri Reklama URL):</label>
+                    <input type="text" name="player_overlay_url" class="adm-input" value="<?=htmlspecialchars($cfg['player_overlay_url'] ?? '')?>" placeholder="https://syndication.exoclick.com/tag.php?goal=..." />
+                    <small style="color: #64748b; font-size: 11px; display:block; margin-top:4px;">Foydalanuvchi videoni yoqish uchun birinchi marta "Play" bosganda ochiladi.</small>
+                </div>
+            </div>
+
+            <!-- VAST Pre-Roll URL -->
+            <div style="background: rgba(236,72,153,0.05); border: 1px solid rgba(236,72,153,0.2); border-radius: 8px; padding: 15px;">
+                <div style="font-weight: 700; color: #ec4899; font-size: 13px; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+                    <i class="fa fa-film"></i> VAST In-Stream Video Ad URL (Pre-Roll):
+                </div>
+                <div class="adm-form-group" style="margin-bottom:0;">
+                    <label class="adm-label">ExoClick VAST XML / URL manzili:</label>
+                    <input type="text" name="vast_preroll_url" class="adm-input" value="<?=htmlspecialchars($cfg['vast_preroll_url'] ?? '')?>" placeholder="https://syndication.exoclick.com/splash.php?idzone=...&type=3" />
+                    <small style="color: #64748b; font-size: 11px; display:block; margin-top:4px;">Video boshlanishidan avval 5s o‘ynaladigan qimmatbaho video reklama.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Videolar Orasidagi Native Video Grid -->
+        <div style="background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #a855f7; font-size: 13px; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-th"></i> Native Video Grid (Tavsiya Videolari Ko‘rinishidagi Reklama):
+            </div>
+            <div class="adm-form-group" style="margin-bottom:0;">
+                <label class="adm-label">ExoClick Native Ad Widget Kodi:</label>
+                <textarea name="native_grid_code" class="adm-input" style="height: 80px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> ExoClick Native Ad widget kodi"><?=htmlspecialchars($cfg['native_grid_code'] ?? '')?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Bosh sahifada va video ostidagi "O‘xshash videolar" ro‘yxatida videolarga o‘xshab chiqadi.</small>
             </div>
         </div>
 

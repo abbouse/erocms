@@ -394,6 +394,11 @@ echo '
 
 </div><!-- xxxhd-wrapper -->
 '.$popunder_html.'
+';
+if (function_exists('ads_render_sticky_footer')) {
+    ads_render_sticky_footer();
+}
+echo '
   </body>
 </html>';
 

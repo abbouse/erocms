@@ -20,6 +20,15 @@ function ads_get_config() {
         'banner_bottom_desktop' => '',
         'banner_bottom_mobile' => '',
         'banner_bottom' => '',
+        'sticky_footer_enabled' => 0,
+        'sticky_footer_desktop' => '',
+        'sticky_footer_mobile' => '',
+        'player_overlay_enabled' => 0,
+        'player_overlay_url' => '',
+        'native_grid_enabled' => 0,
+        'native_grid_code' => '',
+        'vast_preroll_enabled' => 0,
+        'vast_preroll_url' => '',
         'text_ads_enabled' => 1
     ];
 
@@ -97,13 +106,10 @@ function ads_render_banner($position = 'top') {
 
     echo '<div class="ad-banner-slot ' . $slot_class . '" style="text-align:center; margin:' . $margin . '; max-width:100%; overflow:hidden;">';
 
-    // Agar ikkalasi ham bir xil kod bo'lsa (yoki bittasi to'ldirilgan bo'lsa)
     if ($mob_code === $desk_code || (empty($desk_code) && !empty($mob_code)) || (!empty($desk_code) && empty($mob_code))) {
         $single_code = !empty($desk_code) ? $desk_code : $mob_code;
         echo $single_code;
     } else {
-        // Ham kompyuter, ham mobil uchun alohida kodlar kiritilgan bo'lsa:
-        // Server-side (PHP) va CSS media-query orqali ikkalasi bir vaqtda chiqib ketishini 100% to'samiz!
         echo '<div class="ad-slot-desktop" style="display:none;">' . $desk_code . '</div>';
         echo '<div class="ad-slot-mobile" style="display:none;">' . $mob_code . '</div>';
         echo '<style>
@@ -119,4 +125,110 @@ function ads_render_banner($position = 'top') {
     }
 
     echo '</div>';
+}
+
+/**
+ * 1. Ekran pastida yopishib turuvchi Sticky Footer Banner
+ */
+function ads_render_sticky_footer() {
+    global $user;
+    if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
+        return;
+    }
+
+    $cfg = ads_get_config();
+    if (empty($cfg['ads_enabled']) || empty($cfg['sticky_footer_enabled'])) {
+        return;
+    }
+
+    $mob_code = !empty($cfg['sticky_footer_mobile']) ? trim($cfg['sticky_footer_mobile']) : '';
+    $desk_code = !empty($cfg['sticky_footer_desktop']) ? trim($cfg['sticky_footer_desktop']) : '';
+
+    if (empty($mob_code) && empty($desk_code)) {
+        return;
+    }
+
+    echo '
+    <div id="sticky-footer-ad" style="position:fixed; bottom:0; left:0; width:100%; z-index:99999; background:rgba(18,14,12,0.96); box-shadow:0 -4px 15px rgba(0,0,0,0.8); border-top:1px solid #383431; text-align:center; padding:5px 0;">
+        <button onclick="document.getElementById(\'sticky-footer-ad\').style.display=\'none\';" style="position:absolute; top:-24px; right:10px; background:#222; color:#fff; border:1px solid #444; border-bottom:none; border-radius:4px 4px 0 0; padding:2px 8px; font-size:11px; cursor:pointer; font-weight:bold;">
+            <i class="fa fa-times"></i> Yopish
+        </button>
+        <div class="sticky-ad-container" style="max-width:100%; overflow:hidden; display:flex; justify-content:center; align-items:center;">';
+
+    if ($mob_code === $desk_code || (empty($desk_code) && !empty($mob_code)) || (!empty($desk_code) && empty($mob_code))) {
+        echo !empty($desk_code) ? $desk_code : $mob_code;
+    } else {
+        echo '<div class="sticky-slot-desktop" style="display:none;">' . $desk_code . '</div>';
+        echo '<div class="sticky-slot-mobile" style="display:none;">' . $mob_code . '</div>';
+        echo '<style>
+            @media (min-width: 768px) {
+                #sticky-footer-ad .sticky-slot-desktop { display: block !important; }
+                #sticky-footer-ad .sticky-slot-mobile { display: none !important; }
+            }
+            @media (max-width: 767px) {
+                #sticky-footer-ad .sticky-slot-desktop { display: none !important; }
+                #sticky-footer-ad .sticky-slot-mobile { display: block !important; }
+            }
+        </style>';
+    }
+
+    echo '
+        </div>
+    </div>';
+}
+
+/**
+ * 2. Video Player Ustiga "Click-Overlay" (Play bosganda yangi oynada ochiluvchi reklama)
+ */
+function ads_render_player_overlay() {
+    global $user;
+    if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
+        return;
+    }
+
+    $cfg = ads_get_config();
+    if (empty($cfg['ads_enabled']) || empty($cfg['player_overlay_enabled']) || empty($cfg['player_overlay_url'])) {
+        return;
+    }
+
+    $url = htmlspecialchars($cfg['player_overlay_url'], ENT_QUOTES, 'UTF-8');
+
+    echo '
+    <div id="player-click-overlay" onclick="triggerPlayerAdOverlay(event)" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:999; cursor:pointer; background:rgba(0,0,0,0.01);">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:68px; height:68px; background:rgba(0,0,0,0.7); border:2px solid var(--primary-accent, #ff9900); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 20px rgba(0,0,0,0.8); pointer-events:none;">
+            <i class="fa fa-play" style="color:#fff; font-size:24px; margin-left:4px;"></i>
+        </div>
+    </div>
+    <script>
+    function triggerPlayerAdOverlay(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var adUrl = "' . $url . '";
+        window.open(adUrl, "_blank");
+        var ov = document.getElementById("player-click-overlay");
+        if (ov) ov.remove();
+        // Videoni o‘ynatish
+        var vid = document.getElementById("main-video-player");
+        if (vid) {
+            vid.play();
+        }
+    }
+    </script>';
+}
+
+/**
+ * 3. Videolar orasidagi Native Reklama vidjeti (Native Recommendation Grid)
+ */
+function ads_render_native_grid() {
+    global $user;
+    if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
+        return;
+    }
+
+    $cfg = ads_get_config();
+    if (empty($cfg['ads_enabled']) || empty($cfg['native_grid_enabled']) || empty($cfg['native_grid_code'])) {
+        return;
+    }
+
+    echo '<div class="xxxhd-native-ad-slot" style="margin:10px 5px; width:100%; clear:both; overflow:hidden;">' . $cfg['native_grid_code'] . '</div>';
 }

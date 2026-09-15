@@ -60,6 +60,7 @@
     }
     ?>
     </div>
+    <?php if (function_exists('ads_render_native_grid')) ads_render_native_grid(); ?>
 
     <div class="xxxhd-title-top" style="margin-top: 15px;">
         <h2><i class="fa fa-th-large"></i> Bo‘limlar va Kategoriyalar</h2>
