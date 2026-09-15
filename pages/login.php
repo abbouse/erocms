@@ -76,53 +76,54 @@ $title = $lang['login_title'] . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'sekschi
 head();
 ?>
 
-<div class="auth-page-container">
-    <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title"><?=$lang['login_title']?></h2>
+<div class="xxxhd-title-top">
+    <h1><?=$lang['login_title']?></h1>
+</div>
 
-        <?php if (!empty($login_error)): ?>
-            <div class="auth-alert auth-alert-danger">
-                <?=htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8')?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!empty($login_success)): ?>
-            <div class="auth-alert auth-alert-success">
-                <?=htmlspecialchars($login_success, ENT_QUOTES, 'UTF-8')?>
-            </div>
-        <?php endif; ?>
-
-        <form action="/login.html<?=!empty($_GET['redirect']) ? '?redirect='.urlencode(filter($_GET['redirect'])) : ''?>" method="post" class="auth-form">
-            <input type="hidden" name="act" value="login" />
-
-            <div class="form-group-custom">
-                <label for="login_input"><?=$lang['username_field']?>:</label>
-                <input type="text" id="login_input" name="login" class="form-control-auth" placeholder="<?=$lang['username_field']?>" required autofocus />
-            </div>
-
-            <div class="form-group-custom">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <label for="pass_input" style="margin:0;"><?=$lang['password_field']?>:</label>
-                    <a href="/forgot-password.html" class="auth-link-sm"><?=$lang['forgot_password_link']?></a>
-                </div>
-                <input type="password" id="pass_input" name="password" class="form-control-auth" placeholder="<?=$lang['password_field']?>" required />
-            </div>
-
-            <div class="form-check-custom" style="margin: 12px 0 16px;">
-                <label style="cursor:pointer; font-size:13px; color:#aaa; display:inline-flex; align-items:center; gap:6px;">
-                    <input type="checkbox" name="remember" value="1" checked style="accent-color:var(--primary-accent, #ff9900);" />
-                    <span><?=$lang['remember_me']?></span>
-                </label>
-            </div>
-
-            <button type="submit" class="btn-auth-submit">
-                <?=$lang['btn_login']?>
-            </button>
-        </form>
-
-        <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <span style="color:#888;"><?=$lang['no_account_yet']?></span>
-            <a href="/register.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;"><?=$lang['btn_register']?></a>
+<div class="site-form-minimal">
+    <?php if (!empty($login_error)): ?>
+        <div class="site-alert error">
+            <i class="fa fa-exclamation-circle"></i> <?=htmlspecialchars($login_error, ENT_QUOTES, 'UTF-8')?>
         </div>
+    <?php endif; ?>
+
+    <?php if (!empty($login_success)): ?>
+        <div class="site-alert success">
+            <i class="fa fa-check-circle"></i> <?=htmlspecialchars($login_success, ENT_QUOTES, 'UTF-8')?>
+        </div>
+    <?php endif; ?>
+
+    <form action="/login.html<?=!empty($_GET['redirect']) ? '?redirect='.urlencode(filter($_GET['redirect'])) : ''?>" method="post">
+        <input type="hidden" name="act" value="login" />
+
+        <div class="form-group-min">
+            <label for="login_input"><?=$lang['username_field']?>:</label>
+            <input type="text" id="login_input" name="login" class="input-min" placeholder="<?=$lang['username_field']?>" required autofocus />
+        </div>
+
+        <div class="form-group-min">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <label for="pass_input" style="margin:0;"><?=$lang['password_field']?>:</label>
+                <a href="/forgot-password.html" class="link-min-sm"><?=$lang['forgot_password_link']?></a>
+            </div>
+            <input type="password" id="pass_input" name="password" class="input-min" placeholder="<?=$lang['password_field']?>" required />
+        </div>
+
+        <div style="margin: 10px 0 16px;">
+            <label style="cursor:pointer; font-size:13px; color:#aaa; display:inline-flex; align-items:center; gap:6px;">
+                <input type="checkbox" name="remember" value="1" checked style="accent-color:var(--primary-accent, #ff9900);" />
+                <span><?=$lang['remember_me']?></span>
+            </label>
+        </div>
+
+        <button type="submit" class="btn-min-submit">
+            <?=$lang['btn_login']?>
+        </button>
+    </form>
+
+    <div class="form-min-footer">
+        <span><?=$lang['no_account_yet']?></span>
+        <a href="/register.html" class="link-min-accent"><?=$lang['btn_register']?></a>
     </div>
 </div>
+

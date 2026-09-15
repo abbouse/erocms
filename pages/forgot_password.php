@@ -82,71 +82,72 @@ $title = ($lang['reset_password_title'] ?? 'Parolni Tiklash') . ' - ' . filter($
 head();
 ?>
 
-<div class="auth-page-container">
-    <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title"><?=$lang['reset_password_title'] ?? 'Parolni Tiklash'?></h2>
+<div class="xxxhd-title-top">
+    <h1><?=$lang['reset_password_title'] ?? 'Parolni Tiklash'?></h1>
+</div>
 
-        <?php if (!empty($forgot_error)): ?>
-            <div class="auth-alert auth-alert-danger">
-                <?=$forgot_error?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!empty($forgot_success)): ?>
-            <div class="auth-alert auth-alert-success">
-                <?=$forgot_success?>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($step === 1): ?>
-            <!-- 1-Qadam: Foydalanuvchini topish -->
-            <form action="/forgot-password.html" method="post" class="auth-form">
-                <input type="hidden" name="act" value="request_reset" />
-
-                <div class="form-group-custom">
-                    <label for="identity_input"><?=($lang['username_field'] ?? 'Login')?> / <?=($lang['email'] ?? 'Email')?>:</label>
-                    <input type="text" id="identity_input" name="identity" class="form-control-auth" placeholder="<?=($lang['username_field'] ?? 'Login')?>" required autofocus />
-                </div>
-
-                <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                    <?=$lang['send'] ?? 'Davom etish'?>
-                </button>
-            </form>
-        <?php else: ?>
-            <!-- 2-Qadam: Yangi parolni kiritish -->
-            <form action="/forgot-password.html" method="post" class="auth-form">
-                <input type="hidden" name="act" value="set_new_password" />
-                <input type="hidden" name="user_id" value="<?=$reset_user_id?>" />
-
-                <?php if (!empty($reset_code)): ?>
-                    <div style="background:#231713; border:1px solid #ff9900; padding:10px 12px; border-radius:6px; margin-bottom:14px; font-size:13px; color:#f0c080;">
-                        <?=($lang['code'] ?? 'Kodingiz')?>: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
-                    </div>
-                <?php endif; ?>
-
-                <div class="form-group-custom">
-                    <label for="code_input"><?=($lang['code'] ?? 'Tasdiqlash kodi')?>:</label>
-                    <input type="text" id="code_input" name="code" class="form-control-auth" placeholder="6 xonali kod" value="<?=$reset_code?>" required />
-                </div>
-
-                <div class="form-group-custom">
-                    <label for="new_pass"><?=($lang['new_password'] ?? 'Yangi parol')?>:</label>
-                    <input type="password" id="new_pass" name="new_password" class="form-control-auth" placeholder="Kamida 6 ta belgi" required />
-                </div>
-
-                <div class="form-group-custom">
-                    <label for="new_pass_c"><?=($lang['repeat_new_password'] ?? 'Yangi parolni takrorlang')?>:</label>
-                    <input type="password" id="new_pass_c" name="new_password_confirm" class="form-control-auth" placeholder="Parolni takrorlang" required />
-                </div>
-
-                <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                    <?=$lang['pass'] ?? 'Parolni saqlash'?>
-                </button>
-            </form>
-        <?php endif; ?>
-
-        <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600;">&larr; <?=$lang['back_to_login'] ?? 'Kirish sahifasiga qaytish'?></a>
+<div class="site-form-minimal">
+    <?php if (!empty($forgot_error)): ?>
+        <div class="site-alert error">
+            <i class="fa fa-exclamation-circle"></i> <?=$forgot_error?>
         </div>
+    <?php endif; ?>
+
+    <?php if (!empty($forgot_success)): ?>
+        <div class="site-alert success">
+            <i class="fa fa-check-circle"></i> <?=$forgot_success?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($step === 1): ?>
+        <!-- 1-Qadam: Foydalanuvchini topish -->
+        <form action="/forgot-password.html" method="post">
+            <input type="hidden" name="act" value="request_reset" />
+
+            <div class="form-group-min">
+                <label for="identity_input"><?=($lang['username_field'] ?? 'Login')?> / <?=($lang['email'] ?? 'Email')?>:</label>
+                <input type="text" id="identity_input" name="identity" class="input-min" placeholder="<?=($lang['username_field'] ?? 'Login')?>" required autofocus />
+            </div>
+
+            <button type="submit" class="btn-min-submit" style="margin-top:10px;">
+                <?=$lang['send'] ?? 'Davom etish'?>
+            </button>
+        </form>
+    <?php else: ?>
+        <!-- 2-Qadam: Yangi parolni kiritish -->
+        <form action="/forgot-password.html" method="post">
+            <input type="hidden" name="act" value="set_new_password" />
+            <input type="hidden" name="user_id" value="<?=$reset_user_id?>" />
+
+            <?php if (!empty($reset_code)): ?>
+                <div style="background:#231713; border:1px solid #ff9900; padding:10px 12px; border-radius:3px; margin-bottom:14px; font-size:13px; color:#f0c080;">
+                    <?=($lang['code'] ?? 'Kodingiz')?>: <b style="font-size:16px; color:#ff9900; letter-spacing:2px;"><?=$reset_code?></b>
+                </div>
+            <?php endif; ?>
+
+            <div class="form-group-min">
+                <label for="code_input"><?=($lang['code'] ?? 'Tasdiqlash kodi')?>:</label>
+                <input type="text" id="code_input" name="code" class="input-min" placeholder="6 xonali kod" value="<?=$reset_code?>" required />
+            </div>
+
+            <div class="form-group-min">
+                <label for="new_pass"><?=($lang['new_password'] ?? 'Yangi parol')?>:</label>
+                <input type="password" id="new_pass" name="new_password" class="input-min" placeholder="Kamida 6 ta belgi" required />
+            </div>
+
+            <div class="form-group-min">
+                <label for="new_pass_c"><?=($lang['repeat_new_password'] ?? 'Yangi parolni takrorlang')?>:</label>
+                <input type="password" id="new_pass_c" name="new_password_confirm" class="input-min" placeholder="Parolni takrorlang" required />
+            </div>
+
+            <button type="submit" class="btn-min-submit" style="margin-top:10px;">
+                <?=$lang['pass'] ?? 'Parolni saqlash'?>
+            </button>
+        </form>
+    <?php endif; ?>
+
+    <div class="form-min-footer">
+        <a href="/login.html" class="link-min-accent">&larr; <?=$lang['back_to_login'] ?? 'Kirish sahifasiga qaytish'?></a>
     </div>
 </div>
+

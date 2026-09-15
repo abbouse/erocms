@@ -56,42 +56,43 @@ $title = $lang['register_title'] . ' - ' . filter($_SERVER['HTTP_HOST'] ?? 'seks
 head();
 ?>
 
-<div class="auth-page-container">
-    <div class="auth-card auth-minimal">
-        <h2 class="auth-minimal-title"><?=$lang['register_title']?></h2>
+<div class="xxxhd-title-top">
+    <h1><?=$lang['register_title']?></h1>
+</div>
 
-        <?php if (!empty($reg_error)): ?>
-            <div class="auth-alert auth-alert-danger">
-                <?=$reg_error?>
-            </div>
-        <?php endif; ?>
-
-        <form action="/register.html" method="post" class="auth-form">
-            <input type="hidden" name="act" value="register" />
-
-            <div class="form-group-custom">
-                <label for="reg_username"><?=$lang['username_field']?>:</label>
-                <input type="text" id="reg_username" name="username" class="form-control-auth" placeholder="<?=$lang['username_field']?>" value="<?=htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
-            </div>
-
-            <div class="form-group-custom">
-                <label for="reg_password"><?=$lang['password_field']?>:</label>
-                <input type="password" id="reg_password" name="password" class="form-control-auth" placeholder="<?=$lang['password_field']?>" required />
-            </div>
-
-            <div class="form-group-custom">
-                <label for="reg_password_confirm"><?=$lang['confirm_password']?>:</label>
-                <input type="password" id="reg_password_confirm" name="password_confirm" class="form-control-auth" placeholder="<?=$lang['confirm_password']?>" required />
-            </div>
-
-            <button type="submit" class="btn-auth-submit" style="margin-top:10px;">
-                <?=$lang['btn_register']?>
-            </button>
-        </form>
-
-        <div class="auth-card-footer" style="margin-top:16px; padding-top:14px; border-top:1px solid #2a2220; text-align:center; font-size:13px;">
-            <span style="color:#888;"><?=$lang['already_have_account']?></span>
-            <a href="/login.html" class="auth-register-link" style="color:var(--primary-accent, #ff9900); font-weight:600; margin-left:6px;"><?=$lang['btn_login']?></a>
+<div class="site-form-minimal">
+    <?php if (!empty($reg_error)): ?>
+        <div class="site-alert error">
+            <i class="fa fa-exclamation-circle"></i> <?=$reg_error?>
         </div>
+    <?php endif; ?>
+
+    <form action="/register.html" method="post">
+        <input type="hidden" name="act" value="register" />
+
+        <div class="form-group-min">
+            <label for="reg_username"><?=$lang['username_field']?>:</label>
+            <input type="text" id="reg_username" name="username" class="input-min" placeholder="<?=$lang['username_field']?>" value="<?=htmlspecialchars($_POST['username'] ?? '', ENT_QUOTES, 'UTF-8')?>" required autofocus />
+        </div>
+
+        <div class="form-group-min">
+            <label for="reg_password"><?=$lang['password_field']?>:</label>
+            <input type="password" id="reg_password" name="password" class="input-min" placeholder="<?=$lang['password_field']?>" required />
+        </div>
+
+        <div class="form-group-min">
+            <label for="reg_password_confirm"><?=$lang['confirm_password']?>:</label>
+            <input type="password" id="reg_password_confirm" name="password_confirm" class="input-min" placeholder="<?=$lang['confirm_password']?>" required />
+        </div>
+
+        <button type="submit" class="btn-min-submit" style="margin-top:12px;">
+            <?=$lang['btn_register']?>
+        </button>
+    </form>
+
+    <div class="form-min-footer">
+        <span><?=$lang['already_have_account']?></span>
+        <a href="/login.html" class="link-min-accent"><?=$lang['btn_login']?></a>
     </div>
 </div>
+
