@@ -67,6 +67,9 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
                 <span class="adm-pulse-dot"></span>
                 <span>Onlayn: <b>'.$online_count.'</b></span>
             </a>
+            <a href="/control.html?func=tools&action=clear_cache" class="adm-btn-site" style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);" title="HTML keshni tozalash va bosh sahifani yangilash">
+                <i class="fa fa-bolt"></i> Keshni tozalash
+            </a>
             <a href="/" target="_blank" class="adm-btn-site">
                 <i class="fa fa-external-link"></i> Saytni ko‘rish
             </a>
