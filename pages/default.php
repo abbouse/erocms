@@ -8,9 +8,11 @@
 
     // Bosh sahifa kesh muddati: ko'pi bilan 30 daqiqa (rotatsiya jonli ishlashi uchun)
     $home_cache_time = (!empty($settings['cache']) && intval($settings['cache']) > 0) ? min(intval($settings['cache']), 1800) : 900;
-    $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/default.html';
+    $sess_lang_c = $sess_lang ?? ($_SESSION['lang'] ?? 'uz');
+    $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/default_' . $sess_lang_c . '.html';
+    $can_cache = empty($user) && empty($member);
   
-    if (file_exists($caching)) {
+    if ($can_cache && file_exists($caching)) {
         if ((time() - $home_cache_time) < filemtime($caching)) {
             echo file_get_contents($caching); 
             foot();
@@ -126,10 +128,12 @@
         ads_render_banner('bottom');
     }
 
-    $handle = fopen($caching, 'w'); 
-    if ($handle) {
-        fwrite($handle, ob_get_contents()); 
-        fclose($handle); 
+    if ($can_cache) {
+        $handle = fopen($caching, 'w'); 
+        if ($handle) {
+            fwrite($handle, ob_get_contents()); 
+            fclose($handle); 
+        }
     }
     
     ob_end_flush();

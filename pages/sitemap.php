@@ -7,9 +7,11 @@
 */
 
     $cur_page = isset($_GET['page']) ? abs(intval($_GET['page'])) : 1;
-    $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/sitemap_'.$cur_page.'.html';
+    $sess_lang_c = $sess_lang ?? ($_SESSION['lang'] ?? 'uz');
+    $caching = $_SERVER['DOCUMENT_ROOT'].'/content/cache/sitemap_' . $sess_lang_c . '_' . $cur_page . '.html';
+    $can_cache = empty($user) && empty($member);
     
-    if (file_exists($caching)) {
+    if ($can_cache && file_exists($caching)) {
         if ((time() - $settings['cache']) < filemtime($caching)) {
             echo file_get_contents($caching); 
             foot();
@@ -65,10 +67,12 @@
     <?php
     if ($k_page > 1) str('/sitemap.html?', $k_page, $page);
 
-    $handle = fopen($caching, 'w'); 
-    if ($handle) {
-        fwrite($handle, ob_get_contents()); 
-        fclose($handle); 
+    if ($can_cache) {
+        $handle = fopen($caching, 'w'); 
+        if ($handle) {
+            fwrite($handle, ob_get_contents()); 
+            fclose($handle); 
+        }
     }
     
     ob_end_flush();
