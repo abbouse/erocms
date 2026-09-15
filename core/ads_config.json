@@ -7,5 +7,7 @@
     "banner_top": "",
     "banner_bottom_enabled": 1,
     "banner_bottom": "",
-    "text_ads_enabled": 1
+    "text_ads_enabled": 1,
+    "vast_preroll_enabled": 1,
+    "vast_preroll_url": "https://s.magsrv.com/v1/vast.php?idz=6029922"
 }

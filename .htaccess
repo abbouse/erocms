@@ -35,6 +35,12 @@ RewriteRule ^top.html?$ index.php?func=video_top [L,QSA]
 RewriteRule ^new.html?$ index.php?func=video_new [L,QSA]
 RewriteRule ^sitemap\.xml$ sitemap_xml.php [L,QSA]
 RewriteRule ^rss\.xml$ rss_xml.php [L,QSA]
+RewriteRule ^profile\.html?$ index.php?func=profile [L,QSA]
+RewriteRule ^login\.html?$ index.php?func=login [L,QSA]
+RewriteRule ^register\.html?$ index.php?func=register [L,QSA]
+RewriteRule ^forgot-password\.html?$ index.php?func=forgot_password [L,QSA]
+RewriteRule ^upload\.html?$ index.php?func=upload [L,QSA]
+RewriteRule ^logout\.html?$ index.php?func=logout [L,QSA]
 
 #RewriteCond %{SERVER_PORT} !^443$
 #RewriteRule .* https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]

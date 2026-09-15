@@ -15,6 +15,12 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
         $dmca_unread = $mysqli->query("SELECT count(*) FROM ero_dmca WHERE status = 0")->fetch_row()[0] ?? 0;
     }
     
+    $pending_uv = 0;
+    $chk_uv = $mysqli->query("SHOW TABLES LIKE 'ero_user_videos'");
+    if ($chk_uv && $chk_uv->num_rows > 0) {
+        $pending_uv = (int)($mysqli->query("SELECT count(*) FROM ero_user_videos WHERE status = 'pending'")->fetch_row()[0] ?? 0);
+    }
+    
     $host = filter($_SERVER['HTTP_HOST'] ?? 'sekschi.online');
     $css_file = $_SERVER['DOCUMENT_ROOT'].'/designs/admin.css';
     $css_v = file_exists($css_file) ? filemtime($css_file) : time();
@@ -23,6 +29,7 @@ function admin_head($title = 'Boshqaruv Paneli', $active_func = 'default') {
         'default'         => ['icon' => 'fa-dashboard',   'label' => 'Boshqaruv',        'href' => '/control.html'],
         'parsing'         => ['icon' => 'fa-bolt',        'label' => 'Universal Parser', 'href' => '/control.html?func=parsing'],
         'view_video'      => ['icon' => 'fa-film',        'label' => 'Videolar',         'href' => '/control.html?func=view_video'],
+        'user_videos'     => ['icon' => 'fa-cloud-upload', 'label' => 'User Videolari',  'href' => '/control.html?func=user_videos', 'badge' => $pending_uv],
         'stats'           => ['icon' => 'fa-line-chart',  'label' => 'Statistika',       'href' => '/control.html?func=stats'],
         'advertising'     => ['icon' => 'fa-bullhorn',    'label' => 'Reklama',          'href' => '/control.html?func=advertising'],
         'view_categories' => ['icon' => 'fa-folder-open', 'label' => 'Toifalar & SEO',  'href' => '/control.html?func=view_categories'],

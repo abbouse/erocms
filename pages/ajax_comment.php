@@ -7,9 +7,15 @@ if (!isset($_POST['id']) || empty($_POST['text'])) {
 }
 
 $id = abs(intval($_POST['id']));
-$author = trim(filter($_POST['author'] ?? ''));
-if (empty($author)) {
-    $author = 'Anonim';
+
+// Muallifni aniqlash
+if ($member) {
+    $author = $member['username'];
+} else {
+    $author = trim(filter($_POST['author'] ?? ''));
+    if (empty($author)) {
+        $author = 'Anonim';
+    }
 }
 $author = mb_substr($author, 0, 50, 'UTF-8');
 
@@ -36,6 +42,41 @@ $now = time();
 $insert = $mysqli->query("INSERT INTO ero_comments (id_video, author, text, ip, date) VALUES ('$id', '$safe_author', '$safe_text', '$ip', '$now')");
 
 if ($insert) {
+    $new_comm_id = $mysqli->insert_id;
+
+    // Javob (Reply / Mention) berilgan foydalanuvchini aniqlash
+    // Masalan: "@jasur_77," yoki "jasur_77," yoki "@jasur_77"
+    if (preg_match_all('/(?:@([a-zA-Z0-9_\-\.]{3,30})|^([a-zA-Z0-9_\-\.]{3,30})[,:])/u', $text, $matches, PREG_SET_ORDER)) {
+        $mentioned_usernames = [];
+        foreach ($matches as $m) {
+            $cand = !empty($m[1]) ? $m[1] : (!empty($m[2]) ? $m[2] : '');
+            if (!empty($cand)) $mentioned_usernames[] = $cand;
+        }
+        $mentioned_usernames = array_unique($mentioned_usernames);
+
+        foreach ($mentioned_usernames as $m_user) {
+            $safe_mu = mysqli_real_escape_string($mysqli, $m_user);
+            $target_q = $mysqli->query("SELECT id, username FROM ero_members WHERE username = '$safe_mu' AND status = 1 LIMIT 1");
+            if ($target_q && $target_q->num_rows > 0) {
+                $target_row = $target_q->fetch_assoc();
+                $target_id = intval($target_row['id']);
+
+                // O'ziga o'zi bildirishnoma yubormaslik
+                if ($member && intval($member['id']) === $target_id) {
+                    continue;
+                }
+
+                // Xabarnoma yozish
+                $mysqli->query("
+                    INSERT INTO ero_notifications 
+                    (member_id, from_author, id_video, comment_id, text, is_read, date) 
+                    VALUES 
+                    ('$target_id', '$safe_author', '$id', '$new_comm_id', '$safe_text', 0, '$now')
+                ");
+            }
+        }
+    }
+
     $count_q = $mysqli->query("SELECT COUNT(*) FROM ero_comments WHERE id_video = '$id'")->fetch_row();
     $total_count = intval($count_q[0]);
 
@@ -46,6 +87,11 @@ if ($insert) {
             <span class="comment-date"><i class="fa fa-clock-o"></i> '.$time_str.'</span>
         </div>
         <div class="comment-text">'.nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8')).'</div>
+        <div class="comment-actions">
+            <button type="button" class="btn-comment-reply" onclick="replyComment(\''.htmlspecialchars($author, ENT_QUOTES, 'UTF-8').'\')">
+                <i class="fa fa-reply"></i> Javob berish
+            </button>
+        </div>
     </div>';
 
     echo json_encode([

@@ -274,12 +274,24 @@
 
 <?php if (function_exists('ads_render_banner')) ads_render_banner('bottom'); ?>
 
+<?php
+$video_author_html = '';
+if (!empty($view['member_id']) && intval($view['member_id']) > 0) {
+    $author_id = intval($view['member_id']);
+    $auth_q = $mysqli->query("SELECT id, username FROM ero_members WHERE id = '$author_id' AND status = 1 LIMIT 1");
+    if ($auth_q && $auth_q->num_rows > 0) {
+        $u_info = $auth_q->fetch_assoc();
+        $video_author_html = '<span><i class="fa fa-user"></i> Yukladi: <b style="color:var(--primary-accent, #ff9900);">' . htmlspecialchars($u_info['username']) . '</b></span>';
+    }
+}
+?>
 <!-- Video Metadata & Statistics -->
 <div class="video-meta-info">
     <span><i class="fa fa-calendar"></i> Sana: <b><?=date('d.m.Y', $view['date'])?></b></span>
     <span><i class="fa fa-eye"></i> Ko‘rishlar: <b><?=$view['view']?></b></span>
     <span><i class="fa fa-clock-o"></i> Davomiyligi: <b><?=$view['duration']?></b></span>
     <span><i class="fa fa-folder-open"></i> Bo‘lim: <a href="/<?=$category['translit']?>/" style="color:var(--primary-accent, #ff9900);"><b><?=$category['name']?></b></a></span>
+    <?=$video_author_html?>
 </div>
 
 <?php if (!empty($view['description'])): ?>
@@ -326,7 +338,11 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
         <form id="form-add-comment">
             <input type="hidden" name="id" value="<?=$view['id']?>" />
             <div class="form-group">
-                <input type="text" name="author" class="form-control-custom" placeholder="Ismingiz (ixtiyoriy, standart: Anonim)" maxlength="50" />
+                <?php if ($member): ?>
+                    <input type="text" name="author" class="form-control-custom" value="<?=htmlspecialchars($member['username'])?>" readonly style="background:#190c08; color:#ff9900; font-weight:bold; border-color:#372722;" title="Siz ro‘yxatdan o‘tgansiz" />
+                <?php else: ?>
+                    <input type="text" name="author" class="form-control-custom" placeholder="Ismingiz (ixtiyoriy, standart: Anonim)" maxlength="50" />
+                <?php endif; ?>
             </div>
             <div class="form-group">
                 <textarea name="text" id="comment-text" class="form-control-custom" placeholder="Video haqida fikringizni yozing..." required maxlength="1000"></textarea>
@@ -349,6 +365,11 @@ $comments_count = $comments_q ? $comments_q->num_rows : 0;
                         <span class="comment-date"><i class="fa fa-clock-o"></i> '.time_ago($comm['date']).'</span>
                     </div>
                     <div class="comment-text">'.nl2br(htmlspecialchars($comm['text'], ENT_QUOTES, 'UTF-8')).'</div>
+                    <div class="comment-actions">
+                        <button type="button" class="btn-comment-reply" onclick="replyComment(\''.htmlspecialchars($comm['author'], ENT_QUOTES, 'UTF-8').'\')">
+                            <i class="fa fa-reply"></i> Javob berish
+                        </button>
+                    </div>
                 </div>';
             }
         } else {
@@ -414,6 +435,20 @@ function voteVideo(videoId, action) {
     }).fail(function() {
         alert('Server bilan aloqa uzildi!');
     });
+}
+
+function replyComment(author) {
+    var $textarea = $('#comment-text');
+    var currentText = $textarea.val();
+    var mention = author + ', ';
+    if (currentText.indexOf(mention) === -1) {
+        $textarea.val(mention + currentText);
+    }
+    $textarea.focus();
+    var formEl = document.getElementById('form-add-comment');
+    if (formEl) {
+        formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
 $(document).ready(function() {

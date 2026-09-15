@@ -222,7 +222,7 @@ if (file_exists(__DIR__ . '/languages/' . $sess_lang . '.php')) {
 
 function head($var = null, $image = null, $og_type = 'website') {
 
-global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $lang, $seo_extras, $seo_noindex;
+global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $lang, $seo_extras, $seo_noindex, $member, $unread_notifications;
 
 $favorites = $mysqli -> query("select count(*) from ero_favorites where data = '".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."'") -> fetch_row();
 $visitors = $mysqli -> query("select count(*) from ero_online") -> fetch_row();
@@ -241,7 +241,8 @@ $og_img = (!empty($image) && $image != '/designs/water.png')
     ? ((strpos($image, 'http') === 0) ? $image : $protocol . $host . $image) 
     : $protocol . $host . '/designs/no_poster.jpg';
 
-$is_home = (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/' || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/index.php');
+$req_path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$is_home = ($req_path === '/' || $req_path === '/index.php') && (empty($_GET['func']) || $_GET['func'] === 'default');
 
 // Dinamik html lang atributi (til sessiyasiga qarab)
 $sess_lang_for_html = $_SESSION['lang'] ?? 'ru';
@@ -256,6 +257,7 @@ echo '<!DOCTYPE html>
   <head>
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta http-equiv="Delegate-CH" content="Sec-CH-UA https://s.magsrv.com; Sec-CH-UA-Mobile https://s.magsrv.com; Sec-CH-UA-Arch https://s.magsrv.com; Sec-CH-UA-Model https://s.magsrv.com; Sec-CH-UA-Platform https://s.magsrv.com; Sec-CH-UA-Platform-Version https://s.magsrv.com; Sec-CH-UA-Bitness https://s.magsrv.com; Sec-CH-UA-Full-Version-List https://s.magsrv.com; Sec-CH-UA-Full-Version https://s.magsrv.com;" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
 <meta name="keywords" content="'.htmlspecialchars($keywords, ENT_QUOTES, 'UTF-8').'" />
@@ -332,11 +334,11 @@ echo '
     </div>
     <div class="xxxhd-head-menu">
       <ul class="xxxhd-head-menu-buttons">
-        <li><a href="/"><i class="fa fa-home"></i> Bosh sahifa</a></li>
+        '.(!$is_home ? '<li><a href="/"><i class="fa fa-home"></i> Bosh sahifa</a></li>' : '').'
         <li><a href="/new.html"><i class="fa fa-calendar"></i> '.$lang['new'].'</a></li>
         <li><a href="/top.html"><i class="fa fa-fire"></i> '.$lang['popular'].'</a></li>
-        <li><a href="/favorites"><i class="fa fa-star"></i> '.$lang['chosen'].' ('.$favorites[0].')</a></li>
-        <li><a href="/category.html"><i class="fa fa-th-large"></i> Bo‘limlar</a></li>
+        <li><a href="/upload.html"><i class="fa fa-upload"></i> Yuklash</a></li>
+        <li><a href="/profile.html"><i class="fa fa-user-circle"></i> '.($member ? '<span class="member-nav-name">'.htmlspecialchars($member['username']).'</span>'.(!empty($unread_notifications) && $unread_notifications > 0 ? ' <span class="nav-notify-badge">+'.$unread_notifications.'</span>' : '') : 'Profil').'</a></li>
         '.$view_control.'
       </ul>
       <div class="xxxhd-search">
@@ -871,10 +873,89 @@ function logs($id_user, $act, $id_file) {
 
 $settings = $mysqli -> query("select * from ero_settings WHERE id = 1 limit 1") -> fetch_assoc();
 
-# Иницилизация пользователя
+# Иницилизация пользователя (Admin)
 
 $auth_pass = filter($_SESSION['password'] ?? $_COOKIE['password'] ?? '');
 $user = !empty($auth_pass) ? ($mysqli -> query("select * from ero_users where password = '".mysqli_real_escape_string($mysqli, $auth_pass)."'") -> fetch_assoc()) : null;
+
+# Sayt a'zolari (Members) jadvali - avtomatik yaratish
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_members` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(50) NOT NULL,
+  `email` VARCHAR(150) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `avatar` VARCHAR(255) NOT NULL DEFAULT '',
+  `bio` TEXT,
+  `status` TINYINT(1) NOT NULL DEFAULT 1,
+  `token` VARCHAR(64) NOT NULL DEFAULT '',
+  `reset_token` VARCHAR(64) NOT NULL DEFAULT '',
+  `reset_expiry` INT(11) NOT NULL DEFAULT 0,
+  `date` INT(11) NOT NULL,
+  `last_seen` INT(11) NOT NULL DEFAULT 0,
+  `ip` VARCHAR(45) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_user_videos` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `member_id` INT(11) NOT NULL DEFAULT 0,
+  `name` VARCHAR(255) NOT NULL,
+  `description` TEXT,
+  `category` INT(11) NOT NULL DEFAULT 0,
+  `tags` VARCHAR(500) NOT NULL DEFAULT '',
+  `video_url` VARCHAR(500) NOT NULL DEFAULT '',
+  `file_path` VARCHAR(500) NOT NULL DEFAULT '',
+  `screenshot` VARCHAR(500) NOT NULL DEFAULT '',
+  `status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reject_reason` VARCHAR(255) NOT NULL DEFAULT '',
+  `date` INT(11) NOT NULL,
+  `ip` VARCHAR(45) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `member_id` (`member_id`),
+  KEY `status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+@$mysqli->query("CREATE TABLE IF NOT EXISTS `ero_notifications` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `member_id` INT(11) NOT NULL,
+  `from_author` VARCHAR(100) NOT NULL,
+  `id_video` INT(11) NOT NULL,
+  `comment_id` INT(11) NOT NULL DEFAULT 0,
+  `text` TEXT NOT NULL,
+  `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+  `date` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_member_read` (`member_id`, `is_read`),
+  KEY `idx_video` (`id_video`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ero_files jadvaliga member_id ustuni borligini tekshirish
+$chk_col = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'member_id'");
+if ($chk_col && $chk_col->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD COLUMN `member_id` INT(11) NOT NULL DEFAULT 0 AFTER `added`");
+}
+
+# Sayt a'zosi (Member) sessiyasini ishga tushirish
+$member = null;
+$unread_notifications = 0;
+$member_token = filter($_SESSION['member_token'] ?? $_COOKIE['member_token'] ?? '');
+if (!empty($member_token)) {
+    $safe_mt = mysqli_real_escape_string($mysqli, $member_token);
+    $member = $mysqli->query("SELECT * FROM ero_members WHERE token = '$safe_mt' AND status = 1 LIMIT 1")->fetch_assoc();
+    if ($member) {
+        // Last seen yangilash (har 5 daqiqada bir marta)
+        if (time() - intval($member['last_seen']) > 300) {
+            $mysqli->query("UPDATE ero_members SET last_seen = '".time()."' WHERE id = '{$member['id']}'");
+        }
+        $unr_q = @$mysqli->query("SELECT COUNT(*) FROM ero_notifications WHERE member_id = '{$member['id']}' AND is_read = 0");
+        if ($unr_q) {
+            $unread_notifications = intval($unr_q->fetch_row()[0] ?? 0);
+        }
+    }
+}
+
 
 # Foydalanuvchi qurilmasi va brauzerini aniqlash
 function parse_user_agent_details($ua) {
