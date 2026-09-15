@@ -33,11 +33,17 @@ if ($videos_q) {
         $xml .= "    <item>\n";
         $xml .= "      <title>{$v_title}</title>\n";
         $xml .= "      <link>{$v_url}</link>\n";
-        $xml .= "      <guid>{$v_url}</guid>\n";
+        $xml .= "      <guid isPermaLink=\"true\">{$v_url}</guid>\n";
         $xml .= "      <pubDate>{$pub_date}</pubDate>\n";
         $xml .= "      <description>{$v_desc}</description>\n";
         $xml .= "      <media:thumbnail url=\"".htmlspecialchars($thumb_url, ENT_XML1, 'UTF-8')."\" />\n";
+        $xml .= "      <media:content url=\"".htmlspecialchars($thumb_url, ENT_XML1, 'UTF-8')."\" medium=\"image\">\n";
+        $xml .= "        <media:title>{$v_title}</media:title>\n";
+        $xml .= "        <media:description>{$v_desc}</media:description>\n";
+        $xml .= "        <media:adult>true</media:adult>\n";
+        $xml .= "      </media:content>\n";
         $xml .= "    </item>\n";
+
     }
     $videos_q->free();
 }

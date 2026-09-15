@@ -23,6 +23,22 @@
     $description = $settings['description'];
     $keywords = $settings['keywords'];
     
+    // SEO: rel prev/next uchun
+    $total_new_count = $mysqli->query("SELECT COUNT(*) FROM ero_files WHERE date < '".time()."'")->fetch_row()[0];
+    $total_new_pages = k_page($total_new_count, 20);
+    $seo_extras = '';
+    $full_host_n = $protocol . filter($_SERVER['HTTP_HOST']);
+    if ($cur_page > 1) {
+        $prev_np = ($cur_page - 1 == 1) ? $full_host_n . '/new.html' : $full_host_n . '/new.html?page=' . ($cur_page - 1);
+        $seo_extras .= '<link rel="prev" href="' . $prev_np . '" />' . "\n";
+    }
+    if ($cur_page < $total_new_pages) {
+        $seo_extras .= '<link rel="next" href="' . $full_host_n . '/new.html?page=' . ($cur_page + 1) . '" />' . "\n";
+    }
+    if ($cur_page > 1) {
+        $seo_extras .= '<link rel="canonical" href="' . $full_host_n . '/new.html?page=' . $cur_page . '" />' . "\n";
+    }
+
     head();
     advertising();
 ?>

@@ -3,9 +3,13 @@
 $title = $lang['online'];
 $description = $settings['description'];
 $keywords = $settings['keywords'];
+
+// Real vaqt sahifasi - indexlanmasligi kerak
+$seo_noindex = true;
     
 head();
 advertising();
+
 
 $now = time();
 $quantity = $mysqli->query("SELECT count(*) FROM ero_online WHERE date > '$now'")->fetch_row();

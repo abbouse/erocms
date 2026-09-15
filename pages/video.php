@@ -107,6 +107,27 @@
     $full_host = $protocol . filter($_SERVER['HTTP_HOST']);
     $thumb_full = (strpos($video_poster, 'http') === 0) ? $video_poster : $full_host . $video_poster;
     $page_url = $full_host . '/watch/' . $view['translit'] . '.html';
+    
+    // JSON-LD uchun contentUrl / embedUrl aniqlash
+    $has_embed_ld = !empty($view['embed']) && (strpos($view['embed'], 'http://') === 0 || strpos($view['embed'], 'https://') === 0);
+    $has_iframe_ld = !$has_embed_ld && strpos($view['address'] ?? '', '<iframe') !== false;
+    
+    if ($has_embed_ld) {
+        $content_url_ld = htmlspecialchars(trim($view['embed']), ENT_QUOTES, 'UTF-8');
+        $embed_url_ld = $content_url_ld;
+    } elseif ($has_iframe_ld) {
+        if (preg_match('/src=[\'"]([^\'"]+)[\'"]/', $view['address'], $iframe_m)) {
+            $content_url_ld = htmlspecialchars(trim($iframe_m[1]), ENT_QUOTES, 'UTF-8');
+            $embed_url_ld = $content_url_ld;
+        } else {
+            $content_url_ld = htmlspecialchars($page_url, ENT_QUOTES, 'UTF-8');
+            $embed_url_ld = $content_url_ld;
+        }
+    } else {
+        // Yerli video — /view_ stream URL
+        $content_url_ld = htmlspecialchars($full_host . '/view_' . $view['translit'], ENT_QUOTES, 'UTF-8');
+        $embed_url_ld = htmlspecialchars($page_url, ENT_QUOTES, 'UTF-8');
+    }
 ?>
 
 <!-- Schema.org JSON-LD (BreadcrumbList & VideoObject) -->
@@ -145,8 +166,10 @@
       ],
       "uploadDate": "<?=date('c', $view['date'])?>",
       "duration": "PT<?=sec($view['duration'])?>S",
-      "contentUrl": "<?=$page_url?>",
-      "embedUrl": "<?=$page_url?>",
+      "contentUrl": "<?=$content_url_ld?>",
+      "embedUrl": "<?=$embed_url_ld?>",
+      "isFamilyFriendly": false,
+      "genre": "<?=htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8')?>",
       "interactionStatistic": [
         {
           "@type": "InteractionCounter",
@@ -163,6 +186,7 @@
   ]
 }
 </script>
+
 
 <!-- Breadcrumb Title -->
 <div class="xxxhd-title-top">

@@ -222,7 +222,7 @@ if (file_exists(__DIR__ . '/languages/' . $sess_lang . '.php')) {
 
 function head($var = null, $image = null, $og_type = 'website') {
 
-global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $lang;
+global $mysqli, $title, $description, $keywords, $protocol, $settings, $user, $lang, $seo_extras, $seo_noindex;
 
 $favorites = $mysqli -> query("select count(*) from ero_favorites where data = '".mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']))."'") -> fetch_row();
 $visitors = $mysqli -> query("select count(*) from ero_online") -> fetch_row();
@@ -243,15 +243,23 @@ $og_img = (!empty($image) && $image != '/designs/water.png')
 
 $is_home = (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/' || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/index.php');
 
+// Dinamik html lang atributi (til sessiyasiga qarab)
+$sess_lang_for_html = $_SESSION['lang'] ?? 'ru';
+$html_lang_map = ['ru' => 'ru', 'uz' => 'uz', 'ua' => 'uk', 'en' => 'en'];
+$html_lang = $html_lang_map[$sess_lang_for_html] ?? 'ru';
+
+// Robots meta: noindex kerak bo'lgan sahifalar uchun
+$robots_content = (!empty($seo_noindex)) ? 'noindex, follow' : 'index, follow, max-image-preview:large';
+
 echo '<!DOCTYPE html>
-<html lang="ru">
+<html lang="'.$html_lang.'">
   <head>
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
 <meta name="keywords" content="'.htmlspecialchars($keywords, ENT_QUOTES, 'UTF-8').'" />
-<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta name="robots" content="'.$robots_content.'" />
 <meta name="theme-color" content="#21201f" />
 <meta name="rating" content="RTA-5042-1996-1404-4054-RTA" />
 <meta name="RATING" content="adult" />
@@ -284,6 +292,7 @@ echo '
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <link rel="alternate" type="application/rss+xml" title="'.htmlspecialchars($host, ENT_QUOTES, 'UTF-8').' RSS Feed" href="/rss.xml" />
 <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
+'.(!empty($seo_extras) ? $seo_extras : '').'
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 <link rel="stylesheet" type="text/css" href="/designs/'.$settings['designs'].'.css?v='.$css_v.'" />
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>

@@ -279,6 +279,48 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
     border-color: #ff9900;
     box-shadow: 0 0 10px rgba(255, 153, 0, 0.3);
 }
+.adm-range-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 5px 11px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.adm-range-btn:hover {
+    background: #334155;
+    color: #38bdf8;
+    border-color: #38bdf8;
+}
+.adm-range-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+.adm-filter-btn {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.adm-filter-btn:hover {
+    background: #334155;
+    color: #fff;
+}
+.adm-filter-btn.active {
+    background: #3b82f6;
+    color: #fff;
+    border-color: #3b82f6;
+}
 .donor-option {
     transition: all 0.2s ease;
 }
@@ -287,6 +329,10 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
 }
 .donor-option input:checked + div b {
     text-shadow: 0 0 8px currentColor;
+}
+.log-line {
+    margin-bottom: 4px;
+    transition: opacity 0.15s ease;
 }
 </style>
 
@@ -397,12 +443,34 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             </div>
         </div>
 
-        <!-- Maxsus Bo'lim / Kategoriya URLi (Ixtiyoriy) -->
+        <!-- Donor Bo'limi / Kategoriya Tanlash (Dinamik Dropdown) -->
+        <div id="donorCategoryPickerArea" style="margin-bottom: 16px;">
+            <label style="color: #cbd5e1; font-weight: bold; font-size: 13px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span><i class="fa fa-th-list" style="color: #ff9900;"></i> Donor Bo‘limi / Mavzusini Tanlang:</span>
+                <span id="donorCatCountBadge" style="font-size: 11px; color: #10b981; font-weight: normal;"></span>
+            </label>
+            <select id="p_donor_category_select" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #38bdf8; font-weight: bold; padding: 11px 14px; border-radius: 6px; font-size: 14px;">
+                <!-- JavaScript orqali donorga mos ravishda to'ldiriladi -->
+            </select>
+        </div>
+
+        <!-- Maxsus Bo'lim / Kategoriya URLi (Ixtiyoriy yoki qo'lda kiritish) -->
         <div style="margin-bottom: 18px;">
             <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">
-                <i class="fa fa-link" style="color: #ff9900;"></i> Maxsus donor bo‘lim/katalog havolasi (Ixtiyoriy — masalan faqat ma'lum toifani parslash uchun):
+                <i class="fa fa-link" style="color: #ff9900;"></i> Tanlangan havola yoki o‘zingiz istagan maxsus katalog URLi:
             </label>
-            <input type="text" id="p_custom_url" placeholder="Bo‘sh qoldiring yoki masalan: https://arhivporno.watch/cat-anal-porno/ yoki https://uzbxx.ru/category/Domashnee/" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
+            <input type="text" id="p_custom_url" placeholder="Masalan: https://arhivporno.watch/cat-anal-porno/ yoki https://uzbxx.ru/category/Domashnee/" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 13px;" />
+        </div>
+
+        <!-- Tezkor Sahifa Diapazoni Tugmalari -->
+        <div style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="color: #94a3b8; font-size: 12px; font-weight: 600;"><i class="fa fa-fast-forward" style="color: #ff9900;"></i> Tezkor sahifalar:</span>
+            <button type="button" class="adm-range-btn active" data-from="1" data-to="3">1 – 3</button>
+            <button type="button" class="adm-range-btn" data-from="1" data-to="5">1 – 5</button>
+            <button type="button" class="adm-range-btn" data-from="1" data-to="10">1 – 10</button>
+            <button type="button" class="adm-range-btn" data-from="1" data-to="20">1 – 20</button>
+            <button type="button" class="adm-range-btn" data-from="5" data-to="15">5 – 15</button>
+            <button type="button" class="adm-range-btn" data-from="10" data-to="30">10 – 30</button>
         </div>
 
         <!-- Parametrlar Grid -->
@@ -435,7 +503,7 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
 
             <div>
                 <label style="color: #cbd5e1; font-size: 12px; font-weight: bold; display: block; margin-bottom: 6px;">
-                    <i class="fa fa-folder-open" style="color: #ff9900;"></i> Bo‘lim (Toifa):
+                    <i class="fa fa-folder-open" style="color: #ff9900;"></i> Bizdagi Toifa (Sayt):
                 </label>
                 <select id="p_category" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
                     <option value="0" style="color: #10b981; font-weight: bold;">🎯 100% Intellektual Avto-Saralash (Tavsiya)</option>
@@ -450,9 +518,10 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     <i class="fa fa-tachometer" style="color: #ff9900;"></i> Tezlik rejimi:
                 </label>
                 <select id="p_speed" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 6px; font-size: 13px;">
-                    <option value="250" selected>⚡ Tezkor (0.25s pauza)</option>
-                    <option value="100">🚀 Turbo (0.1s pauza)</option>
-                    <option value="700">🛡️ Ehtiyotkor (0.7s pauza)</option>
+                    <option value="250" selected>⚡ Tezkor (0.25s pauza) - Standart</option>
+                    <option value="100">🚀 Turbo (0.1s pauza) - Maksimal tezlik</option>
+                    <option value="700">🛡️ Ehtiyotkor (0.7s pauza) - Barqaror</option>
+                    <option value="1500">🐢 Tinch rejim (1.5s pauza - IP bloklanishini oldini olish)</option>
                 </select>
             </div>
 
@@ -540,19 +609,31 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
 
         <!-- Jonli Terminal Console -->
         <div style="background: #090b10; border: 1px solid #1e293b; border-radius: 6px; overflow: hidden;">
-            <div style="background: #11141d; padding: 8px 14px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #94a3b8; font-size: 12px; font-family: monospace;">
-                    <i class="fa fa-terminal" style="color: #10b981;"></i> Jonli Terminal Jurnali
-                </span>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" id="btnClearConsole" style="background: transparent; color: #64748b; border: none; font-size: 11px; cursor: pointer;">Tozalash</button>
-                    <label style="color: #64748b; font-size: 11px; cursor: pointer;">
+            <div style="background: #11141d; padding: 8px 14px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <span style="color: #94a3b8; font-size: 12px; font-family: monospace;">
+                        <i class="fa fa-terminal" style="color: #10b981;"></i> Jonli Terminal Jurnali
+                    </span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <span style="color: #64748b; font-size: 11px;">Filtr:</span>
+                        <button type="button" class="adm-filter-btn active" data-filter="all">Barchasi</button>
+                        <button type="button" class="adm-filter-btn" data-filter="success" style="color: #10b981;">✅ Qo‘shildi</button>
+                        <button type="button" class="adm-filter-btn" data-filter="skip" style="color: #f59e0b;">⚠️ Bor</button>
+                        <button type="button" class="adm-filter-btn" data-filter="error" style="color: #ef4444;">❌ Xatolar</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <label style="color: #94a3b8; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" id="chkPlayAudio" checked /> 🔊 Ovoz
+                    </label>
+                    <label style="color: #94a3b8; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                         <input type="checkbox" id="chkAutoScroll" checked /> Avto-scroll
                     </label>
+                    <button type="button" id="btnClearConsole" style="background: transparent; color: #64748b; border: none; font-size: 11px; cursor: pointer;">Tozalash</button>
                 </div>
             </div>
             <div id="liveConsole" style="height: 280px; overflow-y: auto; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.6; color: #cbd5e1;">
-                <div style="color: #64748b;">[Tizim] Dvigatel tayyor. Parslashni boshlash uchun tugmani bosing...</div>
+                <div class="log-line log-line-info" style="color: #64748b;">[Tizim] Dvigatel tayyor. Parslashni boshlash uchun tugmani bosing...</div>
             </div>
         </div>
     </div>
@@ -629,6 +710,7 @@ $(document).ready(function() {
     }
 
     function playSuccessChime() {
+        if (!$('#chkPlayAudio').is(':checked')) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
@@ -667,9 +749,15 @@ $(document).ready(function() {
             icon = '🏁 [Yakun]';
         }
 
-        const line = $('<div style="color: ' + color + '; margin-bottom: 3px;">' +
+        const line = $('<div class="log-line log-line-' + type + '" style="color: ' + color + '; margin-bottom: 3px;">' +
             '<span style="color:#64748b;">[' + timeStr + ']</span> ' + icon + ' ' + message +
         '</div>');
+
+        // Faol filtrga qarab ko'rsatish yoki yashirish
+        const activeFilter = $('.adm-filter-btn.active').data('filter') || 'all';
+        if (activeFilter !== 'all' && type !== activeFilter && type !== 'summary') {
+            line.hide();
+        }
 
         $('#liveConsole').append(line);
 
@@ -683,6 +771,141 @@ $(document).ready(function() {
         $('#liveConsole').empty();
     });
 
+    // Terminal log filtr tugmalari
+    $('.adm-filter-btn').on('click', function() {
+        $('.adm-filter-btn').removeClass('active');
+        $(this).addClass('active');
+        const filter = $(this).data('filter');
+        if (filter === 'all') {
+            $('.log-line').show();
+        } else {
+            $('.log-line').hide();
+            $('.log-line-' + filter).show();
+            $('.log-line-summary').show();
+        }
+    });
+
+    // Tezkor sahifa diapazoni tugmalari
+    $('.adm-range-btn').on('click', function() {
+        $('.adm-range-btn').removeClass('active');
+        $(this).addClass('active');
+        $('#p_page_from').val($(this).data('from'));
+        $('#p_page_to').val($(this).data('to'));
+    });
+
+    // Donor saytlarning boyitilgan kategoriyalar lug'ati
+    const donorCategories = {
+        'arhivporno': [
+            { label: '🌟 Barcha Yangi Videolar (Asosiy oqim)', url: 'https://arhivporno.watch/' },
+            { label: '🇺🇿 O‘zbekcha seks arxivi (cat-uzbekskii-seks)', url: 'https://arhivporno.watch/cat-uzbekskii-seks/' },
+            { label: '🍑 Anal Seksi (cat-anal-porno)', url: 'https://arhivporno.watch/cat-anal-porno/' },
+            { label: '👄 Minet / Oral seks (cat-minet)', url: 'https://arhivporno.watch/cat-minet/' },
+            { label: '🐕 Rakom / Doggystyle (cat-porno-rakom)', url: 'https://arhivporno.watch/cat-porno-rakom/' },
+            { label: '🏠 Domashnee / Uyda (cat-domashnee-porno)', url: 'https://arhivporno.watch/cat-domashnee-porno/' },
+            { label: '🍒 Katta Ko‘kraklar / Siski (cat-bolshie-siski)', url: 'https://arhivporno.watch/cat-bolshie-siski/' },
+            { label: '🎓 Talabalar seksi (cat-porno-studentov)', url: 'https://arhivporno.watch/cat-porno-studentov/' },
+            { label: '🔞 Yosh Qizlar 18+ (cat-porno-molodih)', url: 'https://arhivporno.watch/cat-porno-molodih/' },
+            { label: '🍆 Katta Asboblar / Big (cat-bolshoi-chlen)', url: 'https://arhivporno.watch/cat-bolshoi-chlen/' },
+            { label: '💦 Sperma otilishi (cat-sperma)', url: 'https://arhivporno.watch/cat-sperma/' },
+            { label: '👥 Guruhli Seks / Troynichok (cat-gruppovoe-porno)', url: 'https://arhivporno.watch/cat-gruppovoe-porno/' },
+            { label: '👅 Kunnilingus / Am yalash (cat-lizhet-pizdu)', url: 'https://arhivporno.watch/cat-lizhet-pizdu/' },
+            { label: '🩸 Qizlikni Olish (cat-lishenie-celki)', url: 'https://arhivporno.watch/cat-lishenie-celki/' },
+            { label: '🍷 Mast Qizlar seksi (cat-seks-so-spyaschimi)', url: 'https://arhivporno.watch/cat-seks-so-spyaschimi/' },
+            { label: '🤰 Homiladorlar seksi (cat-beremennye)', url: 'https://arhivporno.watch/cat-beremennye/' },
+            { label: '🦁 Tukli Amlar (cat-volosatye)', url: 'https://arhivporno.watch/cat-volosatye/' },
+            { label: '🍫 Qoratanlilar seksi (cat-zhena-s-negrom)', url: 'https://arhivporno.watch/cat-zhena-s-negrom/' },
+            { label: '👱‍♀️ Sariq Sochlilar / Blondinki (cat-blondinki)', url: 'https://arhivporno.watch/cat-blondinki/' },
+            { label: '👩‍🦱 Qora Sochlilar / Bryunetki (cat-porno-s-brunetkami)', url: 'https://arhivporno.watch/cat-porno-s-brunetkami/' },
+            { label: '👩‍❤️‍👩 Lesbiyankalar (cat-lesbiyanki)', url: 'https://arhivporno.watch/cat-lesbiyanki/' },
+            { label: '⛓️ BDSM / Bo‘ysundirish (cat-bdsm)', url: 'https://arhivporno.watch/cat-bdsm/' },
+            { label: '💥 Hardcore / Qo‘pol seks (cat-zhestkoe-porno)', url: 'https://arhivporno.watch/cat-zhestkoe-porno/' },
+            { label: '🌏 Osiyoliklar / Aziatka (cat-aziatki)', url: 'https://arhivporno.watch/cat-aziatki/' },
+            { label: '🇷🇺 Ruscha Porno (cat-russkoe-porno)', url: 'https://arhivporno.watch/cat-russkoe-porno/' },
+            { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
+        ],
+        'uzbxx': [
+            { label: '🌟 Bosh Sahifa (Barcha yangi videolar)', url: 'https://uzbxx.ru/' },
+            { label: '🇺🇿 O‘zbekcha Seks (category/uzbekskoe/)', url: 'https://uzbxx.ru/category/uzbekskoe/' },
+            { label: '🏠 Domashnee / Uyda (category/Domashnee/)', url: 'https://uzbxx.ru/category/Domashnee/' },
+            { label: '🍑 Anal Seksi (category/Analnyy-seks/)', url: 'https://uzbxx.ru/category/Analnyy-seks/' },
+            { label: '🔞 18-letnie / Yoshlar (category/18-letnie/)', url: 'https://uzbxx.ru/category/18-letnie/' },
+            { label: '👩‍🦳 Mamochkalar (category/Mamochki/)', url: 'https://uzbxx.ru/category/Mamochki/' },
+            { label: '👧 Podrostki (category/Podrostki/)', url: 'https://uzbxx.ru/category/Podrostki/' },
+            { label: '🍒 Kichik Ko‘kraklar (category/Malenkaya-grud/)', url: 'https://uzbxx.ru/category/Malenkaya-grud/' },
+            { label: '💥 Grubyy Seks (category/Grubyy-seks/)', url: 'https://uzbxx.ru/category/Grubyy-seks/' },
+            { label: '🇷🇺 Russkoe (category/Russkoe/)', url: 'https://uzbxx.ru/category/Russkoe/' },
+            { label: '🌏 Aziatki (category/Aziatki/)', url: 'https://uzbxx.ru/category/Aziatki/' },
+            { label: '🎬 HD-Porno (category/HD-Porno/)', url: 'https://uzbxx.ru/category/HD-Porno/' },
+            { label: '🏡 Lyubitelskoe (category/Lyubitelskoe/)', url: 'https://uzbxx.ru/category/Lyubitelskoe/' },
+            { label: '💃 Krasotki (category/Krasotki/)', url: 'https://uzbxx.ru/category/Krasotki/' },
+            { label: '👩‍🦱 Bryunetki (category/Bryunetki/)', url: 'https://uzbxx.ru/category/Bryunetki/' },
+            { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
+        ],
+        'uzporno': [
+            { label: '🌟 Bosh Sahifa (Barcha yangi videolar)', url: 'https://uzporno.website/' },
+            { label: '🇺🇿 O‘zbek Videolari (/tag/uzbek/)', url: 'https://uzporno.website/tag/uzbek/' },
+            { label: '🏠 Domashnee tegi (/tag/domashnee/)', url: 'https://uzporno.website/tag/domashnee/' },
+            { label: '🔞 Yosh Qizlar tegi (/tag/molodye/)', url: 'https://uzporno.website/tag/molodye/' },
+            { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
+        ],
+        'sexlar': [
+            { label: '🌟 Bosh Sahifa (Eng yangi o‘zbekcha videolar)', url: 'https://sexlar.link/' },
+            { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
+        ],
+        'all': [
+            { label: '🔥 4 ta donor ketma-ket (sexlar -> arhivporno -> uzbxx -> uzporno)', url: '' }
+        ]
+    };
+
+    function updateDonorCategoryDropdown(donor, preselectUrl = '') {
+        const list = donorCategories[donor] || donorCategories['sexlar'];
+        const select = $('#p_donor_category_select');
+        select.empty();
+
+        let foundMatch = false;
+        list.forEach(item => {
+            const isSelected = (preselectUrl && item.url === preselectUrl);
+            if (isSelected) foundMatch = true;
+            select.append($('<option>', {
+                value: item.url,
+                text: item.label,
+                selected: isSelected
+            }));
+        });
+
+        if (!foundMatch && preselectUrl) {
+            select.append($('<option>', {
+                value: preselectUrl,
+                text: '🔗 Maxsus havola: ' + preselectUrl,
+                selected: true
+            }));
+        }
+
+        $('#donorCatCountBadge').text(list.length + ' ta toifa');
+    }
+
+    // Donor radio o'zgarganda dropdownni yangilash
+    $('input[name="p_donor"]').on('change', function() {
+        const d = $(this).val();
+        updateDonorCategoryDropdown(d);
+        const selectedUrl = $('#p_donor_category_select').val();
+        if (selectedUrl === '__custom__') {
+            $('#p_custom_url').val('').focus();
+        } else {
+            $('#p_custom_url').val(selectedUrl || '');
+        }
+    });
+
+    // Donor kategoriya tanlanganda URLni sozlash
+    $('#p_donor_category_select').on('change', function() {
+        const val = $(this).val();
+        if (val === '__custom__') {
+            $('#p_custom_url').val('').focus();
+        } else {
+            $('#p_custom_url').val(val);
+        }
+    });
+
     // 0. PRESETS BOSILGANDA AVTO-TO'LDIRISH
     $('.adm-preset-btn').on('click', function() {
         $('.adm-preset-btn').removeClass('active');
@@ -694,6 +917,7 @@ $(document).ready(function() {
         const pageTo = $(this).data('to') || 3;
 
         $('input[name="p_donor"][value="' + donor + '"]').prop('checked', true);
+        updateDonorCategoryDropdown(donor, customUrl);
         $('#p_custom_url').val(customUrl);
         $('#p_page_from').val(pageFrom);
         $('#p_page_to').val(pageTo);
@@ -701,6 +925,9 @@ $(document).ready(function() {
 
         addLog('info', 'Shablon tanlandi: <b>' + $(this).text().trim() + '</b>');
     });
+
+    // Dastlabki yuklanishda kategoriya tanlovini to'ldirish
+    updateDonorCategoryDropdown('sexlar');
 
     // Tarmoq uzilishlariga chidamli AJAX chaqiruvi (3 marta avto-qayta urinish)
     async function ajaxWithRetry(ajaxOptions, maxRetries = 3, delayMs = 1200) {
@@ -818,7 +1045,7 @@ $(document).ready(function() {
                 const sliceCount = Math.min(limitPerPage, pageItems.length);
                 for (let i = 0; i < sliceCount; i++) {
                     const itm = pageItems[i];
-                    itm._donor = curDonor;
+                    itm._donor = catRes.donor || curDonor;
                     queue.push(itm);
                 }
                 $('#statTotal').text(queue.length);

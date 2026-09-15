@@ -68,6 +68,21 @@
         }
     }
 
+    $total_pages_count = k_page($mysqli->query("SELECT COUNT(*) FROM ero_files WHERE category = '{$cat_id}' AND date < '".time()."'")->fetch_row()[0], 20);
+    $seo_extras = '';
+    $full_host_canon = $protocol . filter($_SERVER['HTTP_HOST']);
+    if ($cur_page > 1) {
+        $prev_p = ($cur_page - 1 == 1) ? $full_host_canon . '/' . $cat_slug . '/' : $full_host_canon . '/' . $cat_slug . '/?page=' . ($cur_page - 1);
+        $seo_extras .= '<link rel="prev" href="' . $prev_p . '" />' . "\n";
+    }
+    if ($cur_page < $total_pages_count) {
+        $seo_extras .= '<link rel="next" href="' . $full_host_canon . '/' . $cat_slug . '/?page=' . ($cur_page + 1) . '" />' . "\n";
+    }
+    // 2-sahifadan keyin qidiruv parametrlari bilan duplicate bo'lmasin
+    if ($cur_page > 1) {
+        $seo_extras .= '<link rel="canonical" href="' . $full_host_canon . '/' . $cat_slug . '/?page=' . $cur_page . '" />' . "\n";
+    }
+
     head();
     advertising();
     

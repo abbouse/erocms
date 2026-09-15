@@ -7,17 +7,24 @@ Disallow: /control.php
 Disallow: /download/
 Disallow: /search_
 Disallow: /addFiles/
+Disallow: /migrations/
+Disallow: /pages/
+Disallow: /index.php?func=ajax_rating
+Disallow: /index.php?func=ajax_comment
+Disallow: /index.php?func=view
+Disallow: /favorites
 
 User-agent: Yandex
 Allow: /
 Clean-param: ref /
 Disallow: /content/cache/
 Disallow: /control.php
+Disallow: /favorites
 
 User-agent: Googlebot
 Allow: /
 Disallow: /control.php
+Disallow: /favorites
 
 Sitemap: https://sekschi.online/sitemap.xml
-Sitemap: https://sekschi.online/sitemap_video.xml
 Host: sekschi.online

@@ -11,9 +11,13 @@
     $title = $lang['searching_results'].' "'.$search.'"';
     $description = $settings['description'];
     $keywords = $settings['keywords'];
+    
+    // Qidiruv sahifalari indexlanmasligi kerak (duplicate content oldini olish)
+    $seo_noindex = true;
         
     head();
     advertising();
+
     
     $where_sql = "WHERE (description LIKE '%$search%' OR name LIKE '%$search%') AND date < '".time()."'";
     $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_files $where_sql")->fetch_row();

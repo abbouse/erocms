@@ -45,35 +45,65 @@ if (function_exists('parser_repair_broken_screenshots')) {
 $sexlar_items = parser_get_catalog_links_sexlar(1);
 $donor_items = [];
 foreach ($sexlar_items as $item) {
-    $donor_items[] = [
-        'donor' => 'sexlar',
-        'url' => $item['url'],
-        'poster' => $item['poster'] ?? '',
-        'duration' => $item['duration'] ?? '05:00'
-    ];
+    $url = is_array($item) ? ($item['url'] ?? '') : (string)$item;
+    if (!empty($url)) {
+        $donor_items[] = [
+            'donor'         => 'sexlar',
+            'url'           => $url,
+            'poster'        => is_array($item) ? ($item['poster'] ?? '') : '',
+            'duration'      => is_array($item) ? ($item['duration'] ?? '05:00') : '05:00',
+            'title'         => is_array($item) ? ($item['title'] ?? '') : '',
+            'category_hint' => is_array($item) ? ($item['category_hint'] ?? '') : ''
+        ];
+    }
 }
 
 // 2. uzbxx.ru dan eng yangi videolar
-$uzbxx_links = parser_get_catalog_links_uzbxx(1);
-foreach ($uzbxx_links as $l) {
-    $donor_items[] = ['donor' => 'uzbxx', 'url' => $l];
+$uzbxx_items = parser_get_catalog_links_uzbxx(1);
+foreach ($uzbxx_items as $item) {
+    $url = is_array($item) ? ($item['url'] ?? '') : (string)$item;
+    if (!empty($url)) {
+        $donor_items[] = [
+            'donor'         => 'uzbxx',
+            'url'           => $url,
+            'poster'        => is_array($item) ? ($item['poster'] ?? '') : '',
+            'duration'      => is_array($item) ? ($item['duration'] ?? '05:00') : '05:00',
+            'title'         => is_array($item) ? ($item['title'] ?? '') : '',
+            'category_hint' => is_array($item) ? ($item['category_hint'] ?? '') : ''
+        ];
+    }
 }
 
 // 3. uzporno.website dan eng yangi videolar
-$uzporno_links = parser_get_catalog_links_uzporno(1);
-foreach ($uzporno_links as $l) {
-    $donor_items[] = ['donor' => 'uzporno', 'url' => $l];
+$uzporno_items = parser_get_catalog_links_uzporno(1);
+foreach ($uzporno_items as $item) {
+    $url = is_array($item) ? ($item['url'] ?? '') : (string)$item;
+    if (!empty($url)) {
+        $donor_items[] = [
+            'donor'         => 'uzporno',
+            'url'           => $url,
+            'poster'        => is_array($item) ? ($item['poster'] ?? '') : '',
+            'duration'      => is_array($item) ? ($item['duration'] ?? '05:00') : '05:00',
+            'title'         => is_array($item) ? ($item['title'] ?? '') : '',
+            'category_hint' => is_array($item) ? ($item['category_hint'] ?? '') : ''
+        ];
+    }
 }
 
 // 4. arhivporno.watch dan eng yangi videolar
 $arhiv_items = parser_get_catalog_links_arhivporno(1);
 foreach ($arhiv_items as $item) {
-    $donor_items[] = [
-        'donor' => 'arhivporno',
-        'url' => $item['url'],
-        'poster' => $item['poster'] ?? '',
-        'duration' => $item['duration'] ?? '05:00'
-    ];
+    $url = is_array($item) ? ($item['url'] ?? '') : (string)$item;
+    if (!empty($url)) {
+        $donor_items[] = [
+            'donor'         => 'arhivporno',
+            'url'           => $url,
+            'poster'        => is_array($item) ? ($item['poster'] ?? '') : '',
+            'duration'      => is_array($item) ? ($item['duration'] ?? '05:00') : '05:00',
+            'title'         => is_array($item) ? ($item['title'] ?? '') : '',
+            'category_hint' => is_array($item) ? ($item['category_hint'] ?? '') : ''
+        ];
+    }
 }
 
 // Har xil donorlardan aralash yuklash uchun
@@ -88,15 +118,15 @@ foreach ($donor_items as $item) {
     if ($item['donor'] === 'sexlar') {
         $res = parse_video_sexlar($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S, $item);
     } elseif ($item['donor'] === 'uzbxx') {
-        $res = parse_video_uzbxx($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S);
+        $res = parse_video_uzbxx($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S, $item);
     } elseif ($item['donor'] === 'uzporno') {
-        $res = parse_video_uzporno($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S);
+        $res = parse_video_uzporno($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S, $item);
     } elseif ($item['donor'] === 'arhivporno') {
         $res = parse_video_arhivporno($item['url'], 0, 'stream', $mysqli, $settings, $width_S, $height_S, $item);
     }
 
     if ($res) {
-        $results[] = "[{$item['donor']}] {$res['status']}: " . strip_tags($res['message']);
+        $results[] = "[{$item['donor']}] {$res['status']}: " . strip_tags($res['message'] ?? ($res['title'] ?? ''));
         if ($res['status'] === 'success') {
             $added++;
         }

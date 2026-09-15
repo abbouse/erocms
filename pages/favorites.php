@@ -9,9 +9,13 @@
     $title = $lang['chosen'].' - '.filter($_SERVER['HTTP_HOST']);
     $description = $settings['description'];
     $keywords = $settings['keywords'];
+    
+    // Sevimlilar sahifasi IP ga bog'liq, indexlanmasligi kerak
+    $seo_noindex = true;
         
     head();
     advertising();
+
     
     $user_ip = mysqli_real_escape_string($mysqli, filter($_SERVER['REMOTE_ADDR']));
     $quantity = $mysqli->query("SELECT COUNT(*) FROM ero_favorites WHERE data = '$user_ip'")->fetch_row();

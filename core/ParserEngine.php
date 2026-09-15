@@ -344,11 +344,43 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     static $cats = null;
     if ($cats === null) {
         $cats = [];
-        $res = $mysqli->query("SELECT id, name, translit FROM ero_categories ORDER BY id ASC");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $cats[] = $row;
+        if ($mysqli instanceof mysqli) {
+            $res = @$mysqli->query("SELECT id, name, translit FROM ero_categories ORDER BY id ASC");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $cats[] = $row;
+                }
             }
+        }
+        if (empty($cats)) {
+            $cats = [
+                ['id' => 1, 'translit' => 'asian', 'name' => 'Азиатки'],
+                ['id' => 2, 'translit' => 'anal', 'name' => 'Анал'],
+                ['id' => 3, 'translit' => 'bdsm', 'name' => 'БДСМ'],
+                ['id' => 4, 'translit' => 'blonde', 'name' => 'Блондинки'],
+                ['id' => 5, 'translit' => 'siski', 'name' => 'Большие сиськи'],
+                ['id' => 6, 'translit' => 'big', 'name' => 'Большие члены'],
+                ['id' => 7, 'translit' => 'bryunetki', 'name' => 'Брюнетки'],
+                ['id' => 8, 'translit' => 'volosatye', 'name' => 'Волосатые'],
+                ['id' => 9, 'translit' => 'gruppovoe', 'name' => 'Групповое'],
+                ['id' => 10, 'translit' => 'domashnee', 'name' => 'Домашнее'],
+                ['id' => 11, 'translit' => 'zhestkoe', 'name' => 'Жесткое'],
+                ['id' => 12, 'translit' => 'lesbiyanki', 'name' => 'Лесбиянки'],
+                ['id' => 13, 'translit' => 'mamki', 'name' => 'Мамки'],
+                ['id' => 14, 'translit' => 'minet', 'name' => 'Минет'],
+                ['id' => 15, 'translit' => 'molodye', 'name' => 'Молодые'],
+                ['id' => 16, 'translit' => 'negry', 'name' => 'Негры'],
+                ['id' => 17, 'translit' => 'rakom', 'name' => 'Раком'],
+                ['id' => 18, 'translit' => 'russkoe', 'name' => 'Русское'],
+                ['id' => 19, 'translit' => 'sperma', 'name' => 'Сперма'],
+                ['id' => 20, 'translit' => 'studenty', 'name' => 'Студенты'],
+                ['id' => 21, 'translit' => 'anime-hentai', 'name' => 'Аниме и Хентай'],
+                ['id' => 29, 'translit' => 'beremennye', 'name' => 'Беременные'],
+                ['id' => 30, 'translit' => 'kunnilingus', 'name' => 'Куннилингус'],
+                ['id' => 31, 'translit' => 'jestokoe_porno', 'name' => 'Жестокое порно'],
+                ['id' => 32, 'translit' => 'lishenie_celki', 'name' => 'Лишение целки'],
+                ['id' => 33, 'translit' => 'pyanye', 'name' => 'Пьяные'],
+            ];
         }
     }
 
@@ -358,6 +390,36 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
                 return intval($c['id']);
             }
         }
+        // Aliases fallback
+        $aliases = [
+            'zhestkoe'       => ['jestokoe_porno'],
+            'jestokoe_porno' => ['zhestkoe'],
+            'bolshaya_grud'  => ['siski'],
+            'bolshie_siski'  => ['siski'],
+            'siski'          => ['bolshaya_grud'],
+            'lesbi'          => ['lesbiyanki'],
+            'lesbiyanki'     => ['lesbi'],
+            'blondinki'      => ['blonde'],
+            'blonde'         => ['blondinki'],
+            'studentki'      => ['studenty'],
+            'studenty'       => ['studentki'],
+            'troynoe'        => ['gruppovoe'],
+            'popka'          => ['rakom', 'anal'],
+            'zrelye'         => ['mamki'],
+            'mamki'          => ['zrelye'],
+            'milf'           => ['mamki'],
+            'aziatki'        => ['asian'],
+            'asian'          => ['aziatki'],
+            'orali'          => ['minet'],
+            'uzbek'          => ['asian', 'domashnee']
+        ];
+        if (isset($aliases[$translit])) {
+            foreach ($aliases[$translit] as $alt) {
+                foreach ($cats as $c) {
+                    if ($c['translit'] === $alt) return intval($c['id']);
+                }
+            }
+        }
         return null;
     };
 
@@ -365,32 +427,32 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     $hint = mb_strtolower(trim(($context['category_hint'] ?? '') . ' ' . ($context['donor_category'] ?? '') . ' ' . ($context['catalog_url'] ?? '')), 'UTF-8');
     if (!empty($hint)) {
         $hint_map = [
-            'minet'           => ['minet', 'cat-minet', 'cat-glubokii-minet', 'cat-konchaut-v-rot', 'oral', 'otsos', 'в рот', 'минет'],
-            'anal'            => ['anal', 'cat-anal', 'cat-anal-porno', 'cat-russkii-anal', 'cat-zhestkii-anal', 'analnyy-seks', 'cat-v-popu', 'cat-v-zhopu', 'анал', 'анальный'],
-            'rakom'           => ['rakom', 'cat-rakom', 'cat-porno-rakom', 'cat-szadi', 'раком', 'doggy'],
-            'domashnee'       => ['domashnee', 'cat-domashnee', 'cat-domashnee-porno', 'cat-domashnii-incest', 'cat-porno-s-zhenoi', 'cat-lyubitelskoe', 'proverennoe-lyubitelskoe', 'lyubitelskoe', 'домашнее', 'любительское'],
+            'minet'           => ['minet', 'cat-minet', 'cat-glubokii-minet', 'cat-konchaut-v-rot', 'oral', 'otsos', 'в рот', 'минет', 'oralnyy-seks'],
+            'anal'            => ['anal', 'cat-anal', 'cat-anal-porno', 'cat-russkii-anal', 'cat-zhestkii-anal', 'analnyy-seks', 'cat-v-popu', 'cat-v-zhopu', 'cat-anal-s-molodimi', 'cat-anal-s-krasivimi', 'анал', 'анальный'],
+            'rakom'           => ['rakom', 'cat-rakom', 'cat-porno-rakom', 'cat-szadi', 'раком', 'doggy', 'doggystyle', 'cat-krasivie-popki'],
+            'domashnee'       => ['domashnee', 'cat-domashnee', 'cat-domashnee-porno', 'cat-domashnii-incest', 'cat-porno-s-zhenoi', 'cat-lyubitelskoe', 'proverennoe-lyubitelskoe', 'lyubitelskoe', 'realnyy-seks', 'semeynye-fantazii', 'cat-incest-porno', 'cat-otec-i-doch', 'cat-otchim-i-padcherica', 'cat-masturbaciya', 'домашнее', 'любительское'],
             'studenty'        => ['studenty', 'cat-studenty', 'cat-porno-studentov', 'cat-studentki', 'студенты', 'студентки'],
             'siski'           => ['siski', 'cat-bolshie-siski', 'cat-uprugie-siski', 'bolshaya-grud', 'cat-grudastye', 'большие сиськи', 'сиськи'],
-            'big'             => ['big', 'cat-bolshie-chleny', 'cat-bolshoi-chlen', 'большие члены', 'большой член'],
-            'mamki'           => ['mamki', 'cat-mamki', 'cat-porno-zrelih', 'cat-porno-milf', 'cat-porno-s-mamoi', 'mamochki', 'cat-milfy', 'мамки', 'милфы', 'мамочки'],
-            'molodye'         => ['molodye', 'cat-molodye', 'cat-porno-molodih', 'cat-anal-s-molodimi', 'cat-starie-s-molodimi', '18-letnie', 'podrostki', 'cat-yunye', 'молодые', 'юные'],
-            'sperma'          => ['sperma', 'cat-sperma', 'cat-konchaut-na-lico', 'сперма', 'залпы'],
-            'gruppovoe'       => ['gruppovoe', 'cat-gruppovoe', 'cat-gruppovoe-porno', 'cat-seks-vtroem', 'cat-troinichok', 'групповое', 'тройничок'],
-            'kunnilingus'     => ['kunnilingus', 'cat-kunnilingus', 'cat-lizhet-pizdu', 'куннилингус', 'кунни'],
+            'big'             => ['big', 'cat-bolshie-chleny', 'cat-bolshoi-chlen', 'muskulistye-muzhchiny', 'большие члены', 'большой член'],
+            'mamki'           => ['mamki', 'cat-mamki', 'cat-porno-zrelih', 'cat-porno-milf', 'cat-porno-s-mamoi', 'cat-mama-i-sin', 'mamochki', 'cat-milfy', 'мамки', 'милфы', 'мамочки'],
+            'molodye'         => ['molodye', 'cat-molodye', 'cat-porno-molodih', 'cat-anal-s-molodimi', 'cat-starie-s-molodimi', '18-letnie', 'podrostki', 'cat-yunye', 'krasotki', 'malenkaya-grud', 'cat-goryachie-suchki', 'cat-porno-v-chulkah', 'молодые', 'юные'],
+            'sperma'          => ['sperma', 'cat-sperma', 'cat-konchaut-na-lico', 'cat-krempai', 'сперма', 'залпы'],
+            'gruppovoe'       => ['gruppovoe', 'cat-gruppovoe', 'cat-gruppovoe-porno', 'cat-seks-vtroem', 'cat-troinichok', 'cat-gruppovoe-porno-s-zhenoi', 'групповое', 'тройничок'],
+            'kunnilingus'     => ['kunnilingus', 'cat-kunnilingus', 'cat-lizhet-pizdu', 'cat-fingering', 'куннилингус', 'кунни'],
             'lishenie_celki'  => ['lishenie_celki', 'cat-lishenie-celki', 'лишение целки', 'целка'],
             'pyanye'          => ['pyanye', 'cat-pyanye', 'cat-seks-so-spyaschimi', 'пьяные'],
             'beremennye'      => ['beremennye', 'cat-beremennye', 'беременные'],
             'volosatye'       => ['volosatye', 'cat-volosatye', 'cat-volosataya-pizda', 'волосатые'],
-            'bdsm'            => ['bdsm', 'cat-bdsm', 'бдсм'],
-            'zhestkoe'        => ['zhestkoe', 'cat-zhestkoe', 'cat-zhestkoe-porno', 'grubyy-seks', 'cat-iznasilovaniya', 'cat-jestokoe', 'жесткое', 'жестокое'],
+            'bdsm'            => ['bdsm', 'cat-bdsm', 'cat-svyazannie', 'бдсм'],
+            'zhestkoe'        => ['zhestkoe', 'jestokoe_porno', 'cat-zhestkoe', 'cat-zhestkoe-porno', 'grubyy-seks', 'cat-iznasilovaniya', 'cat-jestokoe', 'жесткое', 'жестокое'],
             'negry'           => ['negry', 'cat-negry', 'cat-zhena-s-negrom', 'cat-bolshoi-chernii-chlen', 'негры'],
             'blonde'          => ['blonde', 'cat-blondinki', 'cat-porno-s-blondinkami', 'блондинки'],
             'bryunetki'       => ['bryunetki', 'cat-bryunetki', 'cat-porno-s-brunetkami', 'брюнетки'],
             'lesbiyanki'      => ['lesbiyanki', 'cat-lesbiyanki', 'лесбиянки'],
-            'asian'           => ['asian', 'cat-aziatki', 'cat-kitaiskoe-porno', 'азиатки', 'азия'],
+            'asian'           => ['asian', 'cat-aziatki', 'cat-kitaiskoe-porno', 'aziatki', 'aziya', 'азиатки', 'азия'],
             'russkoe'         => ['russkoe', 'cat-russkoe', 'cat-russkoe-porno', 'cat-russkii-incest', 'русское'],
             'anime-hentai'    => ['anime-hentai', 'cat-anime', 'cat-ai-porno', 'аниме', 'хентай'],
-            'uzbek'           => ['cat-uzbekskii-seks', 'uzbekskoe', 'uzbek', 'узбекский', 'узбекское']
+            'uzbek'           => ['cat-uzbekskii-seks', 'uzbekskoe', 'tag/uzbek', 'tag/uzbechki', 'uzbek', 'узбекский', 'узбекское']
         ];
         foreach ($hint_map as $translit => $tokens) {
             foreach ($tokens as $tk) {
@@ -406,31 +468,31 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
     $text = mb_strtolower($title . ' ' . $tags_str . ' ' . ($context['description'] ?? ''), 'UTF-8');
 
     $priority_rules = [
-        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет|членосос|oral|rotga|ogizga|og\'ziga|blowjob|suck|amur)/iu' => 'minet',
-        '/(?:анал|anal|в жопу|в попу|в задниц|в очко|анальн|tor amga|ketiga|anali|orqasiga|orqaga|ass|analnoe)/iu' => 'anal',
-        '/(?:раком|догги|doggy|doggystyle|сзади|рачком|поза раком|rakom|orqasidan|orqadan|tizzalab)/iu' => 'rakom',
-        '/(?:кунни|лизать пис|лижет|куннилинг|am yalash|cunnilingus|klitor|til bilan)/iu' => 'kunnilingus',
-        '/(?:лишение целки|девствен|первый раз|целк|qizlik|bokiralik|birinchi marta)/iu' => 'lishenie_celki',
-        '/(?:пьян|буха|под градусом|набухал|mast holda|alkogol|mast)/iu' => 'pyanye',
-        '/(?:беремен|с пузом|с животом|pregnant|homilador)/iu' => 'beremennye',
+        '/(?:минет|отсос|сосет|сосёт|в рот|глубокий минет|членосос|minet|otsos|soset|v rot|glubokiy minet|oral|rotga|ogizga|og\'ziga|blowjob|suck|amur)/iu' => 'minet',
+        '/(?:анал|anal|в жопу|в попу|в задниц|в очко|анальн|tor amga|ketiga|anali|orqasiga|orqaga|ass|analnoe|v jopu|v popu|v ochko)/iu' => 'anal',
+        '/(?:раком|догги|doggy|doggystyle|сзади|рачком|поза раком|rakom|rachkom|szadi|orqasidan|orqadan|tizzalab|dogistyle)/iu' => 'rakom',
+        '/(?:кунни|лизать пис|лижет|куннилинг|am yalash|kunnilingus|cunnilingus|kunni|lizat|klitor|клитор|til bilan)/iu' => 'kunnilingus',
+        '/(?:лишение целки|девствен|первый раз|целк|lishenie celki|devstven|pervyy raz|celka|qizlik|bokiralik|birinchi marta|virgin)/iu' => 'lishenie_celki',
+        '/(?:пьян|буха|под градусом|набухал|pyan|mast holda|alkogol|mast|drunk)/iu' => 'pyanye',
+        '/(?:беремен|с пузом|с животом|pregnant|homilador|beremenn)/iu' => 'beremennye',
         '/(?:хентай|аниме|hentai|anime|3d hentai)/iu' => 'anime-hentai',
-        '/(?:студент|студентк|общаг|сесси|вписк|talaba|talabalar|yotoqxona)/iu' => 'studenty',
-        '/(?:сперм|конча|залп|кончил|cumshot|yuziga sperma|oqizish|bukkake)/iu' => 'sperma',
-        '/(?:домашн|частн|любительск|home|скрытая камера|слив|samopal|uyda|er-xotin|kelin|kelinchak|xotin)/iu' => 'domashnee',
-        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия|threesome|guruhli)/iu' => 'gruppovoe',
-        '/(?:большие сиськи|сиськ|грудаст|дойки|tits|big tits|огромные сиськи|katta emchak|emish|emchaklar)/iu' => 'siski',
-        '/(?:большие члены|большой член|огромный хуй|big cock|толстый член|katta olat|ulkan asbob|katta quroq)/iu' => 'big',
-        '/(?:бдсм|bdsm|госпож|рабын|порка|плеть|подчинение)/iu' => 'bdsm',
-        '/(?:жесток|жестк|груб|hardcore|разрыв дырки|qopol|shafqatsiz)/iu' => 'zhestkoe',
-        '/(?:лесби|девушки целуются|lesbian|qizlar qizlar|ikki qiz)/iu' => 'lesbiyanki',
-        '/(?:мамк|мамашк|милф|milf|зрел|мачех|xola|katta xotin)/iu' => 'mamki',
-        '/(?:молод|юная|малолет|teen|18 лет|yosh qiz|yoshlik|maktab)/iu' => 'molodye',
-        '/(?:волосат|небрит|пушист|мохнат|hairy|tukli)/iu' => 'volosatye',
-        '/(?:негр|чернокож|bbc|qoratanli)/iu' => 'negry',
-        '/(?:блондин|blonde|светловолосая|sariq sochli)/iu' => 'blonde',
-        '/(?:брюнет|bryunet|темноволосая|qora sochli)/iu' => 'bryunetki',
-        '/(?:азиат|asian|кореян|японк|китаянк|osiyo)/iu' => 'asian',
-        '/(?:русск|отечествен|ruscha|rossiya)/iu' => 'russkoe',
+        '/(?:студент|студентк|общаг|сесси|вписк|student|studentk|obshag|obshejit|talaba|talabalar|yotoqxona)/iu' => 'studenty',
+        '/(?:сперм|конча|залп|кончил|sperm|sperma|koncha|konchil|zalp|cumshot|cum|yuziga sperma|oqizish|bukkake)/iu' => 'sperma',
+        '/(?:домашн|частн|любительск|domashn|domashnee|chastnoe|lyubitelsk|home|скрытая камера|слив|samopal|uyda|er-xotin|kelin|kelinchak|xotin)/iu' => 'domashnee',
+        '/(?:группов|тройничок|втроем|втроём|мжм|жмж|оргия|gruppov|troynichok|vtroem|threesome|guruhli|trio)/iu' => 'gruppovoe',
+        '/(?:большие сиськи|сиськ|грудаст|дойки|bolshie siski|siski|siskami|grudast|tits|big tits|огромные сиськи|katta emchak|emish|emchaklar|boobs)/iu' => 'siski',
+        '/(?:большие члены|большой член|огромный хуй|bolshoy chlen|big cock|толстый член|katta olat|ulkan asbob|katta quroq|ogromnyy chlen)/iu' => 'big',
+        '/(?:бдсм|bdsm|госпож|рабын|порка|плеть|подчинение|gospoja|rabynya|porka)/iu' => 'bdsm',
+        '/(?:жесток|жестк|груб|zhestk|jestok|grub|hardcore|разрыв дырки|qopol|shafqatsiz)/iu' => 'zhestkoe',
+        '/(?:лесби|девушки целуются|lesbi|lesbiyank|lesbian|qizlar qizlar|ikki qiz)/iu' => 'lesbiyanki',
+        '/(?:мамк|мамашк|милф|mamk|mamashk|milf|mature|зрел|zrel|мачех|machex|xola|katta xotin)/iu' => 'mamki',
+        '/(?:молод|юная|малолет|molod|yuna|malolet|teen|18 лет|18-let|yosh qiz|yoshlik|maktab)/iu' => 'molodye',
+        '/(?:волосат|небрит|пушист|мохнат|volosat|nebrit|moxnat|hairy|tukli)/iu' => 'volosatye',
+        '/(?:негр|чернокож|negr|black|bbc|qoratanli)/iu' => 'negry',
+        '/(?:блондин|blondin|blonde|светловолосая|sariq sochli)/iu' => 'blonde',
+        '/(?:брюнет|bryunet|brunette|темноволосая|qora sochli)/iu' => 'bryunetki',
+        '/(?:азиат|aziat|asian|кореян|korey|японк|yapon|китаянк|kitay|osiyo)/iu' => 'asian',
+        '/(?:русск|отечествен|russk|russkoe|ruscha|rossiya)/iu' => 'russkoe',
         '/(?:узбек|uzbek|узбечк|uzbechka|uzbekcha|toshkent|samarqand|andijon|fargona|namangan|buxoro|xorazm|vodiy|uzb)/iu' => 'uzbek',
     ];
 
@@ -1186,22 +1248,70 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
 }
 
 /**
+ * Donor va sahifa raqamiga mos universal pagination URL yaratish
+ * Sahifa parametrlari allaqachon mavjud bo'lsa ham toza holda yangi sahifani shakllantiradi
+ */
+function parser_build_page_url($donor, $page = 1, $custom_url = '') {
+    $page = max(1, abs(intval($page)));
+    $custom_url = trim((string)$custom_url);
+
+    if (!empty($custom_url) && (stripos($custom_url, '{page}') !== false)) {
+        return str_ireplace('{page}', $page, $custom_url);
+    }
+
+    if (empty($custom_url)) {
+        if ($donor === 'sexlar') {
+            return ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
+        } elseif ($donor === 'arhivporno') {
+            return ($page == 1) ? 'https://arhivporno.watch/' : "https://arhivporno.watch/{$page}/";
+        } elseif ($donor === 'uzbxx') {
+            return ($page == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/page={$page}";
+        } elseif ($donor === 'uzporno') {
+            return ($page == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page}";
+        }
+        return ($page == 1) ? $custom_url : $custom_url . '/' . $page;
+    }
+
+    // Agar custom URL uzbxx bo'lsa (/page=N formati)
+    if ($donor === 'uzbxx' || stripos($custom_url, 'uzbxx.ru') !== false) {
+        $clean = preg_replace('#/page=\d+#i', '', $custom_url);
+        $clean = preg_replace('#([?&])page=\d+(&|$)#i', '$1', $clean);
+        $clean = rtrim($clean, '/?&');
+        if ($page == 1) return $clean . '/';
+        return (strpos($clean, '?') !== false) ? $clean . '&page=' . $page : $clean . '/page=' . $page;
+    }
+
+    // Agar custom URL arhivporno bo'lsa (/{page}/ formati)
+    if ($donor === 'arhivporno' || stripos($custom_url, 'arhivporno.watch') !== false) {
+        $clean = preg_replace('#/\d+/?$#', '', $custom_url);
+        $clean = rtrim($clean, '/');
+        if ($page == 1) return $clean . '/';
+        return $clean . '/' . $page . '/';
+    }
+
+    // Agar custom URL uzporno bo'lsa (/{page} formati)
+    if ($donor === 'uzporno' || stripos($custom_url, 'uzporno.website') !== false) {
+        $clean = preg_replace('#/\d+/?$#', '', $custom_url);
+        $clean = rtrim($clean, '/');
+        if ($page == 1) return $clean . '/';
+        return $clean . '/' . $page;
+    }
+
+    // Default: sexlar.link va boshqalar (/{page}/ formati)
+    $clean = preg_replace('#/\d+/?$#', '', $custom_url);
+    $clean = rtrim($clean, '/');
+    if ($page == 1) return $clean . '/';
+    return $clean . '/' . $page . '/';
+}
+
+/**
  * Katalog havolalarini olish: uzbxx.ru
  */
 function parser_get_catalog_links_uzbxx($page = 1, $custom_url = '') {
     $page = max(1, abs(intval($page)));
-    if (!empty($custom_url)) {
-        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
-            $url = str_ireplace('{page}', $page, $custom_url);
-        } else {
-            $base = rtrim($custom_url, '/');
-            $url = ($page == 1) ? $base . '/' : $base . '/page=' . $page;
-        }
-    } else {
-        $url = ($page == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/page={$page}";
-    }
+    $url = parser_build_page_url('uzbxx', $page, $custom_url);
 
-    $html = parser_fetch($url);
+    $html = parser_fetch($url, 'https://uzbxx.ru/');
     if (empty($html)) return [];
 
     $items = [];
@@ -1238,18 +1348,9 @@ function parser_get_catalog_links_uzbxx($page = 1, $custom_url = '') {
  */
 function parser_get_catalog_links_uzporno($page = 1, $custom_url = '') {
     $page = max(1, abs(intval($page)));
-    if (!empty($custom_url)) {
-        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
-            $url = str_ireplace('{page}', $page, $custom_url);
-        } else {
-            $base = rtrim($custom_url, '/');
-            $url = ($page == 1) ? $base . '/' : $base . '/' . $page;
-        }
-    } else {
-        $url = ($page == 1) ? 'https://uzporno.website/' : "https://uzporno.website/{$page}";
-    }
+    $url = parser_build_page_url('uzporno', $page, $custom_url);
 
-    $html = parser_fetch($url);
+    $html = parser_fetch($url, 'https://uzporno.website/');
     if (empty($html)) return [];
 
     $items = [];
@@ -1285,23 +1386,8 @@ function parser_get_catalog_links_uzporno($page = 1, $custom_url = '') {
  * Katalog havolalarini olish: arhivporno.watch
  */
 function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '') {
-    $page = 1;
-    $url = '';
-
-    if (!empty($custom_url)) {
-        $page = max(1, abs(intval($page_or_url)));
-        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
-            $url = str_ireplace('{page}', $page, $custom_url);
-        } else {
-            $base = rtrim($custom_url, '/');
-            $url = ($page == 1) ? $base . '/' : $base . '/' . $page . '/';
-        }
-    } elseif (is_numeric($page_or_url)) {
-        $page = max(1, abs(intval($page_or_url)));
-        $url = ($page == 1) ? 'https://arhivporno.watch/cat-uzbekskii-seks/' : "https://arhivporno.watch/cat-uzbekskii-seks/{$page}/";
-    } else {
-        $url = trim($page_or_url);
-    }
+    $page = max(1, abs(intval($page_or_url)));
+    $url = parser_build_page_url('arhivporno', $page, $custom_url);
 
     $html = parser_fetch($url, 'https://arhivporno.watch/');
     if (empty($html) && empty($custom_url) && $page > 2) {
@@ -1347,23 +1433,8 @@ function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '')
  * Katalog havolalarini olish: sexlar.link
  */
 function parser_get_catalog_links_sexlar($page_or_url = 1, $custom_url = '') {
-    $page = 1;
-    $url = '';
-
-    if (!empty($custom_url)) {
-        $page = max(1, abs(intval($page_or_url)));
-        if (strpos($custom_url, '{PAGE}') !== false || strpos($custom_url, '{page}') !== false) {
-            $url = str_ireplace('{page}', $page, $custom_url);
-        } else {
-            $base = rtrim($custom_url, '/');
-            $url = ($page == 1) ? $base . '/' : $base . '/' . $page . '/';
-        }
-    } elseif (is_numeric($page_or_url)) {
-        $page = max(1, abs(intval($page_or_url)));
-        $url = ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
-    } else {
-        $url = trim($page_or_url);
-    }
+    $page = max(1, abs(intval($page_or_url)));
+    $url = parser_build_page_url('sexlar', $page, $custom_url);
 
     $html = parser_fetch($url, 'https://sexlar.link/');
     if (empty($html)) return [];
