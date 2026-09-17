@@ -6,27 +6,47 @@
 Быстро, качественно, недорого.
 */
 
-    if ($user['access'] < 1) {
-        header('location: /'); 
+    if (!isset($user) || $user['access'] < 1) {
+        header('Location: /'); 
         exit;
     }
     
-    $view = $mysqli -> query("select id, screenshot, recoil, name, category from ero_files where id = '".abs(intval($_GET['id']))."'") -> fetch_assoc();
+    $del_id = abs(intval($_GET['id'] ?? 0));
+    $view = $mysqli->query("SELECT id, screenshot, recoil, address, name, category FROM ero_files WHERE id = '$del_id'")->fetch_assoc();
      
-    if (!$view){
-        header('location: /');
+    if (!$view) {
+        header('Location: /');
         exit;
     }
     
-    $category = $mysqli -> query("select id, translit from ero_categories where id = '".$view['category']."'") -> fetch_assoc();
+    $category = $mysqli->query("SELECT id, translit FROM ero_categories WHERE id = '{$view['category']}'")->fetch_assoc();
+    $cat_slug = !empty($category['translit']) ? $category['translit'] : '';
     
-    $mysqli -> query("INSERT INTO ero_logs SET id_user = '$user[id]', act = 'Удалил видео $view[name].', id_file = '$view[id]', date = '".time()."'");
+    // Fayllarni serverdan o'chirish
+    if (!empty($view['screenshot']) && file_exists($_SERVER['DOCUMENT_ROOT'] . $view['screenshot']) && strpos($view['screenshot'], 'no_poster') === false) {
+        @unlink($_SERVER['DOCUMENT_ROOT'] . $view['screenshot']);
+    }
+    if (!empty($view['recoil']) && file_exists($_SERVER['DOCUMENT_ROOT'] . $view['recoil'])) {
+        @unlink($_SERVER['DOCUMENT_ROOT'] . $view['recoil']);
+    }
+    if (!empty($view['address']) && strpos($view['address'], '/content/') === 0 && file_exists($_SERVER['DOCUMENT_ROOT'] . $view['address'])) {
+        @unlink($_SERVER['DOCUMENT_ROOT'] . $view['address']);
+    }
     
-    if (file_exists($_SERVER['DOCUMENT_ROOT'].$view['screenshot'])) unlink($_SERVER['DOCUMENT_ROOT'].$view['screenshot']);
-    if (file_exists($_SERVER['DOCUMENT_ROOT'].$view['recoil'])) unlink($_SERVER['DOCUMENT_ROOT'].$view['recoil']);
+    // Bog'liq jadvallarni tozalash
+    $mysqli->query("DELETE FROM ero_files WHERE id = '$del_id'");
+    $mysqli->query("DELETE FROM ero_likes WHERE id_video = '$del_id'");
+    $mysqli->query("DELETE FROM ero_comments WHERE id_video = '$del_id'");
+    $mysqli->query("DELETE FROM ero_favorites WHERE id_video = '$del_id'");
     
-    $mysqli -> query("delete from ero_files where id = '$view[id]'");
+    logs($user['id'], "Videoni o‘chirdi: " . $view['name'], 0);
+    
+    // Keshni tozalash
+    @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
  
-    header('location: /'.$category['translit'].'/');
-    
-    $view -> free();
+    if (!empty($cat_slug)) {
+        header('Location: /' . $cat_slug . '/');
+    } else {
+        header('Location: /');
+    }
+    exit;

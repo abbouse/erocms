@@ -166,6 +166,7 @@
         'addCat'          => 'Yangi Toifa Qo‘shish',
         'editCat'         => 'Toifani Tahrirlash',
         'removeCat'       => 'Toifani O‘chirish',
+        'user_videos'     => 'User Videolari (Moderatsiya)',
         'rewriting'       => 'Videoni Qayta Yozish'
     ];
     $current_title = $page_titles[$func] ?? 'Boshqaruv Paneli';

@@ -18,15 +18,8 @@
         exit;
     }
     
-    $title = $lang['video_editing'].' '.$view['name'];
-    $description = $settings['description'];
-    $keywords = $settings['keywords'];
-        
-    head();
-    
     if (isset($_POST['translit'])) {
-        
-        $publish = strtotime($_POST['publish']) + rand(300, 21600);
+        $publish = !empty($_POST['publish']) ? (strtotime($_POST['publish']) + rand(300, 21600)) : $view['date'];
         $recoil =  mysqli_real_escape_string($mysqli, filter($_POST['recoil']));    
         $address =  mysqli_real_escape_string($mysqli, filter($_POST['address']));    
         $screenshot =  mysqli_real_escape_string($mysqli, filter($_POST['screenshot'])); 
@@ -36,12 +29,21 @@
         $description =  mysqli_real_escape_string($mysqli, filter($_POST['description']));
         $category =  mysqli_real_escape_string($mysqli, abs(intval($_POST['category'])));
         
-        $mysqli -> query("update ero_files set address = '$address', category = '$category', translit = '$translit', date = '$publish', recoil = '$recoil', screenshot = '$screenshot', name = '$name', tags = '$tags', description = '$description' where id = '$view[id]'");
-        $mysqli -> query("INSERT INTO ero_logs SET id_user = '$user[id]', act = '$lang[сhanged_video] $view[name].', id_file = '$view[id]', date = '".time()."'");
+        $mysqli->query("UPDATE ero_files SET address = '$address', category = '$category', translit = '$translit', date = '$publish', recoil = '$recoil', screenshot = '$screenshot', name = '$name', tags = '$tags', description = '$description' WHERE id = '{$view['id']}'");
+        logs($user['id'], "Videoni tahrirladi: $name", $view['id']);
 
-        header('location: /watch/'.$translit.'.html');
+        // Keshni tozalash
+        @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
+
+        header('Location: /watch/' . $translit . '.html');
         exit;
     }
+
+    $title = $lang['video_editing'].' '.$view['name'];
+    $description = $settings['description'];
+    $keywords = $settings['keywords'];
+        
+    head();
     
     ?>
     

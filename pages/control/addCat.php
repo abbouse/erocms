@@ -30,7 +30,8 @@ if (isset($_POST['save_cat'])) {
         // Keshni tozalash
         @array_map('unlink', glob($_SERVER['DOCUMENT_ROOT'] . '/content/cache/*.html'));
         
-        header('Location: /control.html?func=view_categories');
+        @header('Location: /control.html?func=view_categories');
+        echo "<script>window.location.href = '/control.html?func=view_categories';</script>";
         exit;
     }
 }
