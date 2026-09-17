@@ -997,61 +997,14 @@ $(document).ready(function() {
 
         addLog('info', '🚀 <b>Parslash boshlandi!</b> Donorlar: <b>' + donorsToRun.join(', ') + '</b>, Sahifalar: ' + pageFrom + ' – ' + pageTo);
 
-        // Barcha tanlangan donorlar bo'yicha ketma-ket parslash
-        for (const curDonor of donorsToRun) {
-            if (shouldStop) break;
-
-            addLog('page', '🌐 Donorni yuklash boshlanmoqda: <b>' + curDonor + '</b>');
-
-            for (let pg = pageFrom; pg <= pageTo; pg++) {
-                if (shouldStop) break;
-                while (isPaused) {
-                    await new Promise(r => setTimeout(r, 500));
-                    if (shouldStop) break;
-                }
+        try {
+            // Barcha tanlangan donorlar bo'yicha ketma-ket parslash
+            for (const curDonor of donorsToRun) {
                 if (shouldStop) break;
 
-                $('#statCurPage').text(curDonor + ' (p' + pg + '/' + pageTo + ')');
-                $('#progressLabel').text(curDonor + ' [Sahifa ' + pg + '] katalogi tekshirilmoqda...');
-                addLog('page', '<b>[' + curDonor + ']</b> Sahifa <b>' + pg + '</b> havolalari olinmoqda...');
+                addLog('page', '🌐 Donorni yuklash boshlanmoqda: <b>' + curDonor + '</b>');
 
-                let pageItems = [];
-                try {
-                    const catRes = await ajaxWithRetry({
-                        url: '/control.html?func=parsing',
-                        type: 'POST',
-                        dataType: 'json',
-                        data: {
-                            ajax_action: 'get_catalog',
-                            donor: curDonor,
-                            page: pg,
-                            custom_url: (curDonor === selectedDonor ? customUrl : '')
-                        }
-                    });
-
-                    if (catRes && catRes.status === 'success' && catRes.items && catRes.items.length > 0) {
-                        pageItems = catRes.items;
-                        addLog('info', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': <b>' + pageItems.length + '</b> ta video topildi.');
-                    } else {
-                        addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': video havolalari topilmadi yoki sahifalar tugadi.');
-                        break;
-                    }
-                } catch (err) {
-                    addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ' yuklashda xatolik: ' + err.statusText);
-                    break;
-                }
-
-                // Navbatga qo'shish
-                const sliceCount = Math.min(limitPerPage, pageItems.length);
-                for (let i = 0; i < sliceCount; i++) {
-                    const itm = pageItems[i];
-                    itm._donor = catRes.donor || curDonor;
-                    queue.push(itm);
-                }
-                $('#statTotal').text(queue.length);
-
-                // Ushbu sahifadagi videolarni birma-bir parslash
-                while (curIndex < queue.length) {
+                for (let pg = pageFrom; pg <= pageTo; pg++) {
                     if (shouldStop) break;
                     while (isPaused) {
                         await new Promise(r => setTimeout(r, 500));
@@ -1059,94 +1012,149 @@ $(document).ready(function() {
                     }
                     if (shouldStop) break;
 
-                    const item = queue[curIndex];
-                    const itemNum = curIndex + 1;
-                    const percent = Math.round((itemNum / queue.length) * 100);
+                    $('#statCurPage').text(curDonor + ' (p' + pg + '/' + pageTo + ')');
+                    $('#progressLabel').text(curDonor + ' [Sahifa ' + pg + '] katalogi tekshirilmoqda...');
+                    addLog('page', '<b>[' + curDonor + ']</b> Sahifa <b>' + pg + '</b> havolalari olinmoqda...');
 
-                    $('#progressPercent').text(percent + '%');
-                    $('#progressBarFill').css('width', percent + '%');
-                    $('#progressLabel').text('[' + item._donor + '] Parslanmoqda: ' + itemNum + ' / ' + queue.length + ' (' + (item.title || 'Video') + ')');
-
+                    let pageItems = [];
+                    let catDonor = curDonor;
                     try {
-                        const parseRes = await ajaxWithRetry({
+                        const catRes = await ajaxWithRetry({
                             url: '/control.html?func=parsing',
                             type: 'POST',
                             dataType: 'json',
                             data: {
-                                ajax_action: 'parse_video',
-                                donor: item._donor,
-                                url: item.url,
-                                poster: item.poster || '',
-                                duration: item.duration || '',
-                                title: item.title || '',
-                                category_hint: item.category_hint || '',
-                                category: category,
-                                save_mode: saveMode
+                                ajax_action: 'get_catalog',
+                                donor: curDonor,
+                                page: pg,
+                                custom_url: (curDonor === selectedDonor ? customUrl : '')
                             }
-                        }, 2, 1000);
+                        });
 
-                        if (parseRes && parseRes.status === 'success') {
-                            totalAdded++;
-                            $('#statAdded').text(totalAdded);
-                            addLog('success', (parseRes.message || parseRes.title));
-
-                            // Jonli Video Preview Kartochkasini yangilash
-                            $('#liveVideoPreviewCard').slideDown();
-                            if (parseRes.screenshot) {
-                                $('#previewThumb').attr('src', parseRes.screenshot);
-                            } else if (item.poster) {
-                                $('#previewThumb').attr('src', item.poster);
-                            }
-                            $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
-                            $('#previewCatBadge').text(parseRes.category_name || 'Avtomatik');
-                            $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
-                            $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
-                            $('#previewStatusBadge').css({background: '#10b981', color: '#000'}).text('QO‘SHILDI');
-                        } else if (parseRes && parseRes.status === 'skip') {
-                            totalSkipped++;
-                            $('#statSkipped').text(totalSkipped);
-                            addLog('skip', (parseRes.message || 'Allaqachon mavjud'));
-
-                            $('#liveVideoPreviewCard').slideDown();
-                            if (item.poster) $('#previewThumb').attr('src', item.poster);
-                            $('#previewTitleLink').text(item.title || 'Video').attr('href', '#');
-                            $('#previewStatusBadge').css({background: '#f59e0b', color: '#000'}).text('ALLAQACHON BOR');
-                            $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                        if (catRes && catRes.status === 'success' && catRes.items && catRes.items.length > 0) {
+                            pageItems = catRes.items;
+                            if (catRes.donor) catDonor = catRes.donor;
+                            addLog('info', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': <b>' + pageItems.length + '</b> ta video topildi.');
                         } else {
-                            totalErrors++;
-                            $('#statErrors').text(totalErrors);
-                            addLog('error', (parseRes ? parseRes.message : 'Xatolik yuz berdi'));
+                            addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ': video havolalari topilmadi yoki sahifalar tugadi.');
+                            break;
                         }
-                    } catch (parseErr) {
-                        totalErrors++;
-                        $('#statErrors').text(totalErrors);
-                        addLog('error', 'Tarmoq xatosi: ' + parseErr.statusText + ' (' + item.url + ')');
+                    } catch (err) {
+                        addLog('error', '<b>[' + curDonor + ']</b> Sahifa ' + pg + ' yuklashda xatolik: ' + (err.statusText || err.message || err));
+                        break;
                     }
 
-                    curIndex++;
-                    await new Promise(r => setTimeout(r, pauseDelay));
+                    // Navbatga qo'shish
+                    const sliceCount = Math.min(limitPerPage, pageItems.length);
+                    for (let i = 0; i < sliceCount; i++) {
+                        const itm = pageItems[i];
+                        itm._donor = catDonor;
+                        queue.push(itm);
+                    }
+                    $('#statTotal').text(queue.length);
+
+                    // Ushbu sahifadagi videolarni birma-bir parslash
+                    while (curIndex < queue.length) {
+                        if (shouldStop) break;
+                        while (isPaused) {
+                            await new Promise(r => setTimeout(r, 500));
+                            if (shouldStop) break;
+                        }
+                        if (shouldStop) break;
+
+                        const item = queue[curIndex];
+                        const itemNum = curIndex + 1;
+                        const percent = Math.round((itemNum / queue.length) * 100);
+
+                        $('#progressPercent').text(percent + '%');
+                        $('#progressBarFill').css('width', percent + '%');
+                        $('#progressLabel').text('[' + item._donor + '] Parslanmoqda: ' + itemNum + ' / ' + queue.length + ' (' + (item.title || 'Video') + ')');
+
+                        try {
+                            const parseRes = await ajaxWithRetry({
+                                url: '/control.html?func=parsing',
+                                type: 'POST',
+                                dataType: 'json',
+                                data: {
+                                    ajax_action: 'parse_video',
+                                    donor: item._donor,
+                                    url: item.url,
+                                    poster: item.poster || '',
+                                    duration: item.duration || '',
+                                    title: item.title || '',
+                                    category_hint: item.category_hint || '',
+                                    category: category,
+                                    save_mode: saveMode
+                                }
+                            }, 2, 1000);
+
+                            if (parseRes && parseRes.status === 'success') {
+                                totalAdded++;
+                                $('#statAdded').text(totalAdded);
+                                addLog('success', (parseRes.message || parseRes.title));
+
+                                // Jonli Video Preview Kartochkasini yangilash
+                                $('#liveVideoPreviewCard').slideDown();
+                                if (parseRes.screenshot) {
+                                    $('#previewThumb').attr('src', parseRes.screenshot);
+                                } else if (item.poster) {
+                                    $('#previewThumb').attr('src', item.poster);
+                                }
+                                $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
+                                $('#previewCatBadge').text(parseRes.category_name || 'Avtomatik');
+                                $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
+                                $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                                $('#previewStatusBadge').css({background: '#10b981', color: '#000'}).text('QO‘SHILDI');
+                            } else if (parseRes && parseRes.status === 'skip') {
+                                totalSkipped++;
+                                $('#statSkipped').text(totalSkipped);
+                                addLog('skip', (parseRes.message || 'Allaqachon mavjud'));
+
+                                $('#liveVideoPreviewCard').slideDown();
+                                if (item.poster) $('#previewThumb').attr('src', item.poster);
+                                $('#previewTitleLink').text(item.title || 'Video').attr('href', '#');
+                                $('#previewStatusBadge').css({background: '#f59e0b', color: '#000'}).text('ALLAQACHON BOR');
+                                $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                            } else {
+                                totalErrors++;
+                                $('#statErrors').text(totalErrors);
+                                addLog('error', (parseRes ? parseRes.message : 'Xatolik yuz berdi'));
+                            }
+                        } catch (parseErr) {
+                            totalErrors++;
+                            $('#statErrors').text(totalErrors);
+                            addLog('error', 'Tarmoq xatosi: ' + (parseErr.statusText || parseErr.message || parseErr) + ' (' + item.url + ')');
+                        }
+
+                        curIndex++;
+                        await new Promise(r => setTimeout(r, pauseDelay));
+                    }
+
+                    await new Promise(r => setTimeout(r, 600));
                 }
-
-                await new Promise(r => setTimeout(r, 600));
             }
+
+            // Yakunlash
+            $('#liveStatusText').text('Yakunlandi');
+            $('#progressBarFill').css('width', '100%');
+            $('#progressPercent').text('100%');
+            $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli yakunlandi!');
+
+            if (totalAdded > 0) {
+                playSuccessChime();
+            }
+
+            addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
+        } catch (fatalErr) {
+            console.error('Parser Fatal Error:', fatalErr);
+            addLog('error', '❌ <b>Kutilmagan xatolik:</b> ' + (fatalErr.message || fatalErr));
+        } finally {
+            isRunning = false;
+            isPaused = false;
+            $('#btnStartParse').prop('disabled', false).css('opacity', '1');
+            $('#btnPauseParse').hide();
+            $('#btnStopParse').hide();
         }
-
-        // Yakunlash
-        isRunning = false;
-        isPaused = false;
-        $('#liveStatusText').text('Yakunlandi');
-        $('#btnStartParse').prop('disabled', false).css('opacity', '1');
-        $('#btnPauseParse').hide();
-        $('#btnStopParse').hide();
-        $('#progressBarFill').css('width', '100%');
-        $('#progressPercent').text('100%');
-        $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli yakunlandi!');
-
-        if (totalAdded > 0) {
-            playSuccessChime();
-        }
-
-        addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
     });
 
     // 2. PAUZA TUGMASI
