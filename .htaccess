@@ -13,6 +13,9 @@ DirectoryIndex index.php
 #Mod Rewrite
 RewriteEngine On
 
+RewriteRule ^favicon\.ico$ /designs/icons/favicons/favicon.ico [L]
+RewriteRule ^apple-touch-icon.*\.png$ /designs/icons/favicons/apple-touch-icon.png [L]
+
 RewriteRule ^addFiles/([a-zA-Z0-9_-]+)$ autocomplete.php?key=$1 [L,QSA]
 RewriteRule ^([a-zA-Z0-9_-]+)/$ index.php?func=category&translit=$1 [L,QSA]
 RewriteRule ^watch/([a-zA-Z0-9_-]+).html$ index.php?func=video&translit=$1 [L,QSA]

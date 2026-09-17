@@ -310,11 +310,13 @@ echo '
 <meta name="twitter:description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
 <meta name="twitter:image" content="'.htmlspecialchars($og_img, ENT_QUOTES, 'UTF-8').'" />
 
-<link rel="canonical" href="'.$canonical.'" />
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+<link rel="icon" type="image/x-icon" href="/designs/icons/favicons/favicon.ico" />
+<link rel="icon" type="image/png" sizes="32x32" href="/designs/icons/favicons/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/designs/icons/favicons/favicon-16x16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/designs/icons/favicons/apple-touch-icon.png" />
+<link rel="manifest" href="/designs/icons/favicons/site.webmanifest" />
+<meta name="msapplication-config" content="/designs/icons/favicons/browserconfig.xml" />
+<meta name="theme-color" content="#21201f" />
 <link rel="alternate" type="application/rss+xml" title="'.htmlspecialchars($host, ENT_QUOTES, 'UTF-8').' RSS Feed" href="/rss.xml" />
 <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
 '.(!empty($seo_extras) ? $seo_extras : '').'

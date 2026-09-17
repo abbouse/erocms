@@ -76,6 +76,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kirish | EroCMS Admin</title>
+    <link rel="icon" type="image/x-icon" href="/designs/icons/favicons/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/designs/icons/favicons/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/designs/icons/favicons/apple-touch-icon.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
     <link rel="stylesheet" href="/designs/admin.css?v=<?=$css_v?>" />
     <style>
