@@ -84,7 +84,7 @@
     </div>
 
     <?php
-    if ($k_page > 1) str('/top?', $k_page, $page);
+    if ($k_page > 1) str('/top.html?', $k_page, $page);
 
     if ($can_cache) {
         $handle = fopen($caching, 'w'); 

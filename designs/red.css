@@ -696,28 +696,49 @@ textarea.form-control-custom {
 /* === PAGINATION === */
 .pages {
     background: #141312;
-    padding: 12px;
+    padding: 12px 6px;
     text-align: center;
     border-top: 1px solid #323130;
-    margin: 10px 0;
+    margin: 15px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
-.pages a {
+.pages a, .pages span {
     background: #2b2826;
     color: #fff;
     border: 1px solid #444;
     padding: 6px 12px;
-    border-radius: 3px;
-    margin: 0 3px;
+    border-radius: 4px;
     font-size: 13px;
     font-weight: 600;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    user-select: none;
 }
 
-.pages a:hover, .pages a.active {
-    background: #ff9900;
+.pages a:hover, .pages a.active, .pages span.active {
+    background: var(--primary-accent, #ff9900);
     color: #000;
-    border-color: #ff9900;
+    border-color: var(--primary-accent, #ff9900);
+    font-weight: bold;
+}
+
+.pages span.dots {
+    background: transparent;
+    border: none;
+    color: #777;
+    min-width: auto;
+    padding: 0 4px;
+    font-size: 14px;
 }
 
 /* === FOOTER === */

@@ -6,7 +6,7 @@
 Быстро, качественно, недорого.
 */
 
-    $search = mysqli_real_escape_string($mysqli, filter($_GET['i'] ?? ''));     
+    $search = mysqli_real_escape_string($mysqli, filter($_GET['i'] ?? $_GET['q'] ?? ''));     
         
     $title = $lang['searching_results'].' "'.$search.'"';
     $description = $settings['description'];

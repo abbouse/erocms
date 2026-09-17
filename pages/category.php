@@ -183,7 +183,8 @@
     </div>
 
     <?php
-    if ($k_page > 1) str('/'.$category['translit'].'/?', $k_page, $page);
+    $cat_page_link = '/' . $category['translit'] . '/?' . ($sorting == 1 ? 'popular&' : '');
+    if ($k_page > 1) str($cat_page_link, $k_page, $page);
 
     if ($can_cache) {
         $handle = fopen($caching, 'w'); 

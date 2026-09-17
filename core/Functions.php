@@ -706,35 +706,80 @@ function k_page($k_post = 0, $k_p_str = 10) {
 #Пагинация
 
 function str($link = '?', $k_page = 1, $page = 1) {
-    
-    global $version;
-    
-    if ($page < 1) $page = 1;
-    
-    echo '<div class="pages">';
-    
-    if ($page > 1) echo ' <a href="'. $link .'page='. ($page - 1) .'" title="Вернуться на предыдущую страницу">&laquo;</a> ';
-    
-    if ($page < $k_page) echo ' <a href="'. $link .'page='. ($page + 1) .'" title="Перейти на следующую страницу">&raquo;</a> ';
-    
-    if ($page != 1) echo '<a href="'. $link .'page=1" title="Вернуться на первую страницу"> <b> 1</b></a>'; 
-    
-    else echo ' <a href="#">1</a>';
-    
-    for ($i = -3; $i <= 3; $i++) {
-        
-        if ($page + $i > 1 && $page + $i < $k_page) {
+    global $version, $lang;
 
-            $conclusion = $page + $i;
-            
-            if ($i != 0) echo ' <a href="'. $link .'page='. $conclusion .'" title="Перейти на '. $conclusion .' страницу">'. $conclusion .'</a>'; else echo ' <a href="#" title="Страница '. $conclusion .'">'. $conclusion .'</a>';
-            
+    if ($k_page <= 1) return;
+    if ($page < 1) $page = 1;
+    if ($page > $k_page) $page = $k_page;
+
+    // Link oxirini tekshirish (? yoki & bilan tugashi)
+    if (strpos($link, '?') === false) {
+        $link .= '?';
+    } elseif (substr($link, -1) !== '?' && substr($link, -1) !== '&') {
+        $link .= '&';
+    }
+
+    // 1-sahifa uchun toza URL (SEO canonical)
+    $first_url = rtrim($link, '?&');
+    if (empty($first_url)) $first_url = '/';
+
+    $lbl_prev = $lang['prev_page'] ?? 'Oldingi sahifa';
+    $lbl_next = $lang['next_page'] ?? 'Keyingi sahifa';
+    $lbl_page = $lang['page'] ?? 'Sahifa';
+
+    echo '<div class="pages">';
+
+    // 1. Oldingi sahifa tugmasi («)
+    if ($page > 1) {
+        $prev_url = ($page - 1 == 1) ? $first_url : $link . 'page=' . ($page - 1);
+        echo '<a href="' . $prev_url . '" class="prev-page" title="' . $lbl_prev . '">&laquo;</a> ';
+    }
+
+    // 2. Birinchi sahifa (1)
+    if ($page == 1) {
+        echo '<span class="active">1</span> ';
+    } else {
+        echo '<a href="' . $first_url . '" title="' . $lbl_page . ' 1">1</a> ';
+    }
+
+    // 3. Oraliq sahifalar
+    $start_range = max(2, $page - 2);
+    $end_range = min($k_page - 1, $page + 2);
+
+    // Boshidan uzoq bo'lsa '...' chiqarish
+    if ($start_range > 2) {
+        echo '<span class="dots">&hellip;</span> ';
+    }
+
+    for ($i = $start_range; $i <= $end_range; $i++) {
+        if ($i == $page) {
+            echo '<span class="active">' . $i . '</span> ';
+        } else {
+            echo '<a href="' . $link . 'page=' . $i . '" title="' . $lbl_page . ' ' . $i . '">' . $i . '</a> ';
         }
     }
-    
-    if ($page != $k_page) echo ' <a href="'. $link .'page='. $k_page .'" title="Перейти на '. $k_page .' страницу">'. $k_page .'</a>'; else if ($k_page > 1) echo ' <a href="#" title="Страница '. $k_page .'">'. $k_page .'</a>';
-    
-    echo '</div> <!-- EroCMS '.$version.' -->';
+
+    // Oxiridan uzoq bo'lsa '...' chiqarish
+    if ($end_range < $k_page - 1) {
+        echo '<span class="dots">&hellip;</span> ';
+    }
+
+    // 4. Oxirgi sahifa
+    if ($k_page > 1) {
+        if ($page == $k_page) {
+            echo '<span class="active">' . $k_page . '</span> ';
+        } else {
+            echo '<a href="' . $link . 'page=' . $k_page . '" title="' . $lbl_page . ' ' . $k_page . '">' . $k_page . '</a> ';
+        }
+    }
+
+    // 5. Keyingi sahifa tugmasi (»)
+    if ($page < $k_page) {
+        $next_url = $link . 'page=' . ($page + 1);
+        echo '<a href="' . $next_url . '" class="next-page" title="' . $lbl_next . '">&raquo;</a>';
+    }
+
+    echo '</div> <!-- EroCMS ' . $version . ' -->';
 }
 
 /**
