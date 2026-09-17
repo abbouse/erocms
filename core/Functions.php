@@ -429,6 +429,9 @@ echo '
 if (function_exists('ads_render_sticky_footer')) {
     ads_render_sticky_footer();
 }
+if (function_exists('ads_render_inpage_push')) {
+    ads_render_inpage_push();
+}
 echo '
   </body>
 </html>';

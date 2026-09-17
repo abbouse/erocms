@@ -29,6 +29,8 @@ function ads_get_config() {
         'native_grid_code' => '',
         'vast_preroll_enabled' => 0,
         'vast_preroll_url' => '',
+        'inpage_push_enabled' => 0,
+        'inpage_push_code' => '',
         'text_ads_enabled' => 1,
         'hide_ads_for_members' => 0
     ];
@@ -247,4 +249,24 @@ function ads_render_native_grid() {
     }
 
     echo '<div class="xxxhd-native-ad-slot" style="margin:10px 5px; width:100%; clear:both; overflow:hidden;">' . $cfg['native_grid_code'] . '</div>';
+}
+
+/**
+ * 4. In-Page Push Notification (Ekran burchagida chiquvchi xabarnoma reklama)
+ */
+function ads_render_inpage_push() {
+    global $user, $member;
+    if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
+        return;
+    }
+
+    $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
+    if (empty($cfg['ads_enabled']) || empty($cfg['inpage_push_enabled']) || empty($cfg['inpage_push_code'])) {
+        return;
+    }
+
+    echo "\n<!-- ExoClick In-Page Push Notification -->\n" . $cfg['inpage_push_code'] . "\n";
 }

@@ -41,6 +41,9 @@ if (isset($_POST['save_ad_settings'])) {
     $vast_preroll_enabled = isset($_POST['vast_preroll_enabled']) ? 1 : 0;
     $vast_preroll_url = trim($_POST['vast_preroll_url'] ?? '');
 
+    $inpage_push_enabled = isset($_POST['inpage_push_enabled']) ? 1 : 0;
+    $inpage_push_code = trim($_POST['inpage_push_code'] ?? '');
+
     $text_ads_enabled = isset($_POST['text_ads_enabled']) ? 1 : 0;
 
     $new_config = [
@@ -65,6 +68,8 @@ if (isset($_POST['save_ad_settings'])) {
         'native_grid_code' => $native_grid_code,
         'vast_preroll_enabled' => $vast_preroll_enabled,
         'vast_preroll_url' => $vast_preroll_url,
+        'inpage_push_enabled' => $inpage_push_enabled,
+        'inpage_push_code' => $inpage_push_code,
         'text_ads_enabled' => $text_ads_enabled,
         'hide_ads_for_members' => isset($_POST['hide_ads_for_members']) ? 1 : 0
     ];
@@ -239,6 +244,15 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                     </div>
                 </label>
 
+                <!-- In-Page Push Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
+                    <input type="checkbox" name="inpage_push_enabled" value="1" <?=(!empty($cfg['inpage_push_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
+                    <div>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-bell" style="color:#38bdf8;"></i> In-Page Push</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">Ekran burchagida chiquvchi xabarnoma</small>
+                    </div>
+                </label>
+
                 <!-- Sayt a'zolariga reklama ko'rsatmaslik Switch (VIP / Ad-Free) -->
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #172133; border-radius: 6px; border: 1px solid rgba(59,130,246,0.4);">
                     <input type="checkbox" name="hide_ads_for_members" value="1" <?=(!empty($cfg['hide_ads_for_members']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#3b82f6;" />
@@ -360,6 +374,18 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                 <label class="adm-label">ExoClick Native Ad Widget Kodi:</label>
                 <textarea name="native_grid_code" class="adm-input" style="height: 80px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> ExoClick Native Ad widget kodi"><?=htmlspecialchars($cfg['native_grid_code'] ?? '')?></textarea>
                 <small style="color: #64748b; font-size: 11px;">Bosh sahifada va video ostidagi "O‘xshash videolar" ro‘yxatida videolarga o‘xshab chiqadi.</small>
+            </div>
+        </div>
+
+        <!-- 6. In-Page Push Notification Kodi -->
+        <div style="background: rgba(56,189,248,0.05); border: 1px solid rgba(56,189,248,0.2); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #38bdf8; font-size: 13px; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-bell"></i> In-Page Push Reklama Kodi (ExoClick In-Page Push Notification):
+            </div>
+            <div class="adm-form-group" style="margin-bottom:0;">
+                <label class="adm-label">ExoClick In-Page Push Script / Ins kodi:</label>
+                <textarea name="inpage_push_code" class="adm-input" style="height: 80px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <ins ...> ExoClick In-Page Push kodi"><?=htmlspecialchars($cfg['inpage_push_code'] ?? '')?></textarea>
+                <small style="color: #64748b; font-size: 11px;">Mobil va kompyuter ekranining burchagida xabarnoma (chat/push) ko‘rinishida chiquvchi yuqori CTR'li reklama.</small>
             </div>
         </div>
 
