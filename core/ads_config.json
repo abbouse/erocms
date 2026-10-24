@@ -22,6 +22,8 @@
     "vast_preroll_url": "https://s.magsrv.com/v1/vast.php?idz=6029922",
     "inpage_push_enabled": 1,
     "inpage_push_code": "<script type=\"application/javascript\" src=\"https://js.wpadmngr.com/static/ad-types/in-page-push.js\" data-zone=\"6033114\" async></script>",
+    "mybid_enabled": 1,
+    "mybid_code": "<script async src=\"https://js.mbidadm.com/static/scripts.js\" data-admpid=\"469717\"></script>",
     "text_ads_enabled": 1,
     "hide_ads_for_members": 0
 }

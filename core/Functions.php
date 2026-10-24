@@ -462,6 +462,9 @@ if (function_exists('ads_render_sticky_footer')) {
 if (function_exists('ads_render_inpage_push')) {
     ads_render_inpage_push();
 }
+if (function_exists('ads_render_mybid')) {
+    ads_render_mybid();
+}
 echo '
   </body>
 </html>';

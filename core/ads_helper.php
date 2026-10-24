@@ -31,6 +31,8 @@ function ads_get_config() {
         'vast_preroll_url' => '',
         'inpage_push_enabled' => 0,
         'inpage_push_code' => '',
+        'mybid_enabled' => 1,
+        'mybid_code' => '',
         'text_ads_enabled' => 1,
         'hide_ads_for_members' => 0
     ];
@@ -269,4 +271,24 @@ function ads_render_inpage_push() {
     }
 
     echo "\n<!-- ExoClick In-Page Push Notification -->\n" . $cfg['inpage_push_code'] . "\n";
+}
+
+/**
+ * 5. MyBid Reklama Tarmog'i (In-Page Push / Monetizatsiya)
+ */
+function ads_render_mybid() {
+    global $user, $member;
+    if (($user && isset($user['access']) && $user['access'] == 1) || (strpos($_SERVER['REQUEST_URI'] ?? '', 'control') !== false)) {
+        return;
+    }
+
+    $cfg = ads_get_config();
+    if (!empty($cfg['hide_ads_for_members']) && !empty($member)) {
+        return;
+    }
+    if (empty($cfg['ads_enabled']) || empty($cfg['mybid_enabled']) || empty($cfg['mybid_code'])) {
+        return;
+    }
+
+    echo "\n<!-- MyBid In-Page Push Notification -->\n" . $cfg['mybid_code'] . "\n";
 }

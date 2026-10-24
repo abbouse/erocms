@@ -44,6 +44,9 @@ if (isset($_POST['save_ad_settings'])) {
     $inpage_push_enabled = isset($_POST['inpage_push_enabled']) ? 1 : 0;
     $inpage_push_code = trim($_POST['inpage_push_code'] ?? '');
 
+    $mybid_enabled = isset($_POST['mybid_enabled']) ? 1 : 0;
+    $mybid_code = trim($_POST['mybid_code'] ?? '');
+
     $text_ads_enabled = isset($_POST['text_ads_enabled']) ? 1 : 0;
 
     $new_config = [
@@ -70,6 +73,8 @@ if (isset($_POST['save_ad_settings'])) {
         'vast_preroll_url' => $vast_preroll_url,
         'inpage_push_enabled' => $inpage_push_enabled,
         'inpage_push_code' => $inpage_push_code,
+        'mybid_enabled' => $mybid_enabled,
+        'mybid_code' => $mybid_code,
         'text_ads_enabled' => $text_ads_enabled,
         'hide_ads_for_members' => isset($_POST['hide_ads_for_members']) ? 1 : 0
     ];
@@ -248,8 +253,17 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #151821; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);">
                     <input type="checkbox" name="inpage_push_enabled" value="1" <?=(!empty($cfg['inpage_push_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#ff9900;" />
                     <div>
-                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-bell" style="color:#38bdf8;"></i> In-Page Push</strong>
+                        <strong style="color: #fff; font-size: 13px; display: block;"><i class="fa fa-bell" style="color:#38bdf8;"></i> ExoClick In-Page Push</strong>
                         <small style="color: #94a3b8; font-size: 11px;">Ekran burchagida chiquvchi xabarnoma</small>
+                    </div>
+                </label>
+
+                <!-- MyBid Switch -->
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <input type="checkbox" name="mybid_enabled" value="1" <?=(!empty($cfg['mybid_enabled']) ? 'checked' : '')?> style="width:18px; height:18px; accent-color:#10b981;" />
+                    <div>
+                        <strong style="color: #34d399; font-size: 13px; display: block;"><i class="fa fa-line-chart"></i> MyBid In-Page Push</strong>
+                        <small style="color: #94a3b8; font-size: 11px;">MyBid tarmog‘i monetizatsiyasi</small>
                     </div>
                 </label>
 
@@ -386,6 +400,18 @@ $total_ads = $ads_query ? $ads_query->num_rows : 0;
                 <label class="adm-label">ExoClick In-Page Push Script / Ins kodi:</label>
                 <textarea name="inpage_push_code" class="adm-input" style="height: 80px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script ...> yoki <ins ...> ExoClick In-Page Push kodi"><?=htmlspecialchars($cfg['inpage_push_code'] ?? '')?></textarea>
                 <small style="color: #64748b; font-size: 11px;">Mobil va kompyuter ekranining burchagida xabarnoma (chat/push) ko‘rinishida chiquvchi yuqori CTR'li reklama.</small>
+            </div>
+        </div>
+
+        <!-- 7. MyBid Reklama Tarmog‘i (In-Page Push) -->
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #34d399; font-size: 13px; margin-bottom: 8px; display:flex; align-items:center; gap:8px;">
+                <i class="fa fa-line-chart"></i> MyBid Reklama Tarmog‘i (In-Page Push):
+            </div>
+            <div class="adm-form-group" style="margin-bottom:0;">
+                <label class="adm-label">MyBid Script Kodi (publishers.mybid.io):</label>
+                <textarea name="mybid_code" class="adm-input" style="height: 80px; font-family: monospace; font-size: 11px; resize: vertical;" placeholder="<script async src=&quot;https://js.mbidadm.com/static/scripts.js&quot; data-admpid=&quot;...&quot;></script>"><?=htmlspecialchars($cfg['mybid_code'] ?? '')?></textarea>
+                <small style="color: #64748b; font-size: 11px;">O‘zbekiston va MDH trafigi uchun MyBid tarmog‘ining In-Page Push reklama vidjeti. ExoClick bilan parallel va xatosiz ishlaydi.</small>
             </div>
         </div>
 
