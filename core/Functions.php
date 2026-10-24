@@ -531,33 +531,42 @@ function get_playable_video_source($file) {
 
 #Наложение копирайта
 
-function water($before, $after, $sign)	{
+function water($before, $after, $sign) {
     if (!file_exists($before) || !file_exists($sign) || filesize($before) < 100) {
         return false;
     }
-	list($owidth, $oheight) = getimagesize($before);
-	
-	$width = 600;
-	$height = 300; 
-	$im = imagecreatetruecolor($width, $height);
-	$img_src = imagecreatefromjpeg($before);
-	
-	imagecopyresampled($im, $img_src, 0, 0, 0, 0, $width, $height, $owidth, $oheight);
-	
-	$watermark = imagecreatefrompng($sign);
-	
-	list($w_width, $w_height) = getimagesize($sign);
-	
-	$pos_x = max(0, $width - $w_width - 8); 
-	$pos_y = max(0, $height - $w_height - 8);
-	
-	imagecopy($im, $watermark, $pos_x, $pos_y, 0, 0, $w_width, $w_height);
-	imagejpeg($im, $after, 95);
-	imagedestroy($im);
-	imagedestroy($watermark);
-	
-	return true;
-	
+    $raw = @file_get_contents($before);
+    if (empty($raw)) return false;
+
+    $img_src = @imagecreatefromstring($raw);
+    if (!$img_src) return false;
+
+    $owidth = imagesx($img_src);
+    $oheight = imagesy($img_src);
+    if ($owidth <= 0 || $oheight <= 0) {
+        imagedestroy($img_src);
+        return false;
+    }
+
+    $width = 600;
+    $height = 300; 
+    $im = imagecreatetruecolor($width, $height);
+    imagecopyresampled($im, $img_src, 0, 0, 0, 0, $width, $height, $owidth, $oheight);
+    imagedestroy($img_src);
+
+    $watermark = @imagecreatefrompng($sign);
+    if ($watermark) {
+        $w_width = imagesx($watermark);
+        $w_height = imagesy($watermark);
+        $pos_x = max(0, $width - $w_width - 8); 
+        $pos_y = max(0, $height - $w_height - 8);
+        imagecopy($im, $watermark, $pos_x, $pos_y, 0, 0, $w_width, $w_height);
+        imagedestroy($watermark);
+    }
+
+    imagejpeg($im, $after, 95);
+    imagedestroy($im);
+    return true;
 }
 
 #Узнаем размер файла
