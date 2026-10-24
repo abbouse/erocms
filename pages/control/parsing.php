@@ -62,7 +62,7 @@ if (!empty($ajax_action)) {
                 if (stripos($custom_url, 'sexlar.link') !== false) {
                     $donor = 'sexlar';
                     $items = parser_get_catalog_links_sexlar($page, $custom_url);
-                } elseif (stripos($custom_url, 'arhivporno.watch') !== false) {
+                } elseif (stripos($custom_url, 'arhivporno') !== false) {
                     $donor = 'arhivporno';
                     $items = parser_get_catalog_links_arhivporno($page, $custom_url);
                 } elseif (stripos($custom_url, 'uzporno.website') !== false) {
@@ -127,7 +127,7 @@ if (!empty($ajax_action)) {
             $res = null;
             if ($donor === 'sexlar' || stripos($video_url, 'sexlar.link') !== false) {
                 $res = parse_video_sexlar($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
-            } elseif ($donor === 'arhivporno' || stripos($video_url, 'arhivporno.watch') !== false) {
+            } elseif ($donor === 'arhivporno' || stripos($video_url, 'arhivporno') !== false) {
                 $res = parse_video_arhivporno($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
             } elseif ($donor === 'uzbxx' || stripos($video_url, 'uzbxx.ru') !== false) {
                 $res = parse_video_uzbxx($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
@@ -366,47 +366,50 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             <span style="font-size: 11px; color: #94a3b8; font-weight: normal;">Bitta bosishda mos donor, sahifalar va toifani avtomatik sozlaydi</span>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="parserPresetsList">
-            <button type="button" class="adm-preset-btn active" data-donor="sexlar" data-url="" data-from="1" data-to="3" title="sexlar.link dan eng yangi o‘zbekcha videolar">
-                🇺🇿 Yangi O‘zbek (sexlar)
+            <button type="button" class="adm-preset-btn active" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-uzbekskii-seks/" data-from="1" data-to="3" title="arhivporno.rest dan o‘zbekcha videolar arxivi">
+                🇺🇿 O‘zbekcha Seks (arhivporno)
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/" data-from="1" data-to="3" title="arhivporno.watch (barcha yangi videolar)">
-                🌟 Barcha Yangi (arhivporno)
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-kazahskoe-porno/" data-from="1" data-to="3" title="Qozoqcha porno bo‘limi">
+                🇰🇿 Qozoqcha Porno
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-anal-porno/" data-from="1" data-to="3" title="Anal seks bo‘limi">
-                🍑 Anal Seksi
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-kirgizskii-seks/" data-from="1" data-to="2" title="Qirg‘izcha seks bo‘limi">
+                🇰🇬 Qirg‘izcha Seks
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-minet/" data-from="1" data-to="3" title="Minet / Oral seks bo‘limi">
-                👄 Minet / Oral
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-tadzhikskii-seks/" data-from="1" data-to="3" title="Tojikcha seks bo‘limi">
+                🇹🇯 Tojikcha Seks
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-rakom/" data-from="1" data-to="3" title="Rakom / Doggystyle bo‘limi">
-                🐕 Rakom (Doggystyle)
+            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="https://uzbxx.ru/category/uzbekskoe/" data-from="1" data-to="3" title="uzbxx.ru o‘zbek bo‘limi">
+                🇺🇿 Uzbxx O‘zbekcha
             </button>
             <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="https://uzbxx.ru/category/Domashnee/" data-from="1" data-to="3" title="Uyda olingan / Domashnee">
-                🏠 Domashnee (uzbxx)
+                🏠 Uzbxx Domashnee
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-bolshie-siski/" data-from="1" data-to="3" title="Katta emchaklar bo‘limi">
-                🍒 Katta Ko‘kraklar (Siski)
+            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="https://uzbxx.ru/category/Lyubitelskoe/" data-from="1" data-to="3" title="Havaskor seks / Lyubitelskoe">
+                🎬 Uzbxx Havaskor / Sliv
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-studentov/" data-from="1" data-to="3" title="Talabalar bo‘limi">
-                🎓 Talabalar
+            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="https://uzbxx.ru/category/Proverennoe-Lyubitelskoe/" data-from="1" data-to="3" title="Tekshirilgan havaskor slivlar">
+                💯 Tekshirilgan Havaskor
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.watch/cat-porno-molodih/" data-from="1" data-to="3" title="Yosh qizlar bo‘limi">
-                🔞 Yosh Qizlar (18+)
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-musulmanki/" data-from="1" data-to="3" title="Musulmon qizlar seksi">
+                🧕 Musulmon Qizlar
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="" data-from="1" data-to="3" title="uzbxx.ru bosh sahifasi">
-                🇺🇿 Katta O‘zbek Bazasi (uzbxx)
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-skritaya-kamera/" data-from="1" data-to="3" title="Yashirin kamera va slivlar">
+                📹 Yashirin Kamera / Sliv
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="eporner" data-url="query=asian" data-from="1" data-to="3" title="Osiyo va Sharq HD (Eporner)">
-                🌏 Osiyo HD (Eporner)
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-russkoe-domashnee-porno/" data-from="1" data-to="3" title="Uy videolari / Domashnee">
+                🏠 Domashnee (arhivporno)
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="eporner" data-url="query=uzbek" data-from="1" data-to="3" title="O‘zbek HD (Eporner)">
-                🇺🇿 Uzbek HD (Eporner)
+            <button type="button" class="adm-preset-btn" data-donor="arhivporno" data-url="https://arhivporno.rest/cat-aziatki/" data-from="1" data-to="3" title="Osiyolik va sharqona qizlar">
+                🌏 Osiyo Qizlari (arhivporno)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="sexlar" data-url="" data-from="1" data-to="3" title="sexlar.link dan yangi o‘zbekcha videolar">
+                🇺🇿 Yangi O‘zbek (sexlar)
             </button>
             <button type="button" class="adm-preset-btn" data-donor="uzporno" data-url="" data-from="1" data-to="3" title="uzporno.website">
                 🌐 uzporno.website
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="all" data-url="" data-from="1" data-to="2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: bold; border-color: #10b981;" title="Barcha 5 donor ketma-ket">
-                🔥 BARCHA DONORLAR (Multi-Donor)
+            <button type="button" class="adm-preset-btn" data-donor="all" data-url="" data-from="1" data-to="2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: bold; border-color: #10b981;" title="Barcha mahalliy va MDH havaskor donorlari ketma-ket">
+                🔥 BARCHA MAHALLIY VA QO‘SHNI DAVLATLAR (Multi-Donor)
             </button>
         </div>
     </div>
@@ -419,31 +422,24 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             </label>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
-                    <input type="radio" name="p_donor" value="sexlar" checked />
+                    <input type="radio" name="p_donor" value="arhivporno" checked />
                     <div>
-                        <b style="color: #10b981; font-size: 14px;">sexlar.link</b>
-                        <div style="color: #64748b; font-size: 11px;">Yangi o‘zbekcha videolar</div>
-                    </div>
-                </label>
-                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
-                    <input type="radio" name="p_donor" value="eporner" />
-                    <div>
-                        <b style="color: #38bdf8; font-size: 14px;">eporner.com (API)</b>
-                        <div style="color: #64748b; font-size: 11px;">1M+ HD/4K, rasmiy API, barqaror</div>
+                        <b style="color: #ff9900; font-size: 14px;">arhivporno.rest</b>
+                        <div style="color: #64748b; font-size: 11px;">O‘zbek, Qozoq, Qirg‘iz, Tojik, Sliv</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
                     <input type="radio" name="p_donor" value="uzbxx" />
                     <div>
                         <b style="color: #f59e0b; font-size: 14px;">uzbxx.ru</b>
-                        <div style="color: #64748b; font-size: 11px;">Katta o‘zbek bazasi</div>
+                        <div style="color: #64748b; font-size: 11px;">Katta o‘zbek va domashnee bazasi</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
-                    <input type="radio" name="p_donor" value="arhivporno" />
+                    <input type="radio" name="p_donor" value="sexlar" />
                     <div>
-                        <b style="color: #cbd5e1; font-size: 14px;">arhivporno.watch</b>
-                        <div style="color: #64748b; font-size: 11px;">Barcha yangi & tematik arxiv</div>
+                        <b style="color: #10b981; font-size: 14px;">sexlar.link</b>
+                        <div style="color: #64748b; font-size: 11px;">Yangi o‘zbekcha videolar</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
@@ -451,6 +447,13 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     <div>
                         <b style="color: #ec4899; font-size: 14px;">uzporno.website</b>
                         <div style="color: #64748b; font-size: 11px;">O‘zbek & sharq videolari</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
+                    <input type="radio" name="p_donor" value="eporner" />
+                    <div>
+                        <b style="color: #38bdf8; font-size: 14px;">eporner.com (API)</b>
+                        <div style="color: #64748b; font-size: 11px;">Rasmiy API, Osiyo/Sharq filtri</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
@@ -1005,7 +1008,7 @@ $(document).ready(function() {
             return;
         }
 
-        const donorsToRun = (selectedDonor === 'all') ? ['sexlar', 'eporner', 'uzbxx', 'arhivporno', 'uzporno'] : [selectedDonor];
+        const donorsToRun = (selectedDonor === 'all') ? ['arhivporno', 'uzbxx', 'sexlar', 'uzporno'] : [selectedDonor];
 
         isRunning = true;
         isPaused = false;

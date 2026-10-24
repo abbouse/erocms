@@ -300,7 +300,7 @@ $html_lang_map = ['uz' => 'uz', 'ru' => 'ru', 'ua' => 'uk', 'en' => 'en', 'az' =
 $html_lang = $html_lang_map[$sess_lang_for_html] ?? 'uz';
 
 // Robots meta: noindex kerak bo'lgan sahifalar uchun
-$robots_content = (!empty($seo_noindex)) ? 'noindex, follow' : 'index, follow, max-image-preview:large';
+$robots_content = (!empty($seo_noindex)) ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
 echo '<!DOCTYPE html>
 <html lang="'.$html_lang.'">
@@ -312,6 +312,7 @@ echo '<!DOCTYPE html>
 <meta name="description" content="'.htmlspecialchars($description, ENT_QUOTES, 'UTF-8').'" />
 <meta name="keywords" content="'.htmlspecialchars($keywords, ENT_QUOTES, 'UTF-8').'" />
 <meta name="robots" content="'.$robots_content.'" />
+<link rel="canonical" href="'.$canonical.'" />
 <meta name="theme-color" content="#21201f" />
 <meta name="rating" content="RTA-5042-1996-1404-4054-RTA" />
 <meta name="RATING" content="adult" />

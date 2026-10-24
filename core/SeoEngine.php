@@ -35,10 +35,10 @@ function seo_get_categories_data() {
             'keywords' => 'анал, анальный секс, анальное порно, anal, anal sex, orqaga tiqish, ketiga tiqish, uzbek anal, секс в жопу, в попу, узбекский анал, скачать анал'
         ],
         'domashnee' => [
-            'name' => 'Домашнее (Uyda olingan)',
-            'description' => 'Реальное домашнее порно, скрытая камера и любительский секс. O‘zbekcha domashniy videolar, uyda er-xotinlar tomonidan olingan va yashirin kamera lavhalari.',
-            'meta' => 'Домашний и любительский секс онлайн бесплатно. Uyda olingan samopal videolar, domashniy seks va shaxsiy kadrlar sekschi.online da.',
-            'keywords' => 'домашнее, домашнее порно, любительский секс, частное порно, domashniy, uyda olingan, yashirin kamera, samopal, uzbek domashnee, domashka, секс дома, скачать домашнее'
+            'name' => 'Домашнее (Uyda olingan / Sliv)',
+            'description' => 'Реальное домашнее порно, скрытая камера, приватные сливы и любительский секс. O‘zbekcha domashniy videolar, er-xotinlar seksi, telegram slivlari va yashirin kamera kadrlarini bepul tomosha qiling.',
+            'meta' => 'Домашний секс, сливы и любительское порно онлайн бесплатно. Uyda olingan samopal videolar, domashniy seks, telegram sliv va shaxsiy kadrlar sekschi.online da.',
+            'keywords' => 'домашнее, домашнее порно, сливы, слив видео, любительский секс, частное порно, domashniy, uyda olingan, telegram sliv, yashirin kamera, samopal, uzbek domashnee, qizlar slivi, секс дома, скачать домашнее'
         ],
         'molodye' => [
             'name' => 'Молодые (Yoshlar seksi)',
@@ -89,10 +89,10 @@ function seo_get_categories_data() {
             'keywords' => 'мамки, милф, milf, зрелые женщины, опытные мамочки, yoshi katta ayollar, xolalar seksi, kelinlar seksi, kelinchak, порно мамки'
         ],
         'asian' => [
-            'name' => 'Азиатки (Osiyolik qizlar)',
-            'description' => 'Милые азиатки, тайки и восточные красавицы в постели. Sharqona go‘zallar va osiyolik qizlar bilan nozik hamda ehtirosli jinsiy aloqa videolari.',
-            'meta' => 'Порно с азиатками онлайн бесплатно в HD. Osiyo qizlari, sharq go‘zallari va тайки bilan erotik videolar sekschi.online da.',
-            'keywords' => 'азиатки, порно азиатки, тайки, японки, кореянки, osiyo qizlari, asian porno, asian sex, восточные красавицы'
+            'name' => 'Азиатки (Osiyo, Qozoq & Qirg‘iz)',
+            'description' => 'Милые азиатки, восточные красавицы, казахский, кыргызский и узбекский секс. Qozog‘iston, Qirg‘iziston va O‘zbekiston qizlarining ehtirosli uy videolari hamda slivlari sekschi.online saytida.',
+            'meta' => 'Порно с азиатками, казахский и восточный секс онлайн бесплатно в HD. Osiyo qizlari, qozoqcha va qirg‘izcha porno videolar sekschi.online da.',
+            'keywords' => 'азиатки, казахский секс, казахское порно, казашки, кыргызский секс, кыргызча порно, qazaq porno, qazaqsha sekis, tojikcha porno, osiyo qizlari, asian porno, asian sex, восточные красавицы'
         ],
         'kunnilingus' => [
             'name' => 'Куннилингус (Am yalash)',

@@ -5,7 +5,7 @@
  * Qo'llab-quvvatlanuvchi donor saytlar:
  * 1. uzbxx.ru
  * 2. uzporno.website
- * 3. arhivporno.watch (cat-uzbekskii-seks)
+ * 3. arhivporno.rest (O‘zbek, Qozoq, Qirg‘iz, Tojik, Domashnee, Sliv)
  */
 
 if (!defined('PARSER_COOKIE_FILE')) {
@@ -237,7 +237,7 @@ function parser_clean_seo_title($title) {
         '/в (?:отличном|хорошем|hd|full hd|высоком) качестве/iu',
         '/порно видео(?: онлайн)?/iu',
         '/скачать (?:бесплатно|на телефон)?/iu',
-        '/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.watch|uzporno\.ru|vaginke\.me)\b/iu',
+        '/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.rest|arhivporno\.watch|pornosektor\.com|uzporno\.ru|vaginke\.me)\b/iu',
         '/\[.*?\]/u', // Qavs ichidagi [1080p] kabilarni olib tashlash
         '/\(.*?(?:1080|720|4k|hd|онлайн).*?\)/iu'
     ];
@@ -260,7 +260,7 @@ function parser_clean_seo_title($title) {
 function parser_generate_seo_description($title, $raw_desc, $category_name = '') {
     $desc = trim(strip_tags((string)$raw_desc));
     $desc = preg_replace('/https?:\/\/[^\s]+/i', '', $desc);
-    $desc = preg_replace('/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.watch|uzporno\.ru|vaginke\.me|t\.me\/[^\s]+)\b/iu', '', $desc);
+    $desc = preg_replace('/\b(?:sexlar\.link|uzbxx\.ru|uzporno\.website|arhivporno\.rest|arhivporno\.watch|pornosektor\.com|uzporno\.ru|vaginke\.me|t\.me\/[^\s]+)\b/iu', '', $desc);
     $desc = preg_replace('/\s{2,}/', ' ', $desc);
     $desc = trim($desc);
     
@@ -317,8 +317,8 @@ function parser_generate_seo_tags($title, $donor_tags, $category_id, $desc, $mys
         }
     }
     
-    // 4. Doimiy eng yuqori qidiruvdagi o'zbek adult teglari
-    $core_uzbek_tags = ['узбек секс', 'uzbekcha seks', 'uzbek sex', 'uzb porno', 'узбечка', 'секс видео', 'порно онлайн', 'hd porno'];
+    // 4. Doimiy eng yuqori qidiruvdagi o'zbek va qo'shni davlatlar adult teglari
+    $core_uzbek_tags = ['узбек секс', 'uzbekcha seks', 'uzbek sex', 'uzb porno', 'узбечка', 'казахский секс', 'qozoqcha seks', 'qazaq porno', 'домашний секс', 'слив видео', 'секс видео', 'порно онлайн', 'hd porno'];
     foreach ($core_uzbek_tags as $cut) {
         $all_tags[] = $cut;
     }
@@ -449,10 +449,11 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
             'blonde'          => ['blonde', 'cat-blondinki', 'cat-porno-s-blondinkami', 'блондинки'],
             'bryunetki'       => ['bryunetki', 'cat-bryunetki', 'cat-porno-s-brunetkami', 'брюнетки'],
             'lesbiyanki'      => ['lesbiyanki', 'cat-lesbiyanki', 'лесбиянки'],
-            'asian'           => ['asian', 'cat-aziatki', 'cat-kitaiskoe-porno', 'aziatki', 'aziya', 'азиатки', 'азия'],
+            'asian'           => ['asian', 'cat-aziatki', 'cat-kitaiskoe-porno', 'cat-kazahskoe-porno', 'cat-kirgizskii-seks', 'cat-tadzhikskii-seks', 'cat-musulmanki', 'казахское', 'казахи', 'казашка', 'qazaq', 'кыргыз', 'киргизский', 'таджикский', 'мусульманки', 'aziatki', 'aziya', 'азиатки', 'азия'],
             'russkoe'         => ['russkoe', 'cat-russkoe', 'cat-russkoe-porno', 'cat-russkii-incest', 'русское'],
             'anime-hentai'    => ['anime-hentai', 'cat-anime', 'cat-ai-porno', 'аниме', 'хентай'],
-            'uzbek'           => ['cat-uzbekskii-seks', 'uzbekskoe', 'tag/uzbek', 'tag/uzbechki', 'uzbek', 'узбекский', 'узбекское']
+            'uzbek'           => ['cat-uzbekskii-seks', 'uzbekskoe', 'tag/uzbek', 'tag/uzbechki', 'uzbek', 'узбекский', 'узбекское', 'o\'zbekcha'],
+            'domashnee'       => ['cat-domashnee-porno', 'cat-russkoe-domashnee-porno', 'cat-skritaya-kamera', 'cat-nepostanovochnoe', 'cat-vebkam-porno', 'домашнее', 'любительское', 'слив', 'скрытая камера', 'вебкам']
         ];
         foreach ($hint_map as $translit => $tokens) {
             foreach ($tokens as $tk) {
@@ -897,11 +898,12 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
 }
 
 /**
- * 3. arhivporno.watch dan videoni parslash
+/**
+ * 3. arhivporno.rest dan videoni parslash (O'zbek, Qozoq, Qirg'iz, Tojik, Domashnee va Sliv arxivlari)
  */
 function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context = []) {
     $video_url = trim($video_url);
-    $html = parser_fetch($video_url, 'https://arhivporno.watch/cat-uzbekskii-seks/');
+    $html = parser_fetch($video_url, 'https://arhivporno.rest/cat-uzbekskii-seks/');
     if (empty($html) || strlen($html) < 200) {
         return ['status' => 'error', 'message' => "Sahifani yuklab bo‘lmadi: $video_url"];
     }
@@ -909,6 +911,8 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     // Title
     $raw_title = '';
     if (preg_match('|<div class="full-column">.*?<h1>(.*?)</h1>|is', $html, $m)) {
+        $raw_title = trim(strip_tags($m[1]));
+    } elseif (preg_match('|<h1>(.*?)</h1>|is', $html, $m)) {
         $raw_title = trim(strip_tags($m[1]));
     } elseif (preg_match('|<meta property="og:title" content="(.*?)"|is', $html, $m)) {
         $raw_title = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
@@ -926,9 +930,11 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
-    // Embed URL
+    // Embed URL (Pornosektor yoki ichki iframe)
     $embed_url = '';
     if (preg_match('|<div class="full-video">.*?<iframe[^>]+src="([^"]+)"|is', $html, $m)) {
+        $embed_url = trim($m[1]);
+    } elseif (preg_match('|<iframe[^>]+src="([^"]+)"|is', $html, $m)) {
         $embed_url = trim($m[1]);
     }
 
@@ -938,12 +944,12 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         $video_id = 0;
         if (preg_match('|data-id="(\d+)"|i', $html, $m_id)) {
             $video_id = intval($m_id[1]);
-        } elseif (preg_match('|video_id\s*=\s*(\d+);|i', $html, $m_id)) {
+        } elseif (preg_match('|video_id\s*[:=]\s*[\'"]?(\d+)[\'"]?|i', $html, $m_id)) {
             $video_id = intval($m_id[1]);
         }
         if ($video_id > 0) {
             $dir_block = floor($video_id / 1000) * 1000;
-            $poster_url = "https://arhivporno.watch/contents/videos_screenshots/{$dir_block}/{$video_id}/320x180/1.jpg";
+            $poster_url = "https://arhivporno.rest/contents/videos_screenshots/{$dir_block}/{$video_id}/320x180/1.jpg";
         }
     }
     if (empty($poster_url) && !empty($embed_url) && strpos($embed_url, 'pornosektor.com') !== false) {
@@ -956,16 +962,21 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
 
     // Davomiylik
     $duration = $cat_context['duration'] ?? '05:00';
+    if (($duration === '05:00' || empty($duration)) && preg_match('|<span class="thumb-time">([0-9:]+)</span>|is', $html, $m_dur)) {
+        $duration = trim($m_dur[1]);
+    }
 
     // Tavsif
     $raw_desc = '';
-    if (preg_match('|<p class="video-text">(.*?)</p>|is', $html, $m)) {
+    if (preg_match('|<meta name="description" content="(.*?)"|is', $html, $m)) {
+        $raw_desc = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+    } elseif (preg_match('|<p class="video-text">(.*?)</p>|is', $html, $m)) {
         $raw_desc = trim(strip_tags($m[1]));
     }
 
     // Teglar va toifalar
     $tags_arr = [];
-    if (preg_match_all('#<a[^>]+href="https://arhivporno\.watch/cat-[^"]+"[^>]*>(.*?)</a>#is', $html, $m_cat)) {
+    if (preg_match_all('#<a[^>]+href="https://arhivporno\.(?:rest|watch)/cat-[^"]+"[^>]*>(.*?)</a>#is', $html, $m_cat)) {
         foreach ($m_cat[1] as $ct) {
             $clean_ct = trim(strip_tags($ct));
             if (!empty($clean_ct) && mb_strlen($clean_ct, 'UTF-8') < 35 && stripos($clean_ct, 'видео') === false) {
@@ -987,7 +998,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
             'donor_category' => implode(' ', $tags_arr),
             'description'    => $raw_desc
         ]);
-        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'arhivporno.watch', $mysqli, $context);
+        $category_id = parser_smart_category($title, implode(' ', $tags_arr), 'arhivporno.rest', $mysqli, $context);
     }
 
     $cat_name = 'Umumiy';
@@ -1038,7 +1049,7 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         '".parser_escape($mysqli, $translit)."',
         '".parser_escape($mysqli, $duration)."',
         '0',
-        'arhivporno.watch',
+        'arhivporno.rest',
         '".parser_escape($mysqli, $final_address)."',
         '".parser_escape($mysqli, $uniqueness)."',
         '$category_id',
@@ -1284,7 +1295,7 @@ function parser_build_page_url($donor, $page = 1, $custom_url = '') {
         if ($donor === 'sexlar') {
             return ($page == 1) ? 'https://sexlar.link/' : "https://sexlar.link/{$page}/";
         } elseif ($donor === 'arhivporno') {
-            return ($page == 1) ? 'https://arhivporno.watch/' : "https://arhivporno.watch/{$page}/";
+            return ($page == 1) ? 'https://arhivporno.rest/cat-uzbekskii-seks/' : "https://arhivporno.rest/cat-uzbekskii-seks/{$page}/";
         } elseif ($donor === 'uzbxx') {
             return ($page == 1) ? 'https://uzbxx.ru/' : "https://uzbxx.ru/page={$page}";
         } elseif ($donor === 'uzporno') {
@@ -1303,7 +1314,7 @@ function parser_build_page_url($donor, $page = 1, $custom_url = '') {
     }
 
     // Agar custom URL arhivporno bo'lsa (/{page}/ formati)
-    if ($donor === 'arhivporno' || stripos($custom_url, 'arhivporno.watch') !== false) {
+    if ($donor === 'arhivporno' || stripos($custom_url, 'arhivporno') !== false) {
         $clean = preg_replace('#/\d+/?$#', '', $custom_url);
         $clean = rtrim($clean, '/');
         if ($page == 1) return $clean . '/';
@@ -1404,22 +1415,20 @@ function parser_get_catalog_links_uzporno($page = 1, $custom_url = '') {
 }
 
 /**
- * Katalog havolalarini olish: arhivporno.watch
+ * Katalog havolalarini olish: arhivporno.rest (O'zbek, Qozoq, Qirg'iz, Tojik, Domashnee va boshqalar)
  */
 function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '') {
     $page = max(1, abs(intval($page_or_url)));
+    if (empty($custom_url)) {
+        $custom_url = 'https://arhivporno.rest/cat-uzbekskii-seks/';
+    }
     $url = parser_build_page_url('arhivporno', $page, $custom_url);
 
-    $html = parser_fetch($url, 'https://arhivporno.watch/');
-    if (empty($html) && empty($custom_url) && $page > 2) {
-        // Agar o'zbek bo'limi tugagan bo'lsa (2 sahifadan so'ng), asosiy yangi videolar oqimidan davom ettiramiz
-        $url = "https://arhivporno.watch/{$page}/";
-        $html = parser_fetch($url, 'https://arhivporno.watch/');
-    }
+    $html = parser_fetch($url, 'https://arhivporno.rest/');
     if (empty($html)) return [];
 
     $items = [];
-    preg_match_all('#<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff".*?<img[^>]+(?:data-original|src)="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>(?:.*?<p>(.*?)</p>)?#is', $html, $m);
+    preg_match_all('#<a href="(https://arhivporno\.(?:rest|watch)/[^"/]+/)"[^>]*class="traff".*?<img[^>]+(?:data-original|src)="([^"]+)".*?<span class="thumb-time">([0-9:]+)</span>.*?<p>(.*?)</p>#is', $html, $m);
 
     if (!empty($m[1])) {
         foreach ($m[1] as $idx => $link) {
@@ -1433,7 +1442,7 @@ function parser_get_catalog_links_arhivporno($page_or_url = 1, $custom_url = '')
             ];
         }
     } else {
-        preg_match_all('|<a href="(https://arhivporno\.watch/[^"/]+/)"[^>]*class="traff"|i', $html, $m2);
+        preg_match_all('#<a href="(https://arhivporno\.(?:rest|watch)/[^"/]+/)"[^>]*class="traff"#i', $html, $m2);
         if (!empty($m2[1])) {
             foreach (array_unique($m2[1]) as $link) {
                 $items[$link] = [
@@ -1543,8 +1552,8 @@ function parser_repair_broken_screenshots($mysqli) {
             }
         }
 
-        // 2. arhivporno.watch / pornosektor.com
-        if (empty($new_screenshot) && (($row['server'] ?? '') === 'arhivporno.watch' || strpos($addr, 'arhivporno') !== false || strpos($addr, 'pornosektor') !== false)) {
+        // 2. arhivporno.rest / pornosektor.com
+        if (empty($new_screenshot) && (($row['server'] ?? '') === 'arhivporno.rest' || ($row['server'] ?? '') === 'arhivporno.watch' || strpos($addr, 'arhivporno') !== false || strpos($addr, 'pornosektor') !== false)) {
             $vid_id = 0;
             if (preg_match('|/storage/\d+/(\d+)/|', $addr, $m)) {
                 $vid_id = intval($m[1]);
@@ -1555,7 +1564,7 @@ function parser_repair_broken_screenshots($mysqli) {
             }
             if ($vid_id > 0) {
                 $dir_block = floor($vid_id / 1000) * 1000;
-                $new_screenshot = "https://arhivporno.watch/contents/videos_screenshots/{$dir_block}/{$vid_id}/320x180/1.jpg";
+                $new_screenshot = "https://arhivporno.rest/contents/videos_screenshots/{$dir_block}/{$vid_id}/320x180/1.jpg";
             }
         }
 
