@@ -217,6 +217,13 @@
         echo '<iframe src="' . htmlspecialchars($video_source['url'], ENT_QUOTES, 'UTF-8') . '" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
     } elseif ($view['server'] == 'vk.com' || $view['server'] == 'drive.google.com') {
         echo '<iframe src="'.$view['address'].'" frameborder="0" allowfullscreen></iframe>';
+    } elseif ($video_source['type'] === 'missing') {
+        echo '<div style="background: radial-gradient(circle at center, #23252e, #0e1015); border: 1px solid #333; border-radius: 8px; padding: 50px 20px; text-align: center; color: #ccc; min-height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <i class="fa fa-film" style="font-size: 46px; color: #ff9900; margin-bottom: 14px; opacity: 0.85;"></i>
+            <h3 style="color: #fff; margin: 0 0 10px; font-size: 18px;">Ushbu video hozirda mavjud emas</h3>
+            <p style="font-size: 13px; color: #888; max-width: 480px; margin: 0 auto 16px; line-height: 1.5;">Fayl server diskidan o‘chirilgan yoki donor sayt tomonidan yangilanmoqda. Quyidagi o‘xshash videolarni tomosha qilishingiz mumkin.</p>
+            <a href="/" style="background: var(--primary-accent, #ff9900); color: #000; padding: 8px 18px; border-radius: 4px; font-size: 13px; font-weight: bold; text-decoration: none;"><i class="fa fa-home"></i> Bosh sahifaga o‘tish</a>
+        </div>';
     } else {
         // Native HTML5 or Playerjs
         $preroll_js = !empty($vast_url) ? ', preroll: "'.$vast_url.'"' : '';

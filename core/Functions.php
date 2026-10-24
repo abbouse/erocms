@@ -516,13 +516,16 @@ function get_playable_video_source($file) {
         if (strpos($cand, '<iframe') !== false) {
             return ['type' => 'iframe_html', 'code' => $cand, 'translit' => $translit];
         }
+        if (strpos($cand, '/embed/') !== false) {
+            return ['type' => 'iframe_url', 'url' => $cand, 'translit' => $translit];
+        }
         if (strpos($cand, 'http://') === 0 || strpos($cand, 'https://') === 0) {
             return ['type' => 'remote_stream', 'url' => $cand, 'translit' => $translit];
         }
     }
 
-    // 4. Oxirgi chora: view.php ga yo'naltirish
-    return ['type' => 'local_fallback', 'url' => '/view_' . $translit . '.mp4', 'translit' => $translit];
+    // 4. Oxirgi chora: Na diskda fayl, na bazada remote manzil bor bo'lsa
+    return ['type' => 'missing', 'url' => '', 'translit' => $translit];
 }
 
 #Наложение копирайта
