@@ -655,8 +655,10 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
         $final_screenshot = '/designs/no_poster.jpg';
     }
 
+    $remote_video_src = !empty($video_src) ? $video_src : $video_url;
     $final_address = $video_src;
     $embed_code = '';
+    $recoil_val = $remote_video_src;
 
     // MP4 Yuklab olish rejimi (server yoki download)
     if (($save_mode === 'server' || $save_mode === 'download') && !empty($video_src)) {
@@ -670,12 +672,13 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     $now = time();
     $sql = "INSERT INTO ero_files (
         name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed,
+        remote_url, origin_url
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
         '".parser_escape($mysqli, $final_screenshot)."',
-        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $recoil_val)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
         '".parser_escape($mysqli, $duration)."',
@@ -689,7 +692,9 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
         '0',
         '1',
         '0',
-        '".parser_escape($mysqli, $embed_code)."'
+        '".parser_escape($mysqli, $embed_code)."',
+        '".parser_escape($mysqli, $remote_video_src)."',
+        '".parser_escape($mysqli, $video_url)."'
     )";
 
     if ($mysqli->query($sql)) {
@@ -833,7 +838,9 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
         $final_screenshot = '/designs/no_poster.jpg';
     }
 
+    $remote_video_src = !empty($play_url) ? $play_url : (!empty($embed_url) ? $embed_url : $video_url);
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
+    $recoil_val = $remote_video_src;
 
     // Serverga MP4 yuklash rejimi (server yoki download)
     if (($save_mode === 'server' || $save_mode === 'download') && !empty($play_url)) {
@@ -848,12 +855,13 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
     $now = time();
     $sql = "INSERT INTO ero_files (
         name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed,
+        remote_url, origin_url
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
         '".parser_escape($mysqli, $final_screenshot)."',
-        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $recoil_val)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
         '".parser_escape($mysqli, $duration)."',
@@ -867,7 +875,9 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
         '0',
         '1',
         '0',
-        '".parser_escape($mysqli, $embed_url)."'
+        '".parser_escape($mysqli, $embed_url)."',
+        '".parser_escape($mysqli, $remote_video_src)."',
+        '".parser_escape($mysqli, $video_url)."'
     )";
 
     if ($mysqli->query($sql)) {
@@ -1010,17 +1020,20 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         $final_screenshot = '/designs/no_poster.jpg';
     }
 
+    $remote_video_src = !empty($embed_url) ? $embed_url : $video_url;
     $final_address = !empty($embed_url) ? $embed_url : $video_url;
+    $recoil_val = $remote_video_src;
 
     $now = time();
     $sql = "INSERT INTO ero_files (
         name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed,
+        remote_url, origin_url
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
         '".parser_escape($mysqli, $final_screenshot)."',
-        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $recoil_val)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
         '".parser_escape($mysqli, $duration)."',
@@ -1034,7 +1047,9 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         '0',
         '1',
         '0',
-        '".parser_escape($mysqli, $embed_url)."'
+        '".parser_escape($mysqli, $embed_url)."',
+        '".parser_escape($mysqli, $remote_video_src)."',
+        '".parser_escape($mysqli, $video_url)."'
     )";
 
     if ($mysqli->query($sql)) {
@@ -1193,6 +1208,9 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     $final_address = '';
     $final_embed = $embed_url;
 
+    $remote_video_src = !empty($video_file_url) ? $video_file_url : (!empty($embed_url) ? $embed_url : $video_url);
+    $recoil_val = $remote_video_src;
+
     if (($save_mode === 'server' || $save_mode === 'download') && !empty($video_file_url)) {
         $save_vid_path = $doc_root . '/content/video/' . $md5 . '.mp4';
         $downloaded = parser_download_file($video_file_url, $save_vid_path, 'https://sexlar.link/');
@@ -1209,12 +1227,13 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
     $now = time();
     $sql = "INSERT INTO ero_files (
         name, description, screenshot, recoil, tags, translit, duration, downloads, 
-        server, address, uniqueness, category, view, date, rewriting, added, yd, embed
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed,
+        remote_url, origin_url
     ) VALUES (
         '".parser_escape($mysqli, $title)."',
         '".parser_escape($mysqli, $desc)."',
         '".parser_escape($mysqli, $final_screenshot)."',
-        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $recoil_val)."',
         '".parser_escape($mysqli, $tags_str)."',
         '".parser_escape($mysqli, $translit)."',
         '".parser_escape($mysqli, $duration)."',
@@ -1228,7 +1247,9 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
         '0',
         '1',
         '0',
-        '".parser_escape($mysqli, $final_embed)."'
+        '".parser_escape($mysqli, $final_embed)."',
+        '".parser_escape($mysqli, $remote_video_src)."',
+        '".parser_escape($mysqli, $video_url)."'
     )";
 
     if ($mysqli->query($sql)) {
@@ -1565,4 +1586,226 @@ function parser_repair_broken_screenshots($mysqli) {
 
     return $repaired_count;
 }
+
+/**
+ * =========================================================================
+ * 5. EPORNER (Ultra HD / 4K / Global Tube - Official High-Speed JSON API)
+ * =========================================================================
+ */
+
+function parser_get_catalog_links_eporner($page = 1, $custom_query_or_url = '') {
+    $page = max(1, intval($page));
+    $query = 'asian'; // Standart qidiruv so'zi
+    $order = 'top-weekly';
+    
+    if (!empty($custom_query_or_url)) {
+        if (preg_match('/query=([^&]+)/', $custom_query_or_url, $m)) {
+            $query = urldecode($m[1]);
+        } elseif (preg_match('|/search/([^/]+)|', $custom_query_or_url, $m)) {
+            $query = urldecode($m[1]);
+        } else {
+            $clean_q = trim(str_replace(['http://', 'https://', 'www.', 'eporner.com', '/'], '', $custom_query_or_url));
+            if (!empty($clean_q)) {
+                $query = $clean_q;
+            }
+        }
+    }
+
+    $api_url = "https://www.eporner.com/api/v2/web/search/?query=" . urlencode($query) . "&per_page=20&page={$page}&thumbsize=big&order={$order}&format=json";
+    
+    $json_raw = parser_fetch($api_url, 'https://www.eporner.com/');
+    if (empty($json_raw)) {
+        return [];
+    }
+
+    $data = @json_decode($json_raw, true);
+    if (!is_array($data) || empty($data['videos'])) {
+        return [];
+    }
+
+    $links = [];
+    foreach ($data['videos'] as $v) {
+        if (!empty($v['id']) && !empty($v['url'])) {
+            $links[] = [
+                'url'      => $v['url'],
+                'id'       => $v['id'],
+                'title'    => $v['title'] ?? '',
+                'duration' => $v['length_min'] ?? '',
+                'thumb'    => $v['default_thumb']['src'] ?? '',
+                'embed'    => $v['embed'] ?? "https://www.eporner.com/embed/{$v['id']}/"
+            ];
+        }
+    }
+
+    return $links;
+}
+
+function parse_video_eporner($video_item_or_url, $manual_cat = 0, $save_mode = 'stream', $mysqli = null, $settings = null, $width_S = 400, $height_S = 225, $cat_context = []) {
+    global $settings, $width_S, $height_S;
+
+    if ($manual_cat instanceof mysqli) {
+        $tmp_m = $manual_cat;
+        $manual_cat = is_numeric($save_mode) ? intval($save_mode) : 0;
+        $save_mode = is_string($mysqli) ? $mysqli : 'stream';
+        $mysqli = $tmp_m;
+    }
+    if (empty($mysqli)) {
+        global $mysqli;
+    }
+
+    $video_url = is_array($video_item_or_url) ? ($video_item_or_url['url'] ?? '') : $video_item_or_url;
+    if (empty($video_url)) {
+        return ['status' => 'error', 'message' => "Video URL ko‘rsatilmadi"];
+    }
+
+    // Video ID aniqlash
+    $video_id = '';
+    if (is_array($video_item_or_url) && !empty($video_item_or_url['id'])) {
+        $video_id = $video_item_or_url['id'];
+    } elseif (preg_match('|/video-([a-zA-Z0-9]+)/|', $video_url, $m)) {
+        $video_id = $m[1];
+    } elseif (preg_match('|id=([a-zA-Z0-9]+)|', $video_url, $m)) {
+        $video_id = $m[1];
+    }
+
+    if (empty($video_id)) {
+        return ['status' => 'error', 'message' => "Eporner Video ID topilmadi: " . htmlspecialchars($video_url)];
+    }
+
+    $uniqueness = 'eporner_' . $video_id;
+
+    // Duplikat tekshiruvi
+    $check_dup = $mysqli->query("SELECT id, name, translit FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
+    if ($check_dup && $check_dup->num_rows > 0) {
+        $ex = $check_dup->fetch_assoc();
+        return [
+            'status'        => 'skipped',
+            'message'       => "Avval qo‘shilgan: <a href='/watch/{$ex['translit']}.html' target='_blank' style='color:#f59e0b;'><b>{$ex['name']}</b></a>",
+            'title'         => $ex['name'],
+            'translit'      => $ex['translit'],
+            'category_name' => 'Mavjud'
+        ];
+    }
+
+    // Video ma'lumotlarini olish
+    $title_raw = is_array($video_item_or_url) ? ($video_item_or_url['title'] ?? '') : '';
+    $duration_raw = is_array($video_item_or_url) ? ($video_item_or_url['duration'] ?? '') : '';
+    $poster_url = is_array($video_item_or_url) ? ($video_item_or_url['thumb'] ?? '') : '';
+    $embed_url = is_array($video_item_or_url) ? ($video_item_or_url['embed'] ?? '') : "https://www.eporner.com/embed/{$video_id}/";
+    $keywords_arr = [];
+
+    // Agar ma'lumotlar to'liq bo'lmasa, API orqali olamiz
+    if (empty($title_raw) || empty($poster_url)) {
+        $info_api = "https://www.eporner.com/api/v2/video/id/?id=" . urlencode($video_id) . "&thumbsize=big&format=json";
+        $info_raw = parser_fetch($info_api, 'https://www.eporner.com/');
+        if (!empty($info_raw)) {
+            $info_json = @json_decode($info_raw, true);
+            if (!empty($info_json['title'])) {
+                $title_raw = $info_json['title'];
+                $duration_raw = $info_json['length_min'] ?? '';
+                $poster_url = $info_json['default_thumb']['src'] ?? '';
+                $embed_url = $info_json['embed'] ?? "https://www.eporner.com/embed/{$video_id}/";
+                if (!empty($info_json['keywords'])) {
+                    $keywords_arr = is_array($info_json['keywords']) ? $info_json['keywords'] : explode(',', $info_json['keywords']);
+                }
+            }
+        }
+    }
+
+    if (empty($title_raw)) {
+        return ['status' => 'error', 'message' => "Video sarlavhasi olinmadi (Eporner ID: {$video_id})"];
+    }
+
+    // SEO sarlavha va davomiylik
+    $title = parser_clean_seo_title($title_raw);
+    $duration = parser_iso_duration($duration_raw);
+
+    // Kategoriya aniqlash
+    $category_id = intval($manual_cat);
+    if ($category_id === 0) {
+        $context = array_merge($cat_context, [
+            'donor_category' => implode(' ', $keywords_arr),
+            'description'    => $title_raw
+        ]);
+        $category_id = parser_smart_category($title, implode(' ', $keywords_arr), 'eporner.com', $mysqli, $context);
+    }
+
+    $cat_name = 'Umumiy';
+    $cat_q = $mysqli->query("SELECT name FROM ero_categories WHERE id = '$category_id' LIMIT 1");
+    if ($cat_q && $crow = $cat_q->fetch_assoc()) {
+        $cat_name = $crow['name'];
+    }
+
+    $desc = parser_generate_seo_description($title, $title_raw, $cat_name);
+    $tags_str = parser_generate_seo_tags($title, $keywords_arr, $category_id, $desc, $mysqli);
+
+    // Translitsiya va poster
+    $rand_id = rand(100, 9999);
+    $md5 = md5(microtime(true) . $rand_id);
+    $doc_root = parser_doc_root();
+    $translit = str_replace([' ', '/', '\\', '\''], '_', transliterate($title)) . '_' . $rand_id;
+    $translit = preg_replace('/[^a-zA-Z0-9_-]/', '', $translit);
+
+    $local_screenshot = '/content/screenshots/' . $md5 . '.jpg';
+    $save_img_path = $doc_root . $local_screenshot;
+    $final_screenshot = '';
+    if (!empty($poster_url)) {
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $settings['water'] ?? 0);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $final_screenshot = $local_screenshot;
+        } else {
+            $final_screenshot = $poster_url;
+        }
+    } else {
+        $final_screenshot = '/designs/no_poster.jpg';
+    }
+
+    $final_address = $embed_url;
+    $remote_video_src = $embed_url;
+    $recoil_val = $remote_video_src;
+
+    $now = time();
+    $sql = "INSERT INTO ero_files (
+        name, description, screenshot, recoil, tags, translit, duration, downloads, 
+        server, address, uniqueness, category, view, date, rewriting, added, yd, embed,
+        remote_url, origin_url
+    ) VALUES (
+        '".parser_escape($mysqli, $title)."',
+        '".parser_escape($mysqli, $desc)."',
+        '".parser_escape($mysqli, $final_screenshot)."',
+        '".parser_escape($mysqli, $recoil_val)."',
+        '".parser_escape($mysqli, $tags_str)."',
+        '".parser_escape($mysqli, $translit)."',
+        '".parser_escape($mysqli, $duration)."',
+        '0',
+        'eporner.com',
+        '".parser_escape($mysqli, $final_address)."',
+        '".parser_escape($mysqli, $uniqueness)."',
+        '$category_id',
+        '0',
+        '$now',
+        '0',
+        '1',
+        '0',
+        '".parser_escape($mysqli, $embed_url)."',
+        '".parser_escape($mysqli, $remote_video_src)."',
+        '".parser_escape($mysqli, $video_url)."'
+    )";
+
+    if ($mysqli->query($sql)) {
+        return [
+            'status'        => 'success',
+            'message'       => "Muvaffaqiyatli qo‘shildi: <a href='/watch/{$translit}.html' target='_blank' style='color:#ff9900;'><b>$title</b></a> <span style='color:#17a2b8; font-size:12px;'>[{$cat_name}]</span>",
+            'title'         => $title,
+            'translit'      => $translit,
+            'duration'      => $duration,
+            'category_id'   => $category_id,
+            'category_name' => $cat_name,
+            'screenshot'    => $final_screenshot
+        ];
+    } else {
+        return ['status' => 'error', 'message' => "Bazaga yozishda xatolik: " . $mysqli->error];
+    }
+}
+
 

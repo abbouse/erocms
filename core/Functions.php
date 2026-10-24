@@ -87,6 +87,33 @@ if ($check_score && $check_score->num_rows == 0) {
     @$mysqli->query("UPDATE `ero_files` SET `score` = (`view` * 1) + (`likes` * 10) - (`dislikes` * 5) + (`downloads` * 15) + (`comments_count` * 20) + (`favorites_count` * 25)");
 }
 
+// Remote Video Stream Failover (Serverda fayl o‘chirilganda ota sayt havolasi orqali uzluksiz o‘ynash)
+$check_remote_url = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'remote_url'");
+if ($check_remote_url && $check_remote_url->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `remote_url` TEXT NULL");
+    @$mysqli->query("UPDATE `ero_files` SET `remote_url` = `address` WHERE `address` LIKE 'http%'");
+    @$mysqli->query("UPDATE `ero_files` SET `remote_url` = `recoil` WHERE (`remote_url` IS NULL OR `remote_url` = '') AND `recoil` LIKE 'http%'");
+    @$mysqli->query("UPDATE `ero_files` SET `remote_url` = `embed` WHERE (`remote_url` IS NULL OR `remote_url` = '') AND `embed` LIKE 'http%'");
+}
+$check_origin_url = @$mysqli->query("SHOW COLUMNS FROM `ero_files` LIKE 'origin_url'");
+if ($check_origin_url && $check_origin_url->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD `origin_url` VARCHAR(1000) NULL");
+}
+
+// Performans Indekslari (Tezkor sahifa yuklanishi va qidiruv uchun)
+$check_idx_cd = @$mysqli->query("SHOW INDEX FROM `ero_files` WHERE Key_name = 'idx_category_date'");
+if ($check_idx_cd && $check_idx_cd->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_category_date` (`category`, `date`)");
+}
+$check_idx_tr = @$mysqli->query("SHOW INDEX FROM `ero_files` WHERE Key_name = 'idx_translit'");
+if ($check_idx_tr && $check_idx_tr->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_translit` (`translit`(191))");
+}
+$check_idx_uniq = @$mysqli->query("SHOW INDEX FROM `ero_files` WHERE Key_name = 'idx_uniqueness'");
+if ($check_idx_uniq && $check_idx_uniq->num_rows == 0) {
+    @$mysqli->query("ALTER TABLE `ero_files` ADD INDEX `idx_uniqueness` (`uniqueness`(64))");
+}
+
 $check_on_page = @$mysqli->query("SHOW COLUMNS FROM `ero_online` LIKE 'page_url'");
 if ($check_on_page && $check_on_page->num_rows == 0) {
     @$mysqli->query("ALTER TABLE `ero_online` ADD `page_url` VARCHAR(500) NULL DEFAULT '/'");
@@ -438,6 +465,64 @@ echo '
   </body>
 </html>';
 
+}
+
+/**
+ * Har qanday video uchun eng maqbul ijro (play/stream) manzilini aniqlash.
+ * Agar lokal fayl server diskida mavjud bo'lmasa (admin o'chirgan bo'lsa),
+ * avtomatik tarzda ota (donor) saytning remote_url / recoil / embed havolasidan foydalanadi (404 xatosiz!).
+ */
+function get_playable_video_source($file) {
+    if (empty($file) || !is_array($file)) {
+        return ['type' => 'none', 'url' => ''];
+    }
+
+    $doc_root = !empty($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') : dirname(__DIR__);
+    $translit = $file['translit'] ?? '';
+
+    // 1. Agar embed iframe kodi yoki havolasi bo'lsa
+    if (!empty($file['embed']) && strpos($file['embed'], '<iframe') !== false) {
+        return ['type' => 'iframe_html', 'code' => $file['embed'], 'translit' => $translit];
+    }
+    if (!empty($file['embed']) && (strpos($file['embed'], 'http://') === 0 || strpos($file['embed'], 'https://') === 0)) {
+        return ['type' => 'iframe_url', 'url' => $file['embed'], 'translit' => $translit];
+    }
+
+    // 2. Agar lokal MP4 fayl server diskida mavjud bo'lsa
+    $address = trim($file['address'] ?? '');
+    if (!empty($address) && strpos($address, 'http://') !== 0 && strpos($address, 'https://') !== 0 && strpos($address, '<') === false) {
+        $local_path = $doc_root . $address;
+        if (is_file($local_path) && @filesize($local_path) > 1000) {
+            return [
+                'type' => 'local', 
+                'url' => '/view_' . $translit . '.mp4', 
+                'direct' => $address, 
+                'translit' => $translit
+            ];
+        }
+    }
+
+    // 3. Lokal fayl diskda topilmadi (o'chirilgan) -> REMOTE FAILOVER (Ota saytdan ko'rsatish)
+    $remote_candidates = [
+        $file['remote_url'] ?? '',
+        $file['recoil'] ?? '',
+        $file['address'] ?? '',
+        $file['embed'] ?? ''
+    ];
+
+    foreach ($remote_candidates as $cand) {
+        $cand = trim((string)$cand);
+        if (empty($cand)) continue;
+        if (strpos($cand, '<iframe') !== false) {
+            return ['type' => 'iframe_html', 'code' => $cand, 'translit' => $translit];
+        }
+        if (strpos($cand, 'http://') === 0 || strpos($cand, 'https://') === 0) {
+            return ['type' => 'remote_stream', 'url' => $cand, 'translit' => $translit];
+        }
+    }
+
+    // 4. Oxirgi chora: view.php ga yo'naltirish
+    return ['type' => 'local_fallback', 'url' => '/view_' . $translit . '.mp4', 'translit' => $translit];
 }
 
 #Наложение копирайта

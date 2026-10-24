@@ -209,33 +209,32 @@
     $cfg_ads = function_exists('ads_get_config') ? ads_get_config() : [];
     $vast_url = (!empty($cfg_ads['ads_enabled']) && !empty($cfg_ads['vast_preroll_enabled']) && !empty($cfg_ads['vast_preroll_url'])) ? $cfg_ads['vast_preroll_url'] : '';
 
-    if (!empty($view['embed']) || strpos($view['address'], '<iframe') !== false) {
-        // Iframe embed
-        if (strpos($view['address'], '<iframe') !== false) {
-            echo $view['address'];
-        } else {
-            $embed_src = !empty($view['embed']) ? $view['embed'] : $view['address'];
-            echo '<iframe src="'.$embed_src.'" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
-        }
+    $video_source = function_exists('get_playable_video_source') ? get_playable_video_source($view) : ['type' => 'local', 'url' => '/view_' . $view['translit'] . '.mp4'];
+
+    if ($video_source['type'] === 'iframe_html') {
+        echo $video_source['code'];
+    } elseif ($video_source['type'] === 'iframe_url') {
+        echo '<iframe src="' . htmlspecialchars($video_source['url'], ENT_QUOTES, 'UTF-8') . '" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
     } elseif ($view['server'] == 'vk.com' || $view['server'] == 'drive.google.com') {
         echo '<iframe src="'.$view['address'].'" frameborder="0" allowfullscreen></iframe>';
     } else {
         // Native HTML5 or Playerjs
         $preroll_js = !empty($vast_url) ? ', preroll: "'.$vast_url.'"' : '';
+        $stream_url = !empty($video_source['url']) ? $video_source['url'] : ('/view_' . $view['translit'] . '.mp4');
         if ($settings['player'] == 2) {
             echo '<script src="/core/javascript/playerjs.js" type="text/javascript"></script>
             <div id="player"></div>
             <script>
             var player = new Playerjs({
                 id: "player",
-                file: "/view_'.$view['translit'].'",
+                file: "'.$stream_url.'",
                 poster: "'.$video_poster.'",
                 title: "'.filter($_SERVER['HTTP_HOST']).'"' . $preroll_js . '
             });
             </script>';
         } else {
             echo '<video id="main-video-player" controls preload="metadata" poster="'.$video_poster.'">
-                <source src="/view_'.$view['translit'].'" type="video/mp4">
+                <source src="'.$stream_url.'" type="video/mp4">
                 Sizning brauzeringiz HTML5 videoni qo‘llab-quvvatlamaydi.
             </video>';
         }

@@ -68,6 +68,9 @@ if (!empty($ajax_action)) {
                 } elseif (stripos($custom_url, 'uzporno.website') !== false) {
                     $donor = 'uzporno';
                     $items = parser_get_catalog_links_uzporno($page, $custom_url);
+                } elseif (stripos($custom_url, 'eporner.com') !== false || stripos($custom_url, 'query=') !== false) {
+                    $donor = 'eporner';
+                    $items = parser_get_catalog_links_eporner($page, $custom_url);
                 } else {
                     $donor = 'uzbxx';
                     $items = parser_get_catalog_links_uzbxx($page, $custom_url);
@@ -81,6 +84,8 @@ if (!empty($ajax_action)) {
                     $items = parser_get_catalog_links_uzbxx($page);
                 } elseif ($donor === 'uzporno') {
                     $items = parser_get_catalog_links_uzporno($page);
+                } elseif ($donor === 'eporner') {
+                    $items = parser_get_catalog_links_eporner($page, $custom_url);
                 }
             }
             
@@ -128,6 +133,8 @@ if (!empty($ajax_action)) {
                 $res = parse_video_uzbxx($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
             } elseif ($donor === 'uzporno' || stripos($video_url, 'uzporno.website') !== false) {
                 $res = parse_video_uzporno($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
+            } elseif ($donor === 'eporner' || stripos($video_url, 'eporner.com') !== false) {
+                $res = parse_video_eporner($video_url, $category, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context);
             } else {
                 $res = ['status' => 'error', 'message' => 'Noma‘lum donor video manzili!'];
             }
@@ -389,10 +396,16 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             <button type="button" class="adm-preset-btn" data-donor="uzbxx" data-url="" data-from="1" data-to="3" title="uzbxx.ru bosh sahifasi">
                 🇺🇿 Katta O‘zbek Bazasi (uzbxx)
             </button>
+            <button type="button" class="adm-preset-btn" data-donor="eporner" data-url="query=asian" data-from="1" data-to="3" title="Osiyo va Sharq HD (Eporner)">
+                🌏 Osiyo HD (Eporner)
+            </button>
+            <button type="button" class="adm-preset-btn" data-donor="eporner" data-url="query=uzbek" data-from="1" data-to="3" title="O‘zbek HD (Eporner)">
+                🇺🇿 Uzbek HD (Eporner)
+            </button>
             <button type="button" class="adm-preset-btn" data-donor="uzporno" data-url="" data-from="1" data-to="3" title="uzporno.website">
                 🌐 uzporno.website
             </button>
-            <button type="button" class="adm-preset-btn" data-donor="all" data-url="" data-from="1" data-to="2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: bold; border-color: #10b981;" title="Barcha 4 donor ketma-ket">
+            <button type="button" class="adm-preset-btn" data-donor="all" data-url="" data-from="1" data-to="2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; font-weight: bold; border-color: #10b981;" title="Barcha 5 donor ketma-ket">
                 🔥 BARCHA DONORLAR (Multi-Donor)
             </button>
         </div>
@@ -413,10 +426,10 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
-                    <input type="radio" name="p_donor" value="arhivporno" />
+                    <input type="radio" name="p_donor" value="eporner" />
                     <div>
-                        <b style="color: #38bdf8; font-size: 14px;">arhivporno.watch</b>
-                        <div style="color: #64748b; font-size: 11px;">Barcha yangi & tematik arxiv</div>
+                        <b style="color: #38bdf8; font-size: 14px;">eporner.com (API)</b>
+                        <div style="color: #64748b; font-size: 11px;">1M+ HD/4K, rasmiy API, barqaror</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
@@ -424,6 +437,13 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     <div>
                         <b style="color: #f59e0b; font-size: 14px;">uzbxx.ru</b>
                         <div style="color: #64748b; font-size: 11px;">Katta o‘zbek bazasi</div>
+                    </div>
+                </label>
+                <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
+                    <input type="radio" name="p_donor" value="arhivporno" />
+                    <div>
+                        <b style="color: #cbd5e1; font-size: 14px;">arhivporno.watch</b>
+                        <div style="color: #64748b; font-size: 11px;">Barcha yangi & tematik arxiv</div>
                     </div>
                 </label>
                 <label style="background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px;" class="donor-option">
@@ -437,7 +457,7 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                     <input type="radio" name="p_donor" value="all" />
                     <div>
                         <b style="color: #a855f7; font-size: 14px;">🔥 BARCHA DONORLAR</b>
-                        <div style="color: #64748b; font-size: 11px;">4 ta donordan ketma-ket</div>
+                        <div style="color: #64748b; font-size: 11px;">5 ta donordan ketma-ket</div>
                     </div>
                 </label>
             </div>
@@ -848,12 +868,27 @@ $(document).ready(function() {
             { label: '🔞 Yosh Qizlar tegi (/tag/molodye/)', url: 'https://uzporno.website/tag/molodye/' },
             { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
         ],
+        'eporner': [
+            { label: '🌟 Top Weekly HD (Eng sara haftalik HD videolar)', url: 'query=asian' },
+            { label: '🇺🇿 O‘zbek & Markaziy Osiyo (Query: uzbek)', url: 'query=uzbek' },
+            { label: '🌏 Osiyo / Asian HD (Query: asian)', url: 'query=asian' },
+            { label: '🔞 Yosh Qizlar / Teen 18+ (Query: teen)', url: 'query=teen' },
+            { label: '🍒 Katta Ko‘kraklar / Big Tits (Query: big tits)', url: 'query=big tits' },
+            { label: '🍑 Anal HD (Query: anal)', url: 'query=anal' },
+            { label: '👩‍🦳 Milf / Yetuk ayollar (Query: milf)', url: 'query=milf' },
+            { label: '🏠 Domashnee / Amateur (Query: amateur)', url: 'query=amateur' },
+            { label: '🇷🇺 Ruscha HD (Query: russian)', url: 'query=russian' },
+            { label: '💦 Sperma / Creampie (Query: creampie)', url: 'query=creampie' },
+            { label: '👄 Minet / Blowjob (Query: blowjob)', url: 'query=blowjob' },
+            { label: '👥 Guruhli / Threesome (Query: threesome)', url: 'query=threesome' },
+            { label: '✍️ Boshqa maxsus so‘z yoki URL...', url: '__custom__' }
+        ],
         'sexlar': [
             { label: '🌟 Bosh Sahifa (Eng yangi o‘zbekcha videolar)', url: 'https://sexlar.link/' },
             { label: '✍️ Boshqa maxsus URL kiritish...', url: '__custom__' }
         ],
         'all': [
-            { label: '🔥 4 ta donor ketma-ket (sexlar -> arhivporno -> uzbxx -> uzporno)', url: '' }
+            { label: '🔥 5 ta donor ketma-ket (sexlar -> eporner -> uzbxx -> arhivporno -> uzporno)', url: '' }
         ]
     };
 
@@ -970,7 +1005,7 @@ $(document).ready(function() {
             return;
         }
 
-        const donorsToRun = (selectedDonor === 'all') ? ['sexlar', 'arhivporno', 'uzbxx', 'uzporno'] : [selectedDonor];
+        const donorsToRun = (selectedDonor === 'all') ? ['sexlar', 'eporner', 'uzbxx', 'arhivporno', 'uzporno'] : [selectedDonor];
 
         isRunning = true;
         isPaused = false;
