@@ -166,6 +166,24 @@ if (!empty($ajax_action)) {
         }
         exit;
     }
+
+    // 1.4. Fayli yo'q videolarni embedga avto-o'tkazish
+    if ($ajax_action === 'repair_missing_embeds') {
+        try {
+            $res = function_exists('parser_repair_broken_embeds') ? parser_repair_broken_embeds($mysqli) : ['scanned' => 0, 'updated' => 0];
+            $scanned = $res['scanned'] ?? 0;
+            $updated = $res['updated'] ?? 0;
+            echo json_encode([
+                'status'  => 'success',
+                'count'   => $updated,
+                'scanned' => $scanned,
+                'message' => "Tekshirildi: {$scanned} ta video. Jami {$updated} ta faylsiz singan video donor embed/oqimga muvaffaqiyatli o‘tkazildi!"
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
 }
 
 // Barcha mavjud kategoriyalar
@@ -229,7 +247,10 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                 Donor saytlardan (<b>sexlar.link</b>, <b>arhivporno.watch</b>, <b>uzbxx.ru</b>, <b>uzporno.website</b>) barcha videolarni sahifalab, to‘liq SEO teglar va tavsiflari bilan <b>gateway timeout bo‘lmasdan</b> yuklab olish tizimi.
             </p>
         </div>
-        <div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" id="btnRepairEmbeds" class="adm-btn" style="background: #9333ea; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;" title="Serverda MP4 fayli bo‘lmagan videolarni avtomatik donor embed/oqimiga o‘tkazish">
+                <i class="fa fa-refresh"></i> ⚡ Singan Videolarni Embedga O‘tkazish
+            </button>
             <button type="button" id="btnRepairScreenshots" class="adm-btn" style="background: #059669; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
                 <i class="fa fa-wrench"></i> Singan / 404 rasmlarni tuzatish
             </button>
@@ -579,7 +600,7 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
     <!-- Jonli Natijalar va Progress Qismi -->
     <div id="liveProgressArea" style="margin-top: 24px; display: none;">
         <!-- Statistika Vidjeti -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px;">
             <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
                 <div style="color: #94a3b8; font-size: 11px;">Jami Topilgan</div>
                 <div id="statTotal" style="color: #38bdf8; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
@@ -587,6 +608,10 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
             <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
                 <div style="color: #94a3b8; font-size: 11px;">Yangi Qo‘shildi</div>
                 <div id="statAdded" style="color: #10b981; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
+            </div>
+            <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
+                <div style="color: #94a3b8; font-size: 11px;">Embedga O‘tkazildi</div>
+                <div id="statUpgraded" style="color: #c084fc; font-size: 20px; font-weight: bold; margin-top: 4px;">0</div>
             </div>
             <div style="background: #0f172a; border: 1px solid #1e293b; padding: 12px; border-radius: 6px; text-align: center;">
                 <div style="color: #94a3b8; font-size: 11px;">O‘tkazildi (Bor)</div>
@@ -641,6 +666,7 @@ if (isset($_GET['repair']) && function_exists('parser_repair_broken_screenshots'
                         <span style="color: #64748b; font-size: 11px;">Filtr:</span>
                         <button type="button" class="adm-filter-btn active" data-filter="all">Barchasi</button>
                         <button type="button" class="adm-filter-btn" data-filter="success" style="color: #10b981;">✅ Qo‘shildi</button>
+                        <button type="button" class="adm-filter-btn" data-filter="upgrade" style="color: #c084fc;">🔄 Embedga O‘tkazildi</button>
                         <button type="button" class="adm-filter-btn" data-filter="skip" style="color: #f59e0b;">⚠️ Bor</button>
                         <button type="button" class="adm-filter-btn" data-filter="error" style="color: #ef4444;">❌ Xatolar</button>
                     </div>
@@ -758,6 +784,9 @@ $(document).ready(function() {
         if (type === 'success') {
             color = '#10b981';
             icon = '✅ [Qo‘shildi]';
+        } else if (type === 'upgrade') {
+            color = '#c084fc';
+            icon = '🔄 [Embedga O‘tkazildi]';
         } else if (type === 'skip') {
             color = '#f59e0b';
             icon = '⚠️ [O‘tkazildi]';
@@ -1016,12 +1045,14 @@ $(document).ready(function() {
         queue = [];
         curIndex = 0;
         totalAdded = 0;
+        totalUpgraded = 0;
         totalSkipped = 0;
         totalErrors = 0;
         startTime = new Date();
 
         $('#statTotal').text('0');
         $('#statAdded').text('0');
+        $('#statUpgraded').text('0');
         $('#statSkipped').text('0');
         $('#statErrors').text('0');
         $('#statCurPage').text(pageFrom);
@@ -1127,22 +1158,40 @@ $(document).ready(function() {
                             }, 2, 1000);
 
                             if (parseRes && parseRes.status === 'success') {
-                                totalAdded++;
-                                $('#statAdded').text(totalAdded);
-                                addLog('success', (parseRes.message || parseRes.title));
+                                if (parseRes.is_upgrade) {
+                                    totalUpgraded++;
+                                    $('#statUpgraded').text(totalUpgraded);
+                                    addLog('upgrade', (parseRes.message || parseRes.title));
 
-                                // Jonli Video Preview Kartochkasini yangilash
-                                $('#liveVideoPreviewCard').slideDown();
-                                if (parseRes.screenshot) {
-                                    $('#previewThumb').attr('src', parseRes.screenshot);
-                                } else if (item.poster) {
-                                    $('#previewThumb').attr('src', item.poster);
+                                    $('#liveVideoPreviewCard').slideDown();
+                                    if (parseRes.screenshot) {
+                                        $('#previewThumb').attr('src', parseRes.screenshot);
+                                    } else if (item.poster) {
+                                        $('#previewThumb').attr('src', item.poster);
+                                    }
+                                    $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
+                                    $('#previewCatBadge').text(parseRes.category_name || 'Embedga Tiklandi');
+                                    $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
+                                    $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                                    $('#previewStatusBadge').css({background: '#c084fc', color: '#000'}).text('EMBEDGA TIKLANDI');
+                                } else {
+                                    totalAdded++;
+                                    $('#statAdded').text(totalAdded);
+                                    addLog('success', (parseRes.message || parseRes.title));
+
+                                    // Jonli Video Preview Kartochkasini yangilash
+                                    $('#liveVideoPreviewCard').slideDown();
+                                    if (parseRes.screenshot) {
+                                        $('#previewThumb').attr('src', parseRes.screenshot);
+                                    } else if (item.poster) {
+                                        $('#previewThumb').attr('src', item.poster);
+                                    }
+                                    $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
+                                    $('#previewCatBadge').text(parseRes.category_name || 'Avtomatik');
+                                    $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
+                                    $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
+                                    $('#previewStatusBadge').css({background: '#10b981', color: '#000'}).text('QO‘SHILDI');
                                 }
-                                $('#previewTitleLink').text(parseRes.title || item.title || 'Video').attr('href', '/watch/' + (parseRes.translit || '') + '.html');
-                                $('#previewCatBadge').text(parseRes.category_name || 'Avtomatik');
-                                $('#previewDurationBadge').html('<i class="fa fa-clock-o"></i> ' + (parseRes.duration || item.duration || '05:00'));
-                                $('#previewDonorBadge').html('<i class="fa fa-globe"></i> ' + item._donor);
-                                $('#previewStatusBadge').css({background: '#10b981', color: '#000'}).text('QO‘SHILDI');
                             } else if (parseRes && parseRes.status === 'skip') {
                                 totalSkipped++;
                                 $('#statSkipped').text(totalSkipped);
@@ -1178,11 +1227,11 @@ $(document).ready(function() {
             $('#progressPercent').text('100%');
             $('#progressLabel').text('Barcha vazifalar muvaffaqiyatli yakunlandi!');
 
-            if (totalAdded > 0) {
+            if (totalAdded > 0 || totalUpgraded > 0) {
                 playSuccessChime();
             }
 
-            addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
+            addLog('summary', '🏁 <b>PARSLASH YAKUNLANDI!</b> Jami: <b>' + totalAdded + '</b> ta yangi qo‘shildi, <b>' + totalUpgraded + '</b> ta singan video embedga o‘tkazildi, <b>' + totalSkipped + '</b> ta o‘tkazildi, <b>' + totalErrors + '</b> ta xatolik.');
         } catch (fatalErr) {
             console.error('Parser Fatal Error:', fatalErr);
             addLog('error', '❌ <b>Kutilmagan xatolik:</b> ' + (fatalErr.message || fatalErr));
@@ -1247,10 +1296,17 @@ $(document).ready(function() {
             }, 2, 1000);
 
             if (res && res.status === 'success') {
-                $('#singleResultBox').html('<div style="background:#064e3b; border:1px solid #10b981; color:#34d399; padding:12px; border-radius:6px; display:flex; gap:10px; align-items:center;">' +
-                    (res.screenshot ? '<img src="' + res.screenshot + '" style="width:70px; height:45px; object-fit:cover; border-radius:4px;" />' : '') +
-                    '<div><i class="fa fa-check-circle"></i> ' + (res.message || 'Muvaffaqiyatli qo‘shildi!') + '</div>' +
-                '</div>');
+                if (res.is_upgrade) {
+                    $('#singleResultBox').html('<div style="background:#3b0764; border:1px solid #c084fc; color:#e9d5ff; padding:12px; border-radius:6px; display:flex; gap:10px; align-items:center;">' +
+                        (res.screenshot ? '<img src="' + res.screenshot + '" style="width:70px; height:45px; object-fit:cover; border-radius:4px;" />' : '') +
+                        '<div><i class="fa fa-refresh"></i> ' + (res.message || 'Mavjud singan video embedga o‘tkazildi va tiklandi!') + '</div>' +
+                    '</div>');
+                } else {
+                    $('#singleResultBox').html('<div style="background:#064e3b; border:1px solid #10b981; color:#34d399; padding:12px; border-radius:6px; display:flex; gap:10px; align-items:center;">' +
+                        (res.screenshot ? '<img src="' + res.screenshot + '" style="width:70px; height:45px; object-fit:cover; border-radius:4px;" />' : '') +
+                        '<div><i class="fa fa-check-circle"></i> ' + (res.message || 'Muvaffaqiyatli qo‘shildi!') + '</div>' +
+                    '</div>');
+                }
                 $('#singleVideoUrl').val('');
                 playSuccessChime();
             } else if (res && res.status === 'skip') {
@@ -1287,6 +1343,27 @@ $(document).ready(function() {
             alert('Xatolik: ' + e.statusText);
         } finally {
             btn.prop('disabled', false).html('<i class="fa fa-wrench"></i> Singan / 404 rasmlarni tuzatish');
+        }
+    });
+
+    // 6. SINGAN VIDEOLARNI EMBEDGA O‘TKAZISH TUGMASI
+    $('#btnRepairEmbeds').on('click', async function() {
+        if (!confirm('Server diskida fayli yo‘q bo‘lgan barcha videolarni donor manzil/embedlariga avtomatik o‘tkazilsinmi?')) return;
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Tiklanmoqda...');
+        try {
+            const res = await ajaxWithRetry({
+                url: '/control.html?func=parsing',
+                type: 'POST',
+                dataType: 'json',
+                data: { ajax_action: 'repair_missing_embeds' }
+            }, 2, 1500);
+            alert(res.message || 'Bajarildi!');
+            addLog('upgrade', '⚡ ' + (res.message || 'Singan videolar embedga o‘tkazildi!'));
+        } catch (e) {
+            alert('Xatolik: ' + (e.statusText || e.message || e));
+        } finally {
+            btn.prop('disabled', false).html('<i class="fa fa-refresh"></i> ⚡ Singan Videolarni Embedga O‘tkazish');
         }
     });
 });

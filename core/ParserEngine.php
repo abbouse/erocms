@@ -520,6 +520,168 @@ function parser_smart_category($title, $tags_str, $donor, $mysqli, $context = []
 }
 
 /**
+ * Mavjud videoni tekshirish yoki agar fayli va embedi bo'lmasa uni yangi embedga o'tkazish
+ *
+ * @param string $title
+ * @param string $uniqueness
+ * @param string $embed_url
+ * @param string $remote_video_src
+ * @param string $final_address
+ * @param string $video_url
+ * @param string $donor_server
+ * @param string $poster_url
+ * @param string $duration
+ * @param mysqli $mysqli
+ * @param int $category_id
+ * @param array $settings
+ * @param int $width_S
+ * @param int $height_S
+ * @return array|null Null agar video bazada umuman mavjud bo'lmasa (parslash yangi insert sifatida davom etadi).
+ *                    Array (status: skip yoki status: success bilan is_upgrade: true).
+ */
+function parser_check_or_upgrade_existing_video(
+    $title, 
+    $uniqueness, 
+    $embed_url, 
+    $remote_video_src, 
+    $final_address, 
+    $video_url, 
+    $donor_server, 
+    $poster_url, 
+    $duration, 
+    $mysqli, 
+    $category_id = 0, 
+    $settings = [], 
+    $width_S = 320, 
+    $height_S = 240
+) {
+    if (empty($title)) {
+        return null;
+    }
+    $title_esc = parser_escape($mysqli, $title);
+    $uniq_esc = parser_escape($mysqli, $uniqueness);
+
+    $check_exist = $mysqli->query("SELECT id, name, translit, address, embed, remote_url, recoil, screenshot, server, category, duration FROM ero_files WHERE uniqueness = '$uniq_esc' OR name = '$title_esc' LIMIT 1");
+    if (!$check_exist || $check_exist->num_rows === 0) {
+        return null; // Yangi video, parslash yangi yozuv sifatida davom etadi
+    }
+
+    $existing = $check_exist->fetch_assoc();
+    $doc_root = parser_doc_root();
+
+    // 1. Lokal fayl diskda haqiqatan mavjudligini tekshirish
+    $has_local_file = false;
+    $cur_addr = trim($existing['address'] ?? '');
+    if (!empty($cur_addr) && strpos($cur_addr, 'http://') !== 0 && strpos($cur_addr, 'https://') !== 0 && strpos($cur_addr, '<') === false) {
+        $local_file_path = $doc_root . $cur_addr;
+        if (is_file($local_file_path) && @filesize($local_file_path) > 1000) {
+            $has_local_file = true;
+        }
+    }
+
+    // 2. Embed mavjudligini tekshirish
+    $cur_embed = trim($existing['embed'] ?? '');
+    $has_embed = !empty($cur_embed) && (strpos($cur_embed, '<iframe') !== false || strpos($cur_embed, 'http://') === 0 || strpos($cur_embed, 'https://') === 0);
+
+    // Agar lokal fayl diskda mavjud bo'lsa -> O'tkazib yuborish
+    if ($has_local_file) {
+        return [
+            'status'     => 'skip', 
+            'reason'     => 'has_file',
+            'message'    => "Allaqachon mavjud (fayl diskda bor): <b>{$existing['name']}</b>", 
+            'title'      => $existing['name'],
+            'translit'   => $existing['translit']
+        ];
+    }
+
+    // Agar embed allaqachon sozlangan bo'lsa -> O'tkazib yuborish
+    if ($has_embed) {
+        return [
+            'status'     => 'skip', 
+            'reason'     => 'has_embed',
+            'message'    => "Allaqachon mavjud (embed sozlangan): <b>{$existing['name']}</b>", 
+            'title'      => $existing['name'],
+            'translit'   => $existing['translit']
+        ];
+    }
+
+    // 3. FAYL HAM YO'Q, EMBED HAM YO'Q! -> EMBEDGA O'TKAZISH VA QAYTA TIKLASH!
+    $best_embed = trim((string)$embed_url);
+    if (empty($best_embed) && !empty($remote_video_src) && strpos($remote_video_src, '/embed/') !== false) {
+        $best_embed = $remote_video_src;
+    }
+    if (empty($best_embed) && !empty($final_address) && strpos($final_address, '/embed/') !== false) {
+        $best_embed = $final_address;
+    }
+
+    $best_remote = !empty($remote_video_src) ? $remote_video_src : (!empty($best_embed) ? $best_embed : $video_url);
+    $best_address = !empty($best_embed) ? $best_embed : (!empty($final_address) ? $final_address : $best_remote);
+
+    // Skrinshotni tekshirish va kerak bo'lsa tiklash
+    $cur_screenshot = trim($existing['screenshot'] ?? '');
+    $has_screenshot = false;
+    if (!empty($cur_screenshot)) {
+        if (strpos($cur_screenshot, 'http://') === 0 || strpos($cur_screenshot, 'https://') === 0) {
+            $has_screenshot = true;
+        } elseif (is_file($doc_root . $cur_screenshot) && @filesize($doc_root . $cur_screenshot) > 200) {
+            $has_screenshot = true;
+        }
+    }
+
+    $updated_screenshot = $cur_screenshot;
+    if (!$has_screenshot && !empty($poster_url)) {
+        $rand_id = rand(100, 9999);
+        $md5_screen = md5(microtime(true) . $rand_id);
+        $local_screenshot = '/content/screenshots/' . $md5_screen . '.jpg';
+        $save_img_path = $doc_root . $local_screenshot;
+        $watermark = $settings['water'] ?? 0;
+        $saved = parser_download_image($poster_url, $save_img_path, $width_S, $height_S, $watermark);
+        if ($saved && file_exists($save_img_path) && filesize($save_img_path) > 200) {
+            $updated_screenshot = $local_screenshot;
+        } else {
+            $updated_screenshot = $poster_url;
+        }
+    }
+
+    // Davomiylikni tekshirish
+    $updated_duration = $existing['duration'];
+    if ((empty($updated_duration) || $updated_duration === '05:00') && !empty($duration) && $duration !== '05:00') {
+        $updated_duration = $duration;
+    }
+
+    // BAZANI YANGILASH (UPDATE)
+    $up_id = intval($existing['id']);
+    $sql_update = "UPDATE ero_files SET 
+        embed = '" . parser_escape($mysqli, $best_embed) . "',
+        remote_url = '" . parser_escape($mysqli, $best_remote) . "',
+        recoil = '" . parser_escape($mysqli, $best_remote) . "',
+        address = '" . parser_escape($mysqli, $best_address) . "',
+        server = '" . parser_escape($mysqli, $donor_server) . "',
+        origin_url = '" . parser_escape($mysqli, $video_url) . "',
+        screenshot = '" . parser_escape($mysqli, $updated_screenshot) . "',
+        duration = '" . parser_escape($mysqli, $updated_duration) . "'
+        WHERE id = $up_id LIMIT 1";
+
+    $mysqli->query($sql_update);
+
+    // Keshni tozalash
+    @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+
+    return [
+        'status'        => 'success',
+        'is_upgrade'    => true,
+        'id'            => $up_id,
+        'title'         => $existing['name'],
+        'translit'      => $existing['translit'],
+        'embed'         => $best_embed,
+        'screenshot'    => $updated_screenshot,
+        'duration'      => $updated_duration,
+        'category_name' => 'Embedga Tiklandi',
+        'message'       => "🔄 Singan video embedga o‘tkazildi va tiklandi: <b>{$existing['name']}</b>"
+    ];
+}
+
+/**
  * 1. uzbxx.ru dan videoni parslash
  */
 function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settings, $width_S, $height_S, $cat_context = []) {
@@ -541,13 +703,6 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     $title = parser_clean_seo_title($raw_title);
     if (empty($title) || stripos($title, 'can’t be reached') !== false) {
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
-    }
-
-    // Takrorlanmaslikni tekshirish
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
     }
 
     // Davomiylik
@@ -584,6 +739,17 @@ function parse_video_uzbxx($video_url, $manual_cat, $save_mode, $mysqli, $settin
     // uzbxx dagi video_online URLni to'g'rilash (trailing slash)
     if (strpos($video_src, 'video_online?id=') !== false) {
         $video_src = str_replace('video_online?id=', 'video_online/?id=', $video_src);
+    }
+
+    // Mavjud videoni tekshirish yoki fayli yo'q bo'lsa yangi streamga o'tkazish
+    $uniqueness = md5($title);
+    $upgrade_check = parser_check_or_upgrade_existing_video(
+        $title, $uniqueness, '', $video_src, $video_src,
+        $video_url, 'uzbxx.ru', $poster_url, $duration, $mysqli, $manual_cat,
+        $settings, $width_S, $height_S
+    );
+    if ($upgrade_check !== null) {
+        return $upgrade_check;
     }
 
     // Tavsif
@@ -763,12 +929,6 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
 
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
-    }
-
     if (empty($poster_url)) {
         if (preg_match('|<meta property="og:image" content="(.*?)"|is', $html, $m)) {
             $poster_url = trim($m[1]);
@@ -790,6 +950,17 @@ function parse_video_uzporno($video_url, $manual_cat, $save_mode, $mysqli, $sett
         $embed_url = "https://uzporno.website/embed/{$slug}/";
     }
     $play_url = !empty($slug) ? "https://uzporno.website/play/{$slug}/" : $video_url;
+
+    // Mavjud videoni tekshirish yoki fayli yo'q bo'lsa yangi embedga o'tkazish
+    $uniqueness = md5($title);
+    $upgrade_check = parser_check_or_upgrade_existing_video(
+        $title, $uniqueness, $embed_url, $play_url, $embed_url ?: $play_url,
+        $video_url, 'uzporno.website', $poster_url, $duration ?? '05:00', $mysqli, $manual_cat,
+        $settings, $width_S, $height_S
+    );
+    if ($upgrade_check !== null) {
+        return $upgrade_check;
+    }
 
     // Meta teglar
     if (preg_match('|<meta\s+name=["\']keywords["\']\s+content=["\']([^"\']+)["\']|is', $html, $m_kw)) {
@@ -924,12 +1095,6 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
 
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
-    }
-
     // Embed URL (Pornosektor yoki ichki iframe)
     $embed_url = '';
     if (preg_match('|<div class="full-video">.*?<iframe[^>]+src="([^"]+)"|is', $html, $m)) {
@@ -964,6 +1129,17 @@ function parse_video_arhivporno($video_url, $manual_cat, $save_mode, $mysqli, $s
     $duration = $cat_context['duration'] ?? '05:00';
     if (($duration === '05:00' || empty($duration)) && preg_match('|<span class="thumb-time">([0-9:]+)</span>|is', $html, $m_dur)) {
         $duration = trim($m_dur[1]);
+    }
+
+    // Mavjud videoni tekshirish yoki fayli yo'q bo'lsa yangi embedga o'tkazish
+    $uniqueness = md5($title);
+    $upgrade_check = parser_check_or_upgrade_existing_video(
+        $title, $uniqueness, $embed_url, $embed_url, $embed_url,
+        $video_url, 'arhivporno.rest', $poster_url, $duration, $mysqli, $manual_cat,
+        $settings, $width_S, $height_S
+    );
+    if ($upgrade_check !== null) {
+        return $upgrade_check;
     }
 
     // Tavsif
@@ -1107,13 +1283,6 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
         return ['status' => 'error', 'message' => "Video nomini aniqlab bo‘lmadi ($video_url)"];
     }
 
-    // Takroriylikni tekshirish
-    $uniqueness = md5($title);
-    $check_exist = $mysqli->query("SELECT id FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_exist && $check_exist->num_rows > 0) {
-        return ['status' => 'skip', 'message' => "Allaqachon mavjud: <b>$title</b>", 'title' => $title];
-    }
-
     // 2. Video fayli va Embed URL
     $video_file_url = '';
     $embed_url = '';
@@ -1159,6 +1328,17 @@ function parse_video_sexlar($video_url, $manual_cat, $save_mode, $mysqli, $setti
         $duration = trim($m_dur2[1]);
     }
     $duration = parser_iso_duration($duration);
+
+    // Mavjud videoni tekshirish yoki fayli yo'q bo'lsa yangi embedga o'tkazish
+    $uniqueness = md5($title);
+    $upgrade_check = parser_check_or_upgrade_existing_video(
+        $title, $uniqueness, $embed_url, $video_file_url, $embed_url ?: $video_file_url,
+        $video_url, 'sexlar.link', $poster_url, $duration, $mysqli, $manual_cat,
+        $settings, $width_S, $height_S
+    );
+    if ($upgrade_check !== null) {
+        return $upgrade_check;
+    }
 
     // 5. Tavsif va teglar
     $raw_desc = '';
@@ -1597,6 +1777,151 @@ function parser_repair_broken_screenshots($mysqli) {
 }
 
 /**
+ * Serverda lokal MP4 fayli bo'lmagan va embedi bo'sh videolarni donor manzil/embedga avto-o'tkazish
+ *
+ * @param mysqli $mysqli
+ * @return array ['scanned' => int, 'updated' => int]
+ */
+function parser_repair_broken_embeds($mysqli) {
+    $doc_root = parser_doc_root();
+
+    // embed bo'sh bo'lgan videolarni tekshirish
+    $res = $mysqli->query("SELECT id, name, screenshot, address, recoil, remote_url, origin_url, server, translit FROM ero_files WHERE (embed IS NULL OR embed = '') ORDER BY id DESC LIMIT 500");
+    if (!$res || $res->num_rows === 0) {
+        return ['scanned' => 0, 'updated' => 0];
+    }
+
+    $scanned_count = 0;
+    $updated_count = 0;
+
+    while ($row = $res->fetch_assoc()) {
+        $scanned_count++;
+        $address = trim($row['address'] ?? '');
+
+        // 1. Agar lokal fayl diskda haqiqatan mavjud bo'lsa, bu singan emas
+        if (!empty($address) && strpos($address, 'http://') !== 0 && strpos($address, 'https://') !== 0 && strpos($address, '<') === false) {
+            $local_path = $doc_root . $address;
+            if (is_file($local_path) && @filesize($local_path) > 1000) {
+                continue; // Lokal fayl mavjud, tegilmaydi
+            }
+        }
+
+        // 2. Lokal fayl yo'q! Unga mos embed/remote manzil topamiz
+        $new_embed = '';
+        $new_remote = '';
+        $donor_server = $row['server'] ?? '';
+
+        $all_candidates = [
+            $row['address'] ?? '',
+            $row['recoil'] ?? '',
+            $row['remote_url'] ?? '',
+            $row['origin_url'] ?? ''
+        ];
+
+        // 2.1. Agar all_candidates ichida allaqachon /embed/ havolasi bo'lsa
+        foreach ($all_candidates as $cand) {
+            $cand = trim((string)$cand);
+            if (empty($cand)) continue;
+            if (strpos($cand, '/embed/') !== false) {
+                $new_embed = $cand;
+                $new_remote = $cand;
+                break;
+            }
+        }
+
+        // 2.2. sexlar.link / 666.watch
+        if (empty($new_embed) && ($donor_server === 'sexlar.link' || stripos(implode(' ', $all_candidates), 'sexlar') !== false || stripos(implode(' ', $all_candidates), '666.watch') !== false)) {
+            $vid_id = 0;
+            $combined = implode(' ', $all_candidates);
+            if (preg_match('|/storage/\d+/(\d+)/|', $combined, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|embed/(\d+)|', $combined, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|/(\d+)\.mp4|', $combined, $m)) {
+                $vid_id = intval($m[1]);
+            }
+            if ($vid_id > 0) {
+                $new_embed = "https://666.watch/embed/{$vid_id}";
+                $new_remote = $new_embed;
+                $donor_server = 'sexlar.link';
+            }
+        }
+
+        // 2.3. arhivporno.rest / pornosektor.com
+        if (empty($new_embed) && (stripos($donor_server, 'arhivporno') !== false || stripos(implode(' ', $all_candidates), 'arhivporno') !== false || stripos(implode(' ', $all_candidates), 'pornosektor') !== false)) {
+            $vid_id = 0;
+            $combined = implode(' ', $all_candidates);
+            if (preg_match('|embed/(\d+)|', $combined, $m)) {
+                $vid_id = intval($m[1]);
+            } elseif (preg_match('|/contents/videos_screenshots/\d+/(\d+)/|', $combined, $m)) {
+                $vid_id = intval($m[1]);
+            }
+            if ($vid_id > 0) {
+                $new_embed = "https://pornosektor.com/embed/{$vid_id}";
+                $new_remote = $new_embed;
+                $donor_server = 'arhivporno.rest';
+            }
+        }
+
+        // 2.4. uzporno.website
+        if (empty($new_embed) && ($donor_server === 'uzporno.website' || stripos(implode(' ', $all_candidates), 'uzporno') !== false)) {
+            $combined = implode(' ', $all_candidates);
+            if (preg_match('|/video/([^/]+)/|', $combined, $m)) {
+                $slug = $m[1];
+                $new_embed = "https://uzporno.website/embed/{$slug}/";
+                $new_remote = $new_embed;
+                $donor_server = 'uzporno.website';
+            }
+        }
+
+        // 2.5. eporner.com
+        if (empty($new_embed) && ($donor_server === 'eporner.com' || stripos(implode(' ', $all_candidates), 'eporner') !== false)) {
+            $combined = implode(' ', $all_candidates);
+            if (preg_match('|video-([a-zA-Z0-9]+)|', $combined, $m)) {
+                $eid = $m[1];
+                $new_embed = "https://www.eporner.com/embed/{$eid}/";
+                $new_remote = $new_embed;
+                $donor_server = 'eporner.com';
+            }
+        }
+
+        // 2.6. uzbxx.ru
+        if (empty($new_embed) && ($donor_server === 'uzbxx.ru' || stripos(implode(' ', $all_candidates), 'uzbxx') !== false)) {
+            $combined = implode(' ', $all_candidates);
+            if (preg_match('|https://uzbxx\.ru/video_online\??[^\s\'"]*|is', $combined, $m)) {
+                $new_remote = $m[0];
+                $new_embed = $new_remote;
+                $donor_server = 'uzbxx.ru';
+            }
+        }
+
+        // Agar yangi embed yoki oqim manzili aniqlangan bo'lsa, bazani yangilaymiz!
+        if (!empty($new_embed) || !empty($new_remote)) {
+            $final_emb = parser_escape($mysqli, $new_embed);
+            $final_rem = parser_escape($mysqli, $new_remote ?: $new_embed);
+            $final_srv = parser_escape($mysqli, $donor_server);
+            $uid = intval($row['id']);
+
+            $mysqli->query("UPDATE ero_files SET 
+                embed = '{$final_emb}', 
+                remote_url = '{$final_rem}',
+                recoil = '{$final_rem}',
+                address = '{$final_emb}',
+                server = '{$final_srv}'
+                WHERE id = $uid LIMIT 1");
+
+            $updated_count++;
+        }
+    }
+
+    if ($updated_count > 0) {
+        @array_map('unlink', glob($doc_root . '/content/cache/*.html'));
+    }
+
+    return ['scanned' => $scanned_count, 'updated' => $updated_count];
+}
+
+/**
  * =========================================================================
  * 5. EPORNER (Ultra HD / 4K / Global Tube - Official High-Speed JSON API)
  * =========================================================================
@@ -1681,21 +2006,6 @@ function parse_video_eporner($video_item_or_url, $manual_cat = 0, $save_mode = '
         return ['status' => 'error', 'message' => "Eporner Video ID topilmadi: " . htmlspecialchars($video_url)];
     }
 
-    $uniqueness = 'eporner_' . $video_id;
-
-    // Duplikat tekshiruvi
-    $check_dup = $mysqli->query("SELECT id, name, translit FROM ero_files WHERE uniqueness = '$uniqueness' LIMIT 1");
-    if ($check_dup && $check_dup->num_rows > 0) {
-        $ex = $check_dup->fetch_assoc();
-        return [
-            'status'        => 'skipped',
-            'message'       => "Avval qo‘shilgan: <a href='/watch/{$ex['translit']}.html' target='_blank' style='color:#f59e0b;'><b>{$ex['name']}</b></a>",
-            'title'         => $ex['name'],
-            'translit'      => $ex['translit'],
-            'category_name' => 'Mavjud'
-        ];
-    }
-
     // Video ma'lumotlarini olish
     $title_raw = is_array($video_item_or_url) ? ($video_item_or_url['title'] ?? '') : '';
     $duration_raw = is_array($video_item_or_url) ? ($video_item_or_url['duration'] ?? '') : '';
@@ -1728,6 +2038,17 @@ function parse_video_eporner($video_item_or_url, $manual_cat = 0, $save_mode = '
     // SEO sarlavha va davomiylik
     $title = parser_clean_seo_title($title_raw);
     $duration = parser_iso_duration($duration_raw);
+
+    // Mavjud videoni tekshirish yoki fayli yo'q bo'lsa yangi embedga o'tkazish
+    $uniqueness = 'eporner_' . $video_id;
+    $upgrade_check = parser_check_or_upgrade_existing_video(
+        $title, $uniqueness, $embed_url, $embed_url, $embed_url,
+        $video_url, 'eporner.com', $poster_url, $duration, $mysqli, $manual_cat,
+        $settings, $width_S, $height_S
+    );
+    if ($upgrade_check !== null) {
+        return $upgrade_check;
+    }
 
     // Kategoriya aniqlash
     $category_id = intval($manual_cat);
